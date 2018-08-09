@@ -1,0 +1,61 @@
+#!/bin/bash
+export MSYS_NO_PATHCONV=1
+# Multiplatform approach to getting the dockerhost IP
+export DOCKERHOST=${APPLICATION_URL-$(docker run --rm --net=host codenvy/che-ip)}
+
+set -e
+# These can optionally be set outside the script, but defaults are here and should work
+export POOL_IP=${POOL_IP:-${DOCKERHOST}}
+SCRIPT_HOME="$( cd "$( dirname "$0" )" && pwd )"
+
+# =================================================================================================================
+# Usage:
+# -----------------------------------------------------------------------------------------------------------------
+usage () {
+  cat <<-EOF
+
+  Usage: $0 [command] [options]
+
+  Commands:
+
+  build - Build the docker image for the project.
+          You need to do this first.
+
+  start - Starts indy_pool container
+
+  stop - Stops the indy_pool container.  This is a non-destructive process.  The container
+         is not deleted so it will be reused the next time you run start.
+         Ctrl-C can be used for this if in the same shell and script is in the foreground.
+
+  rebuild - Rebuild the docker image - bypasses the docker image cache.
+
+  rm - Remove project container and any associated volumes (currently there are none).
+EOF
+exit 1
+}
+
+# =================================================================================================================
+
+pushd ${SCRIPT_HOME} >/dev/null
+
+case "$1" in
+  start)
+      docker run -itd -p 9701-9708:9701-9708 --name=indy_pool1 --env POOL_IP indy_pool
+    ;;
+  stop)
+      docker stop indy_pool1
+    ;;
+  build)
+      docker build -f indy-pool.dockerfile -t indy_pool .
+    ;;
+  rebuild)
+      docker build --no-cache -f indy-pool.dockerfile -t indy_pool .
+    ;;
+  rm)
+      docker rm indy_pool1
+    ;;
+  *)
+      usage;;
+esac
+
+popd >/dev/null

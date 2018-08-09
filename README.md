@@ -166,27 +166,15 @@ If you would like to analyse CPU performance of libindy for your use case, you h
 ## How to start local nodes pool with docker
 To test the SDK codebase with a virtual Indy node network, you can start a pool of local nodes using docker:
 
-Start the pool of local nodes on `127.0.0.1:9701-9708` with Docker by running:
+Start the pool of local nodes on your docker host `9701-9708` by running:
 
 ```
-docker build -f ci/indy-pool.dockerfile -t indy_pool .
-docker run -itd -p 9701-9708:9701-9708 indy_pool
+cd ci
+./manage build
+./manage start
 ```
 
- Dockerfile `ci/indy-pool.dockerfile` supports an optional pool_ip param that allows
- changing ip of pool nodes in generated pool configuration. The following commands
- allow to start local nodes pool in custom docker network and access this pool
- by custom ip in docker network:
-
- ```
- docker network create --subnet 10.0.0.0/8 indy_pool_network
- docker build --build-arg pool_ip=10.0.0.2 -f ci/indy-pool.dockerfile -t indy_pool .
- docker run -d --ip="10.0.0.2" --net=indy_pool_network indy_pool
- ```
- Note that for Windows and MacOS this approach has some issues. Docker for these OS run in
- their virtual environment. First command creates network for container and host can't
- get access to that network because container placed on virtual machine. You must appropriate set up
- networking on your virtual environment. See the instructions for MacOS below.
+`manage` script supports an optional environment `POOL_IP` param that allows changing ip of pool nodes in generated pool configuration. 
 
 ### Docker port mapping on MacOS
 
