@@ -179,7 +179,7 @@ that may be need for your applications.
 
  * `libindy.a` - This is a static library, which is compiled with NDK.
 
- [How to use instructions.](https://github.com/hyperledger/indy-sdk/blob/master/docs/android-build.md#usage)  
+ [How to use instructions.](https://github.com/hyperledger/indy-sdk/blob/master/docs/android-build.md#usage)
 
 {release channel} must be replaced with rc or stable to define corresponded release channel.
 See section "Release channels" for more details.

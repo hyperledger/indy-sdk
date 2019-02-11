@@ -98,7 +98,7 @@ public class VcxJava {
 					errorCode = ErrorCode.UNKNOWN_ERROR;
 				}
 			} catch(Exception e) {
-				logger.warn(e.getLocalizedMessage());
+				//TODO Log exception to the logger
 			}
 
 			if (! ErrorCode.SUCCESS.equals(errorCode)) {

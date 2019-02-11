@@ -17,6 +17,13 @@ public class VcxApi extends VcxJava.API {
     private VcxApi() {
     }
 
+     public static int initNullPay() throws VcxException {
+         logger.debug("initNullPay()");
+         int result = LibVcx.api.nullpay_init();
+         checkResult(result);
+         return result;
+     }
+
     private static Callback vcxIniWithConfigCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err) {
@@ -84,4 +91,10 @@ public class VcxApi extends VcxJava.API {
 
     }
 
+    public static int vcxSetDefaultLogger(String logLevel) throws VcxException {
+        logger.debug("vcxSetDefaultLogger()");
+        int result = LibVcx.api.vcx_set_default_logger(logLevel);
+        checkResult(result);
+        return result;
+    }
 }

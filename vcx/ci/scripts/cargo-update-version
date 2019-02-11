@@ -3,7 +3,7 @@ import subprocess
 import os
 import sys
 from toml_utils import extract_version_from_file, update_major_minor_build_to_toml, \
-        update_revision, extract_revision
+    update_revision, extract_revision
 from version_utils import get_revision_number
 from subprocess import Popen, PIPE
 import buildnum
@@ -14,7 +14,7 @@ import json
 # Then it writes the new numbers to the Cargo.toml
 # and also to the package.json for the wrapper.
 
-# This requires that you are in the ./libvcx 
+# This requires that you are in the ./libvcx
 # directory.
 
 
@@ -22,7 +22,7 @@ TOML_FILENAME = 'Cargo.toml'
 LIBVCX_DIR = 'libvcx'
 NPM_PACKAGE_JSON = '../wrappers/node/package.json'
 
-# Verify that we are in the correct directory 
+# Verify that we are in the correct directory
 # and that the toml file exists.
 def verify_cwd(target_dir, toml_file):
     dir_path = os.getcwd()
@@ -36,20 +36,21 @@ def verify_cwd(target_dir, toml_file):
     sys.exit(1)
 
 
-def main():
+def main(version=None, revision_number=None):
     verify_cwd(LIBVCX_DIR, TOML_FILENAME)
-    (major, minor) = extract_version_from_file(TOML_FILENAME)
-    build_number = buildnum.main()
-    print('build:\t\t%s ' % build_number)
-    revision_number = get_revision_number()
-    update_major_minor_build_to_toml(TOML_FILENAME, major, minor, build_number)
+    if not version or not revision_number:
+        (major, minor) = extract_version_from_file(TOML_FILENAME)
+        version = "%s.%s.%s" % (major, minor, buildnum.main())
+        revision_number = get_revision_number()
+        print("No version or revision provided, version=%s, revision=%s" % (version, revision_number))
+    update_major_minor_build_to_toml(TOML_FILENAME, version)
     update_revision(TOML_FILENAME, revision_number)
-    full_version = "%s.%s.%s-%s" % (major, minor, build_number, revision_number)
-    update_npm_package(NPM_PACKAGE_JSON, full_version) 
-    
+    full_version = "%s-%s" % (version, revision_number)
+    update_npm_package(NPM_PACKAGE_JSON, full_version)
+
 
 def update_npm_package(package, version):
-    try: 
+    try:
         with open(package, 'r') as f_in:
             o = f_in.read()
 
@@ -62,7 +63,11 @@ def update_npm_package(package, version):
         print(str(IOError)+ ' ' + package)
 
     sys.exit(0)
-    
+
 if __name__ == '__main__':
-    main()
+    args = ()
+    if len(sys.argv) > 2:
+        args = sys.argv[2:]
+
+    main(*args)
 

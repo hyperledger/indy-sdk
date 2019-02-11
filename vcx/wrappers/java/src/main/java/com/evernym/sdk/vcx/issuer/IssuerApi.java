@@ -6,29 +6,31 @@ import com.evernym.sdk.vcx.VcxException;
 import com.evernym.sdk.vcx.VcxJava;
 import com.sun.jna.Callback;
 
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java9.util.concurrent.CompletableFuture;
 
+import java.util.*;
+import java9.util.concurrent.CompletableFuture;
 
 public class IssuerApi extends VcxJava.API {
 
     private static final Logger logger = LoggerFactory.getLogger("IssuerApi");
-    private static Callback issuerCreateCredentialCB = new Callback() {
+    private static final Callback issuerCreateCredentialCB = new Callback() {
         // TODO: This callback and jna definition needs to be fixed for this API
         // it should accept connection handle as well
         @SuppressWarnings({"unused", "unchecked"})
-        public void callback(int commandHandle, int err, int credentialHandle) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], credntialHandle = [" + credentialHandle + "]");
+        public void callback(int commandHandle, int err, int credntialHandle) {
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], credntialHandle = [" + credntialHandle + "]");
             CompletableFuture<Integer> future = (CompletableFuture<Integer>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
-            Integer result = credentialHandle;
+            Integer result = credntialHandle;
             future.complete(result);
         }
     };
 
     public static CompletableFuture<Integer> issuerCreateCredential(String sourceId,
-                                                                    int credentialDefHandle,
+                                                                    String credentialDefId,
                                                                     String issuerId,
                                                                     String credentialData,
                                                                     String credentialName,
@@ -37,7 +39,7 @@ public class IssuerApi extends VcxJava.API {
         ParamGuard.notNullOrWhiteSpace(sourceId, "credentialDefId");
         ParamGuard.notNullOrWhiteSpace(sourceId, "SchemaId");
 
-        logger.debug("issuerCreateCredential() called with: sourceId = [" + sourceId + "], credentialDefHandle = [" + credentialDefHandle + "], issuerId = [" + issuerId + "], credentialData = [" + credentialData + "], credentialName = [" + credentialName + "], price = [" + price + "]");
+        logger.debug("issuerCreateCredential() called with: sourceId = [" + sourceId + "], credentialDefId = [" + credentialDefId + "], issuerId = [" + issuerId + "], credentialData = [" + credentialData + "], credentialName = [" + credentialName + "], price = [" + price + "]");
         //TODO: Check for more mandatory params in vcx to add in PamaGuard
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int issue = addFuture(future);
@@ -45,11 +47,11 @@ public class IssuerApi extends VcxJava.API {
         int result = LibVcx.api.vcx_issuer_create_credential(
                 issue,
                 sourceId,
-                credentialDefHandle,
+                credentialDefId,
                 issuerId,
                 credentialData,
                 credentialName,
-                String.valueOf(price),
+                price,
                 issuerCreateCredentialCB);
         checkResult(result);
         return future;
@@ -89,7 +91,7 @@ public class IssuerApi extends VcxJava.API {
         return future;
     }
 
-    private static Callback issuerCredentialUpdateStateCB = new Callback() {
+    private static Callback issuerCredntialUpdateStateCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err,int state) {
             logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], state = [" + state + "]");
@@ -99,12 +101,12 @@ public class IssuerApi extends VcxJava.API {
         }
     };
 
-    public static CompletableFuture<Integer> issuerCredentialUpdateState(int credentialHandle) throws VcxException {
+    public static CompletableFuture<Integer> issuerCredntialUpdateState(int credentialHandle) throws VcxException {
         ParamGuard.notNull(credentialHandle, "credentialHandle");
         logger.debug("issuerCredntialUpdateState() called with: credentialHandle = [" + credentialHandle + "]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int issue = addFuture(future);
-        int result = LibVcx.api.vcx_issuer_credential_update_state(issue, credentialHandle, issuerCredentialUpdateStateCB);
+        int result = LibVcx.api.vcx_credential_update_state(issue, credentialHandle, issuerCredntialUpdateStateCB);
         checkResult(result);
         return future;
     }
@@ -124,7 +126,7 @@ public class IssuerApi extends VcxJava.API {
         logger.debug("issuerCredntialGetState() called with: credentialHandle = [" + credentialHandle + "]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int issue = addFuture(future);
-        int result = LibVcx.api.vcx_issuer_credential_get_state(issue, credentialHandle, issuerCredntialGetStateCB);
+        int result = LibVcx.api.vcx_connection_get_state(issue, credentialHandle, issuerCredntialGetStateCB);
         checkResult(result);
         return future;
     }

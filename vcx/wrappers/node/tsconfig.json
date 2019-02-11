@@ -12,6 +12,6 @@
     "preserveConstEnums": true
   },
   "include": [
-    "./src/**/*", "test/suite3/logging.2.test.ts", "test/suite3/logging.1.test.ts"
-  ],
+    "./src/*"
+  ]
 }

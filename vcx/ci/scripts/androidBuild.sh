@@ -1,9 +1,15 @@
 #!/bin/bash
 
+set -e
+
 setup() {
     echo "Working Directory: ${PWD}"
     set -e
     export ARCH=$1
+    export LIBINDY_BRANCH=$2
+    export LIBINDY_VERSION=$3
+    export LIBNULL_BRANCH=$4
+    export LIBNULL_VERSION=$5
 
     export PATH=$PATH:/opt/gradle/gradle-3.4.1/bin
     export PATH=${PATH}:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools:$ANDROID_HOME/build-tools/25.0.2/
@@ -56,7 +62,7 @@ retrieve_prebuilt_binaries() {
 
 generate_flags(){
     if [ -z $1 ]; then
-        echo "please provide the arch e.g arm, x86 or arm64"
+        echo "please provide the arch e.g arm, arm64, armv7, x86, or x86_64"
         exit 1
     fi
     if [ $1 == "arm" ]; then
@@ -75,14 +81,13 @@ generate_flags(){
         export ARCH="x86"
         export TRIPLET="i686-linux-android"
         export PLATFORM="16"
-        export ABI="x86"
-    fi
-
-    if [ $1 == "arm64" ]; then
-        export ARCH="arm64"
-        export TRIPLET="aarch64-linux-android"
+    elif [ $1 == "x86_64" ]; then
+        export ARCH="x86_64"
+        export TRIPLET="x86_64-linux-android"
         export PLATFORM="21"
-        export ABI="arm64-v8a"
+    else
+        echo "please provide the arch e.g arm, arm64, armv7, x86, or x86_64"
+        exit 1
     fi
 }
 
@@ -91,18 +96,31 @@ get_libindy() {
     if [ -z ${LIBINDY_DIR} ]; then
         [ -z ${LIBINDY_BRANCH} ] && exit 1
         [ -z ${LIBINDY_VERSION} ] && exit 1
-
+		SIMPLE_LIBINDY_VERSION=$(echo ${LIBINDY_VERSION} | cut -f1 -d'-')
         if [ ! -d "libindy_${ARCH}" ]; then
-            if [ "$LIBINDY_BRANCH" = "stable" ]; then
-                wget https://repo.sovrin.org/android/libindy/${LIBINDY_BRANCH}/${LIBINDY_VERSION}/libindy_android_${ARCH}_${LIBINDY_VERSION}.zip
-            else
-                wget https://repo.sovrin.org/android/libindy/${LIBINDY_BRANCH}/${LIBINDY_VERSION}-${LIBINDY_TAG}/libindy_android_${ARCH}_${LIBINDY_VERSION}.zip
-            fi
 
-            unzip libindy_android_${ARCH}_${LIBINDY_VERSION}.zip
+            wget -q https://repo.sovrin.org/android/libindy/${LIBINDY_BRANCH}/${LIBINDY_VERSION}/libindy_android_${ARCH}_${SIMPLE_LIBINDY_VERSION}.zip
+            unzip libindy_android_${ARCH}_${SIMPLE_LIBINDY_VERSION}.zip
 
         fi
         export LIBINDY_DIR="${PWD}/libindy_${ARCH}"
+    fi
+
+}
+
+get_libnullpay() {
+    set -xv
+    if [ -z ${LIBNULLPAY_DIR} ]; then
+        [ -z ${LIBNULL_BRANCH} ] && exit 1
+        [ -z ${LIBNULL_VERSION} ] && exit 1
+		SIMPLE_LIBNULL_VERSION=$(echo ${LIBNULL_VERSION} | cut -f1 -d'-')
+        if [ ! -d "libnullpay_${ARCH}" ]; then
+
+            wget -q https://repo.sovrin.org/android/libnullpay/${LIBNULL_BRANCH}/${LIBNULL_VERSION}/libnullpay_android_${ARCH}_${SIMPLE_LIBNULL_VERSION}.zip
+            unzip libnullpay_android_${ARCH}_${SIMPLE_LIBNULL_VERSION}.zip
+
+        fi
+        export LIBNULLPAY_DIR="${PWD}/libnullpay_${ARCH}"
     fi
 
 }
@@ -119,16 +137,21 @@ build_vcx() {
         echo "missing libindy_${ARCH} directory. Cannot proceed without it."
         exit 1
     fi
+    if [ ! -d ${LIBNULLPAY_DIR} ]; then
+        echo "missing libnullpay directory. Cannot proceed without it."
+        exit 1
+    fi
 
     pushd ${LIBVCX_PATH}
     mkdir -p toolchains/
-    ./build.nondocker.sh ${ARCH} ${PLATFORM} ${TRIPLET} ${OPENSSL_DIR} ${SODIUM_DIR} ${LIBZMQ_DIR} ${LIBINDY_DIR}
+    ./build.nondocker.sh ${ARCH} ${PLATFORM} ${TRIPLET} ${OPENSSL_DIR} ${SODIUM_DIR} ${LIBZMQ_DIR} ${LIBINDY_DIR} ${LIBNULLPAY_DIR}
     popd
     rm -rf libvcx_${ARCH}
     mv ${LIBVCX_PATH}libvcx_${ARCH} .
 
 }
 
-setup $1
-get_libindy $1
-build_vcx $1
+setup $1 $2 $3 $4 $5
+get_libindy
+get_libnullpay
+build_vcx

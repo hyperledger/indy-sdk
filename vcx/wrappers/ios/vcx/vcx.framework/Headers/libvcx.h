@@ -49,6 +49,9 @@ typedef struct
 
 } vcx_status_t;
 
+/** Initialize nullpay*/
+vcx_error_t nullpay_init();
+
 /**
  * Initialize the SDK
  */
@@ -147,7 +150,7 @@ vcx_error_t vcx_connection_create_with_invite(vcx_command_handle_t command_handl
 
 /** Deletes a connection, send an API call to agency to stop sending messages from this connection */
 vcx_error_t vcx_connection_delete_connection(vcx_command_handle_t command_handle, vcx_connection_handle_t connection_handle, void (*cb)(vcx_command_handle_t, vcx_error_t err));
-    
+
 /**
  * credential issuer object
  *
@@ -195,7 +198,7 @@ vcx_error_t vcx_issuer_accept_credential(vcx_credential_handle_t credential_hand
 
 /** Creates a proof object.  Populates a handle to the new proof. */
 vcx_error_t vcx_proof_create(vcx_command_handle_t command_handle, const char *source_id, const char *requested_attrs, const char *requested_predicates, const char *name, void (*cb)(vcx_command_handle_t command_handle, vcx_error_t err, vcx_proof_handle_t proof_handle));
-    
+
 /** Asynchronously send a proof request to the connection. */
 vcx_error_t vcx_proof_send_request(vcx_command_handle_t command_handle, vcx_proof_handle_t proof_handle, vcx_connection_handle_t connection_handle, void (*cb)(vcx_command_handle_t xcommand_handle, vcx_error_t err));
 
@@ -252,10 +255,10 @@ vcx_error_t vcx_disclosed_proof_deserialize(vcx_command_handle_t command_handle,
 
 /** Takes the disclosed proof object and returns a json string of all credentials matching associated proof request from wallet */
 vcx_error_t vcx_disclosed_proof_retrieve_credentials(vcx_command_handle_t command_handle, vcx_proof_handle_t proof_handle, void (*cb)(vcx_command_handle_t xcommand_handle, vcx_error_t err, const char *matching_credentials));
-    
+
 /** Takes the disclosed proof object and generates a proof from the selected credentials and self attested attributes */
 vcx_error_t vcx_disclosed_proof_generate_proof(vcx_command_handle_t command_handle, vcx_proof_handle_t proof_handle, const char *selected_credentials, const char *self_attested_attrs, void (*cb)(vcx_command_handle_t xcommand_handle, vcx_error_t err));
-    
+
 /** Releases the disclosed_proof from memory. */
 vcx_error_t vcx_disclosed_proof_release(vcx_proof_handle_t proof_handle);
 
@@ -318,14 +321,14 @@ vcx_error_t vcx_wallet_delete_record(vcx_command_handle_t chandle, const char * 
 
 /** Update a record in wallet if it is already added */
 vcx_error_t vcx_wallet_update_record_value(vcx_command_handle_t chandle, const char *type_, const char *record_id, const char *record_value, void (*cb)(vcx_command_handle_t xhandle, vcx_error_t err));
-    
+
 /**
  * token object
  */
 
 /** Create payment address for using tokens */
 vcx_error_t vcx_wallet_create_payment_address(vcx_command_handle_t chandle, const char *seed, void (*cb)(vcx_command_handle_t xhandle, vcx_error_t err, const char *address));
-    
+
 /** Get wallet token info which contains balance and addresses */
 vcx_error_t vcx_wallet_get_token_info(vcx_command_handle_t chandle, vcx_payment_handle_t payment_handle, void (*cb)(vcx_command_handle_t xhandle, vcx_error_t err, const char *token_info));
 
@@ -345,6 +348,9 @@ vcx_error_t vcx_messages_update_status( vcx_command_handle_t command_handle, con
  * utils object
  */
 vcx_error_t vcx_ledger_get_fees(vcx_command_handle_t command_handle, void(*cb)(vcx_command_handle_t xhandle, vcx_error_t error, const char *fees));
+
+/** Logging **/
+vcx_error_t vcx_set_default_logger(const char* pattern);
 
 /** For testing purposes only */
 void vcx_set_next_agency_response(int);

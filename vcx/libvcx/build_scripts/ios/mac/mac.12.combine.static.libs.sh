@@ -48,20 +48,16 @@ if [ ! -z "$3" ]; then
     DEBUG_SYMBOLS=$3
 fi
 
-IOS_ARCHS="arm64,armv7,armv7s,i386,x86_64"
-if [ ! -z "$4" ]; then
-    IOS_ARCHS=$4
+IOS_ARCHS=$4
+if [ -z "${IOS_ARCHS}" ]; then
+    echo "please provide the arch e.g arm, arm64, armv7, x86, or x86_64"
+    exit 1
 fi
+
 bkpIFS="$IFS"
 IFS=',()][' read -r -a archs <<<"${IOS_ARCHS}"
 echo "Combining architectures: ${archs[@]}"    ##Or printf "%s\n" ${array[@]}
 IFS="$bkpIFS"
-
-# if [ "${COMBINED_LIB}" = "libvcxpartial" ]; then
-#     archs=(armv7 arm64)
-#else
-#    archs=(armv7 armv7s arm64 i386 x86_64)
-# fi
 
 libraries=(*.a.tocombine)
 libtool="/usr/bin/libtool"

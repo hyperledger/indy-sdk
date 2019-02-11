@@ -1,9 +1,9 @@
 #!/bin/sh
-
 #1) Install Rust and rustup (https://www.rust-lang.org/install.html).
 #To get into the if statement below execute the following command...
 # mv /Users/norm/.cargo/bin/rustup /Users/norm/.cargo/bin/rustup.bak
 RUSTUP_VERSION=`rustup --version`
+DEFAULT_RUST_VERSION=$1
 if [ "$?" != "0" ]; then
     if [ -f $HOME/.cargo/bin/rustup ]; then
         echo "You need to add $HOME/.cargo/bin to your PATH environment variable or simply restart your terminal"
@@ -44,10 +44,9 @@ fi
 
 if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
     rustup update
-    rustup default 1.31.0
+    rustup default ${DEFAULT_RUST_VERSION}
     rustup component add rls-preview rust-analysis rust-src
     echo "Using rustc version $(rustc --version)"
-    rustup target remove aarch64-linux-android armv7-linux-androideabi arm-linux-androideabi i686-linux-android x86_64-linux-android
     rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
 
     RUST_TARGETS=$(rustc --print target-list|grep -i ios)
@@ -63,8 +62,8 @@ if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
         exit 1
     fi
 
-    cargo install cargo-lipo
-    cargo install cargo-xcode
+    cargo install --force cargo-lipo
+    cargo install --force cargo-xcode
 
     BREW_VERSION=`brew --version`
     if ! [[ $BREW_VERSION =~ ^'Homebrew ' ]]; then
@@ -84,4 +83,5 @@ if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
     brew install wget
     brew install truncate
     brew install libzip
+    brew install python3
 fi

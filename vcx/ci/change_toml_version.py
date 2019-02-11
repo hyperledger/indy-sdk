@@ -55,30 +55,6 @@ def change_version(v, b, h):
         s = s + "+" + str(h)
     return s
 
-
-# for testing
-#def test():
-    
-    #version = "1.2.33346324+cd3sd2fe"
-    #build = "45678910"
-    #h = 'beefb23'
-    #print("before: %s" % version)
-    #version = change_version(version, build, h)
-    #print("after: %s" % version)
-
-#    version = "2.3"
-#    print("before: %s" % version)
-#    version = change_version(version, build, h)
-#    print("after: %s" % version)
-#
-#    print('parsing version "version = 1.2.3"')
-#    print(parse_version("version=1.2.3"))
-#
-#    version = "1.2.3.hasbas"
-#    print("testing truncate on %s" % version)
-#    print('truncated: %s ' % truncate(version))
-
-
 # parses out the vesion number from a given 
 # line (pulled from the Cargo.toml file)
 def parse_version(s):
@@ -104,6 +80,3 @@ if __name__ == "__main__":
         print("PATH = path to Cargo.toml file")
         print("BUILD_NUM = build number for version")
         print("HASH_NUM = commit hash for version")
-
-
-# not used

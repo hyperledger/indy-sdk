@@ -311,6 +311,16 @@ void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_handle,
 
 @implementation ConnectMeVcx
 
+- (int)initNullPay {
+   return nullpay_init();
+}
+
+- (int)vcxSetDefaultLogger:(NSString *) level {
+
+  const char *log_level = [level cString];
+  return vcx_set_default_logger(log_level);
+}
+
 - (void)initWithConfig:(NSString *)config
             completion:(void (^)(NSError *error))completion
 {
@@ -994,11 +1004,11 @@ withConnectionHandle:(vcx_connection_handle_t)connection_handle
     vcx_error_t ret;
     vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
     ret = vcx_ledger_get_fees(handle, VcxWrapperCommonStringCallback);
-    
+
     if (ret != 0)
     {
         [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
             completion([NSError errorFromVcxError: ret], nil);
         });

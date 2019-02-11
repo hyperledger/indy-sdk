@@ -27,6 +27,11 @@ public abstract class LibVcx {
         public int vcx_reset();
 
     /**
+     * nullpay
+     */
+        public int nullpay_init();
+
+    /**
      * Helper API for testing purposes.
      */
         public void vcx_set_next_agency_response(int msg);
@@ -136,7 +141,7 @@ public abstract class LibVcx {
      */
 
         /** Creates a credential object from the specified credentialdef handle. Populates a handle the new credential. */
-        public int vcx_issuer_create_credential(int command_handle, String source_id, int cred_def_handle, String issuer_did, String credential_data, String credential_name, String price, Callback cb);
+        public int vcx_issuer_create_credential(int command_handle, String source_id, String cred_def_id, String issuer_did, String credential_data, String credential_name, long price, Callback cb);
 
         /** Asynchronously sends the credential offer to the connection. */
         public int vcx_issuer_send_credential_offer(int command_handle, int credential_handle, int connection_handle, Callback cb);
@@ -415,6 +420,7 @@ public abstract class LibVcx {
 
         /** Set custom logger implementation.. */
         int vcx_set_logger(Pointer context, Callback enabled, Callback log, Callback flush);
+        int vcx_set_default_logger(String log_level);
 
     }
 
@@ -431,6 +437,7 @@ public abstract class LibVcx {
         } catch (UnsatisfiedLinkError ex) {
             // Library could not be found in standard OS locations.
             // Call init(File file) explicitly with absolute library path.
+            ex.printStackTrace();
         }
     }
 

@@ -4,7 +4,7 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
-		<key>vcx-demo.xcscheme</key>
+		<key>vcx-demo.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
@@ -14,7 +14,17 @@
 			<key>orderHint</key>
 			<integer>2</integer>
 		</dict>
+		<key>vcx-objc.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
+		</dict>
 		<key>vcx.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+		<key>vcx.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>1</integer>
@@ -22,6 +32,16 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>DD2566ED209705E3002EBEBA</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>DD2566F6209705E3002EBEBA</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>DD2567152097138F002EBEBA</key>
 		<dict>
 			<key>primary</key>
