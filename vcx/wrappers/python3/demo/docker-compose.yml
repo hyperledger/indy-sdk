@@ -1,0 +1,69 @@
+version: '2'
+services:
+  vcx-demo-indy-pool:
+    build:
+      context: ../../../../ci/
+      dockerfile: indy-pool.dockerfile
+      args:
+        pool_ip: '10.1.0.2'
+    image: vcx-demo-indy-pool
+    container_name: vcx-demo-indy-pool
+    working_dir: /home/indy
+    ports:
+      - "9701:9701"
+      - "9702:9702"
+      - "9703:9703"
+      - "9704:9704"
+      - "9705:9705"
+      - "9706:9706"
+      - "9707:9707"
+      - "9708:9708"
+    networks:
+      demo_network:
+        ipv4_address: 10.1.0.2
+    volumes:
+      - sandbox:/var/lib/indy/sandbox/
+  vcx-demo-dummy-cloud-agent:
+    build:
+      context: .
+      dockerfile: dummy-cloud-agent.dockerfile
+    image: vcx-demo-dummy-cloud-agent
+    container_name: vcx-demo-dummy-cloud-agent
+    networks:
+      demo_network:
+        ipv4_address: 10.1.0.3
+    volumes:
+      - "./../../../dummy-cloud-agent:/home/vcx/intermediate/dummy-cloud-agent"
+      - "./../../../../wrappers/rust:/home/vcx/wrappers/rust"
+      - ".:/home/vcx/demo"
+    working_dir: /home/vcx/intermediate/dummy-cloud-agent
+    command: cargo run /home/vcx/demo/sample-config-docker.json
+  vcx-demo-libindyvcx:
+    build:
+      context: .
+      dockerfile: vcx-demo-libindyvcx.dockerfile
+    image: vcx-demo-libindyvcx
+    container_name: vcx-demo-libindyvcx
+    volumes:
+      - ./:/home/vcx/demo
+      - sandbox:/home/vcx/demo/sandbox
+    command: bash
+    stdin_open: true
+    tty: true
+    working_dir: /home/vcx/demo
+    networks:
+      demo_network:
+        ipv4_address: 10.1.0.4
+    environment:
+      - AGENT_IP=10.1.0.3
+      - POOL_TXN_FILE=sandbox/pool_transactions_genesis
+networks:
+  demo_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        -
+          subnet: 10.1.0.0/24
+volumes:
+  sandbox:

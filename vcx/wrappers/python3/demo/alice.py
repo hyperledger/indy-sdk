@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from ctypes import cdll
 from time import sleep
 import platform
@@ -15,9 +16,9 @@ from vcx.api.vcx_init import vcx_init_with_config
 from vcx.state import State
 
 # logging.basicConfig(level=logging.DEBUG) uncomment to get logs
-
+agentIp = os.environ.get('AGENT_IP', 'localhost')
 provisionConfig = {
-    'agency_url': 'http://localhost:8080',
+    'agency_url': 'http://'+agentIp+':8080',
     'agency_did': 'VsKV7grR1BUE29mG2Fm2kX',
     'agency_verkey': 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR',
     'wallet_name': 'alice_wallet',
@@ -37,7 +38,7 @@ async def main():
     # Set some additional configuration options specific to alice
     config['institution_name'] = 'alice'
     config['institution_logo_url'] = 'http://robohash.org/456'
-    config['genesis_path'] = 'docker.txn'
+    config['genesis_path'] = os.environ.get('POOL_TXN_FILE','pool-local.txn')
 
     print("#8 Initialize libvcx with new configuration")
     await vcx_init_with_config(json.dumps(config))
