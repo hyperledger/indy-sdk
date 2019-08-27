@@ -23,8 +23,8 @@ pub mod xsalsa20;
 #[path = "chacha20poly1305_ietf/sodium.rs"]
 pub mod chacha20poly1305_ietf;
 
-#[cfg(feature = "hash_openssl")]
-#[path = "hash/openssl.rs"]
+#[cfg(feature = "hash_sodium")]
+#[path = "hash/sodium.rs"]
 pub mod hash;
 pub mod signature_serializer;
 

@@ -15,7 +15,7 @@ use api::ErrorCode;
 use domain::ledger::{constants, request::ProtocolVersion};
 use errors::prelude::*;
 use services::pool::events::{REQUESTS_FOR_STATE_PROOFS, REQUESTS_FOR_MULTI_STATE_PROOFS};
-use utils::crypto::hash::hash as openssl_hash;
+use utils::crypto::hash::hash as sha256;
 
 use super::PoolService;
 use super::types::*;
@@ -157,7 +157,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_ATTR attr_name {:?}", attr_name);
 
                 let marker = if ProtocolVersion::is_node_1_3() { '\x01' } else { '1' };
-                let hash = openssl_hash(attr_name.as_bytes()).ok()?;
+                let hash = sha256(attr_name.as_bytes()).ok()?;
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_ATTR No key suffix");
@@ -277,7 +277,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
     let key_prefix = match type_ {
         constants::GET_NYM => {
             if let Some(dest) = dest {
-                openssl_hash(dest.as_bytes()).ok()?
+                sha256(dest.as_bytes()).ok()?
             } else {
                 debug!("TransactionHandler::parse_reply_for_builtin_sp: <<< No dest");
                 return None;
@@ -794,7 +794,7 @@ fn _parse_reply_for_proof_value(json_msg: &SJsonValue, data: Option<&str>, parse
                 value["verkey"] = parsed_data["verkey"].clone();
             }
             constants::GET_ATTR => {
-                value["val"] = SJsonValue::String(hex::encode(openssl_hash(data.as_bytes()).unwrap()));
+                value["val"] = SJsonValue::String(hex::encode(sha256(data.as_bytes()).unwrap()));
             }
             constants::GET_CRED_DEF | constants::GET_REVOC_REG_DEF | constants::GET_REVOC_REG | constants::GET_TXN_AUTHR_AGRMT_AML => {
                 value["val"] = parsed_data.clone();
@@ -858,7 +858,7 @@ fn _parse_reply_for_proof_value(json_msg: &SJsonValue, data: Option<&str>, parse
 
 fn _calculate_taa_digest(text: &str, version: &str) -> IndyResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    openssl_hash(content.as_bytes())
+    sha256(content.as_bytes())
 }
 
 fn _is_full_taa_state_value_expected(expected_state_key: &[u8]) -> bool {

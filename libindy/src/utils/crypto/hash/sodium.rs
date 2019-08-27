@@ -1,8 +1,7 @@
-extern crate openssl;
+extern crate sodiumoxide;
 
 use errors::prelude::*;
-use self::openssl::error::ErrorStack;
-use self::openssl::hash::{Hasher, MessageDigest};
+use sodiumoxide::crypto::hash::sha256::*;
 
 pub const HASHBYTES: usize = 32;
 
@@ -15,11 +14,32 @@ pub fn hash(input: &[u8]) -> Result<Vec<u8>, IndyError> {
     Ok(hasher.finish().map(|b| b.to_vec())?)
 }
 
+#[derive(Clone, Copy)]
+pub struct Hasher {
+    state: State,
+}
+
+impl Hasher {
+    pub fn new() -> Result<Self, IndyError> {
+        Ok(Hasher { state: State::new() })
+    }
+
+    pub fn update(&mut self, data: &[u8]) -> Result<(), IndyError> {
+        self.state.update(data);
+        Ok(())
+    }
+
+    pub fn finish(&mut self) -> Result<[u8; 32], IndyError> {
+        let Digest(result) = self.state.finalize();
+        Ok(result)
+    }
+}
+
 pub struct Hash {}
 
 impl Hash {
     pub fn new_context() -> Result<Hasher, IndyError> {
-        Ok(Hasher::new(MessageDigest::sha256())?)
+        Ok(Hasher::new()?)
     }
 
     pub fn hash_leaf<T>(leaf: &T) -> Result<Vec<u8>, IndyError> where T: Hashable {
@@ -60,22 +80,11 @@ impl Hash {
 /// ```
 pub trait Hashable {
     /// Update the given `context` with `self`.
-    ///
-    /// See `openssl::hash::Hasher::update` for more information.
     fn update_context(&self, context: &mut Hasher) -> Result<(), IndyError>;
 }
 
 impl<T: AsRef<[u8]>> Hashable for T {
     fn update_context(&self, context: &mut Hasher) -> Result<(), IndyError> {
-        context
-            .update(self.as_ref())
-            .to_indy(IndyErrorKind::InvalidState, "Internal OpenSSL error")
-    }
-}
-
-impl From<ErrorStack> for IndyError {
-    fn from(err: ErrorStack) -> IndyError {
-        // TODO: FIXME: Analyze ErrorStack and split invalid structure errors from other errors
-        err.to_indy(IndyErrorKind::InvalidState, "Internal OpenSSL error")
+        context.update(self.as_ref())
     }
 }

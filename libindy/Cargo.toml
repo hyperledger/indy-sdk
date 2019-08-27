@@ -20,8 +20,8 @@ path = "src/lib.rs"
 crate-type = ["staticlib", "rlib", "cdylib"]
 
 [features]
-default = ["bn_openssl", "ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "base58_rust_base58", "base64_rust_base64", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "pair_amcl", "hash_openssl", "local_nodes_pool", "revocation_tests", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "memzero_sodium", "randombytes_sodium"]
-bn_openssl = ["openssl", "int_traits"]
+default = ["bn", "ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "base58_rust_base58", "base64_rust_base64", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "pair_amcl", "hash_sodium", "local_nodes_pool", "revocation_tests", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "memzero_sodium", "randombytes_sodium"]
+bn = ["int_traits"]
 ed25519_sign_sodium = ["sodiumoxide"]
 ed25519_box_sodium = ["sodiumoxide"]
 sealedbox_sodium = ["sodiumoxide"]
@@ -31,7 +31,7 @@ xsalsa20_sodium = ["sodiumoxide"]
 chacha20poly1305_ietf_sodium = ["sodiumoxide"]
 pwhash_argon2i13_sodium = ["sodiumoxide"]
 pair_amcl = ["ursa"]
-hash_openssl = ["openssl"]
+hash_sodium = ["sodiumoxide"]
 local_nodes_pool = []
 revocation_tests = []
 force_full_interaction_tests = []
@@ -55,7 +55,6 @@ log = "0.4.8"
 log-derive = "0.3.0"
 derivative = "1.0.2"
 dirs = "2.0.2"
-openssl = { version = "0.10", optional = true }
 backtrace = "=0.3.11"
 owning_ref = "0.4"
 rand = "0.7.0"
@@ -68,7 +67,7 @@ serde_derive = "1.0.99"
 sha2 = "0.8"
 sha3 = "0.8"
 rmp-serde = "0.13.7"
-sodiumoxide = {version = "0.0.16", optional = true}
+sodiumoxide = {version = "0.2.2", optional = true}
 time = "0.1.42"
 threadpool = "1.7.1"
 zmq = "0.9.1"

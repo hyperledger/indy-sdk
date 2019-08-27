@@ -20,7 +20,6 @@ extern crate indyrs as api;
 extern crate ursa;
 extern crate uuid;
 extern crate named_type;
-extern crate openssl;
 extern crate rmp_serde;
 extern crate rust_base58;
 extern crate time;
@@ -2644,7 +2643,7 @@ mod high_cases {
 #[cfg(not(feature = "only_high_cases"))]
 mod medium_cases {
     use super::*;
-    use openssl::hash::{MessageDigest, Hasher};
+    use sodiumoxide::crypto::hash::sha256;
     use sodiumoxide::crypto::secretbox;
     use utils::domain::anoncreds::schema::Schema;
 
@@ -2965,9 +2964,9 @@ mod medium_cases {
         fn indy_attrib_requests_works_for_hash_value() {
             let setup = Setup::new_identity();
 
-            let mut ctx = Hasher::new(MessageDigest::sha256()).unwrap();
-            ctx.update(&ATTRIB_RAW_DATA.as_bytes()).unwrap();
-            let hashed_attr = hex::encode(ctx.finish().unwrap().as_ref());
+            let mut ctx = sha256::State::new();
+            ctx.update(&ATTRIB_RAW_DATA.as_bytes());
+            let hashed_attr = hex::encode(ctx.finalize().as_ref());
 
             let attrib_request = ledger::build_attrib_request(&setup.did,
                                                               &setup.did,

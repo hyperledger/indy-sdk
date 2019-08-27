@@ -28,7 +28,7 @@ use domain::ledger::validator_info::GetValidatorInfoOperation;
 use domain::ledger::auth_rule::*;
 use domain::ledger::author_agreement::*;
 use errors::prelude::*;
-use utils::crypto::hash::hash as openssl_hash;
+use utils::crypto::hash::hash as sha256;
 
 pub mod merkletree;
 
@@ -480,7 +480,7 @@ impl LedgerService {
 
     fn _calculate_hash(&self, text: &str, version: &str) -> IndyResult<Vec<u8>> {
         let content: String = version.to_string() + text;
-        openssl_hash(content.as_bytes())
+        sha256(content.as_bytes())
     }
 
     fn _compare_hash(&self, text: &str, version: &str, hash: &str) -> IndyResult<()> {
