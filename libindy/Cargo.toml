@@ -50,7 +50,7 @@ log-derive = "0.3.0"
 derivative = "1.0.2"
 dirs = "2.0.2"
 openssl = { version = "0.10", optional = true }
-backtrace = "=0.3.11"
+backtrace = "0.3.35"
 owning_ref = "0.4"
 rand = "0.7.0"
 rusqlite = "0.20" # Make sure rusqlite for android is also bumped with this. Rusqlite for android is at the bottom of this document.
