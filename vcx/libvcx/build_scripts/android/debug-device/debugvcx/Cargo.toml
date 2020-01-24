@@ -5,4 +5,4 @@ authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.or
 
 [dependencies]
 libloading = "0.5"
-libc = "0.2.60"
+libc = "0.2.53"

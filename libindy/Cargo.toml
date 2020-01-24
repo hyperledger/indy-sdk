@@ -62,7 +62,7 @@ serde_derive = "1.0.99"
 sha2 = "0.8"
 sha3 = "0.8"
 rmp-serde = "0.13.7"
-sodiumoxide = {version = "0.0.16", optional = true}
+sodiumoxide = {version = "0.2.2", optional = true}
 time = "0.1.42"
 threadpool = "1.7.1"
 zmq = "0.9.1"
@@ -91,6 +91,9 @@ features = ["bn_openssl", "pair_amcl", "serialization", "native_secp256k1", "cl"
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.5"
+sodiumoxide = { version = "0.2.2", optional = true }
+zmq = { version = "0.9.1", features=["vendored"] }
+openssl = { version = "0.10", optional = true, features=["vendored"] }
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 rusqlite = { version = "0.20", features=["bundled"] }
 
