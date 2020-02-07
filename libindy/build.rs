@@ -32,34 +32,10 @@ fn main() {
             }
         }
     } else if target.find("linux-android").is_some() {
-        //statically link files
-        let openssl = match env::var("OPENSSL_LIB_DIR") {
-            Ok(val) => val,
-            Err(..) => match env::var("OPENSSL_DIR") {
-                Ok(dir) => Path::new(&dir[..]).join("lib").to_string_lossy().into_owned(),
-                Err(..) => panic!("Missing required environment variables OPENSSL_DIR or OPENSSL_LIB_DIR")
-            }
-        };
-
-        let sodium = match env::var("SODIUM_LIB_DIR") {
-            Ok(val) => val,
-            Err(..) => panic!("Missing required environment variable SODIUM_LIB_DIR")
-        };
-
-        let zmq = match env::var("LIBZMQ_LIB_DIR") {
-            Ok(val) => val,
-            Err(..) => match env::var("LIBZMQ_PREFIX") {
-                Ok(dir) => Path::new(&dir[..]).join("lib").to_string_lossy().into_owned(),
-                Err(..) => panic!("Missing required environment variables LIBZMQ_PREFIX or LIBZMQ_LIB_DIR")
-            }
-        };
-
-        println!("cargo:rustc-link-search=native={}", openssl);
+        // statically link libraries
         println!("cargo:rustc-link-lib=static=crypto");
         println!("cargo:rustc-link-lib=static=ssl");
-        println!("cargo:rustc-link-search=native={}", sodium);
         println!("cargo:rustc-link-lib=static=sodium");
-        println!("cargo:rustc-link-search=native={}", zmq);
         println!("cargo:rustc-link-lib=static=zmq");
     }
 }
