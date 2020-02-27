@@ -31,10 +31,6 @@ extern crate libc;
 extern crate rand;
 extern crate uuid;
 
-#[macro_use]
-extern crate derivative;
-extern crate core;
-
 extern crate hex;
 
 extern crate log_derive;
@@ -43,10 +39,9 @@ extern crate rust_base58;
 extern crate sha2;
 extern crate sha3;
 
-extern crate zeroize;
-
 extern crate regex;
 
+#[macro_use]
 extern crate indy_api_types;
 
 #[macro_use]

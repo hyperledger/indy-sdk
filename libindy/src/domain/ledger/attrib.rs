@@ -1,6 +1,6 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::response::GetReplyResultV1;
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 
 use named_type::NamedType;
 

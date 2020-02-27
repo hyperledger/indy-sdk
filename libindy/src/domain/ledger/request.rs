@@ -4,7 +4,7 @@ use time;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use super::super::crypto::did::{DidValue, ShortDidValue};
+use indy_api_types::domain::crypto::did::{DidValue, ShortDidValue};
 
 pub const DEFAULT_LIBIDY_DID: &str = "LibindyDid111111111111";
 

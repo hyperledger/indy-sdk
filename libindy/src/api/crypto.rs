@@ -2,10 +2,10 @@
 use indy_api_types::{ErrorCode, CommandHandle, WalletHandle};
 use crate::commands::{Command, CommandExecutor};
 use crate::commands::crypto::CryptoCommand;
-use crate::domain::crypto::pack::JWE;
-use crate::domain::crypto::key::KeyInfo;
+use indy_api_types::domain::crypto::key::KeyInfo;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
+use indy_utils::crypto::pack::jwe::JWE;
 
 use serde_json;
 use libc::c_char;

@@ -304,7 +304,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                         PoolState::Closed(state.into())
                     }
                     PoolEvent::CatchupTargetNotFound(err) => {
-                        _send_open_refresh_ack(state.cmd_id, id, state.refresh,Err(err));
+                        _send_open_refresh_ack(state.cmd_id, id, state.refresh, Err(err));
                         PoolState::Terminated(state.into())
                     }
                     PoolEvent::CatchupRestart(merkle_tree) => {
@@ -659,7 +659,7 @@ fn _get_nodes_and_remotes(merkle: &MerkleTree) -> IndyResult<(Nodes, Vec<RemoteN
             .to_indy(IndyErrorKind::InvalidStructure, "Invalid field dest in genesis transaction")?;
 
         let node_verkey = ed25519_sign::PublicKey::from_slice(&node_verkey)
-            .and_then(|vk| ed25519_sign::vk_to_curve25519(&vk))
+            .and_then(|vk| vk.to_curve25519())
             .to_indy(IndyErrorKind::InvalidStructure, "Invalid field dest in genesis transaction")?;
 
         if txn.txn.data.data.services.is_none() || !txn.txn.data.data.services.as_ref().unwrap().contains(&"VALIDATOR".to_string()) {

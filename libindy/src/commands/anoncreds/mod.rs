@@ -11,7 +11,6 @@ use crate::services::anoncreds::AnoncredsService;
 use crate::services::blob_storage::BlobStorageService;
 use crate::services::pool::PoolService;
 use indy_wallet::WalletService;
-use crate::services::crypto::CryptoService;
 use crate::services::anoncreds::helpers::to_unqualified;
 
 use indy_api_types::errors::prelude::*;
@@ -37,14 +36,13 @@ impl AnoncredsCommandExecutor {
     pub fn new(anoncreds_service: Rc<AnoncredsService>,
                blob_storage_service: Rc<BlobStorageService>,
                pool_service: Rc<PoolService>,
-               wallet_service: Rc<WalletService>,
-               crypto_service: Rc<CryptoService>) -> AnoncredsCommandExecutor {
+               wallet_service: Rc<WalletService>) -> AnoncredsCommandExecutor {
         AnoncredsCommandExecutor {
             issuer_command_cxecutor: IssuerCommandExecutor::new(
                 anoncreds_service.clone(), pool_service.clone(),
-                blob_storage_service.clone(), wallet_service.clone(), crypto_service.clone()),
+                blob_storage_service.clone(), wallet_service.clone()),
             prover_command_cxecutor: ProverCommandExecutor::new(
-                anoncreds_service.clone(), wallet_service.clone(), crypto_service.clone(), blob_storage_service.clone()),
+                anoncreds_service.clone(), wallet_service.clone(), blob_storage_service.clone()),
             verifier_command_cxecutor: VerifierCommandExecutor::new(
                 anoncreds_service.clone()),
         }

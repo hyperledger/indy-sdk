@@ -1,6 +1,6 @@
 use super::constants::{NYM, GET_NYM};
 use super::response::{GetReplyResultV0, GetReplyResultV1, ReplyType};
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {

@@ -6,20 +6,21 @@ use serde_json;
 
 use crate::commands::{Command, CommandExecutor, BoxedCallbackStringStringSend};
 use crate::commands::ledger::LedgerCommand;
-use crate::domain::crypto::did::{Did, DidValue, DidMetadata, DidWithMeta, MyDidInfo, TemporaryDid, TheirDid, TheirDidInfo, DidMethod};
-use crate::domain::crypto::key::KeyInfo;
+use indy_api_types::domain::crypto::did::{Did, DidValue, DidMetadata, DidWithMeta, MyDidInfo, TemporaryDid, TheirDid, TheirDidInfo, DidMethod};
+use indy_api_types::domain::crypto::key::{KeyInfo, Key};
 use crate::domain::ledger::attrib::{AttribData, Endpoint, GetAttrReplyResult};
 use crate::domain::ledger::nym::{GetNymReplyResult, GetNymResultDataV0};
 use crate::domain::ledger::response::Reply;
 use crate::domain::pairwise::Pairwise;
 use indy_api_types::errors::prelude::*;
-use crate::services::crypto::CryptoService;
 use crate::services::ledger::LedgerService;
 use indy_wallet::{RecordOptions, SearchOptions, WalletService};
 use indy_api_types::{WalletHandle, PoolHandle, CommandHandle};
 use indy_utils::next_command_handle;
 use rust_base58::{FromBase58, ToBase58};
 use named_type::NamedType;
+use indy_utils::crypto::{validate_did, validate_key, create_key};
+use indy_utils::crypto::verkey_builder::build_full_verkey;
 
 pub enum DidCommand {
     CreateAndStoreMyDid(
@@ -112,18 +113,15 @@ macro_rules! ensure_their_did {
 
 pub struct DidCommandExecutor {
     wallet_service: Rc<WalletService>,
-    crypto_service: Rc<CryptoService>,
     ledger_service: Rc<LedgerService>,
     deferred_commands: RefCell<HashMap<CommandHandle, DidCommand>>,
 }
 
 impl DidCommandExecutor {
     pub fn new(wallet_service: Rc<WalletService>,
-               crypto_service: Rc<CryptoService>,
                ledger_service: Rc<LedgerService>) -> DidCommandExecutor {
         DidCommandExecutor {
             wallet_service,
-            crypto_service,
             ledger_service,
             deferred_commands: RefCell::new(HashMap::new()),
         }
@@ -203,7 +201,7 @@ impl DidCommandExecutor {
                                my_did_info: &MyDidInfo) -> IndyResult<(String, String)> {
         debug!("create_and_store_my_did >>> wallet_handle: {:?}, my_did_info_json: {:?}", wallet_handle, secret!(my_did_info));
 
-        let (did, key) = self.crypto_service.create_my_did(&my_did_info)?;
+        let (did, key) = create_did(&my_did_info)?;
 
         if let Ok(current_did) = self._wallet_get_my_did(wallet_handle, &did.did) {
             if did.verkey == current_did.verkey {
@@ -230,11 +228,11 @@ impl DidCommandExecutor {
                           my_did: &DidValue) -> IndyResult<String> {
         debug!("replace_keys_start >>> wallet_handle: {:?}, key_info_json: {:?}, my_did: {:?}", wallet_handle, secret!(key_info), my_did);
 
-        self.crypto_service.validate_did(my_did)?;
+        validate_did(my_did)?;
 
         let my_did = self._wallet_get_my_did(wallet_handle, my_did)?;
 
-        let temporary_key = self.crypto_service.create_key(&key_info)?;
+        let temporary_key = create_key(&key_info)?;
         let my_temporary_did = TemporaryDid { did: my_did.did, verkey: temporary_key.verkey.clone() };
 
         self.wallet_service.add_indy_object(wallet_handle, &temporary_key.verkey, &temporary_key, &HashMap::new())?;
@@ -252,7 +250,7 @@ impl DidCommandExecutor {
                           my_did: &DidValue) -> IndyResult<()> {
         debug!("replace_keys_apply >>> wallet_handle: {:?}, my_did: {:?}", wallet_handle, my_did);
 
-        self.crypto_service.validate_did(my_did)?;
+        validate_did(my_did)?;
 
         let my_did = self._wallet_get_my_did(wallet_handle, my_did)?;
         let my_temporary_did: TemporaryDid =
@@ -273,7 +271,7 @@ impl DidCommandExecutor {
                        their_did_info: &TheirDidInfo) -> IndyResult<()> {
         debug!("store_their_did >>> wallet_handle: {:?}, their_did_info: {:?}", wallet_handle, their_did_info);
 
-        let their_did = self.crypto_service.create_their_did(their_did_info)?;
+        let their_did = create_their_did(their_did_info)?;
 
         self.wallet_service.upsert_indy_object(wallet_handle, &their_did.did.0, &their_did)?;
 
@@ -348,7 +346,7 @@ impl DidCommandExecutor {
                    cb: Box<dyn Fn(IndyResult<String>) + Send>) {
         debug!("key_for_did >>> pool_handle: {:?}, wallet_handle: {:?}, did: {:?}", pool_handle, wallet_handle, did);
 
-        try_cb!(self.crypto_service.validate_did(&did), cb);
+        try_cb!(validate_did(&did), cb);
 
         // Look to my did
         match self._wallet_get_my_did(wallet_handle, &did) {
@@ -381,7 +379,7 @@ impl DidCommandExecutor {
                          did: &DidValue) -> IndyResult<String> {
         info!("key_for_local_did >>> wallet_handle: {:?}, did: {:?}", wallet_handle, did);
 
-        self.crypto_service.validate_did(&did)?;
+        validate_did(&did)?;
 
         // Look to my did
         match self._wallet_get_my_did(wallet_handle, did) {
@@ -408,11 +406,11 @@ impl DidCommandExecutor {
                             endpoint: &Endpoint) -> IndyResult<()> {
         debug!("set_endpoint_for_did >>> wallet_handle: {:?}, did: {:?}, endpoint: {:?}", wallet_handle, did, endpoint);
 
-        self.crypto_service.validate_did(did)?;
+        validate_did(did)?;
 
         if endpoint.verkey.is_some() {
             let transport_key = endpoint.verkey.as_ref().unwrap();
-            self.crypto_service.validate_key(transport_key)?;
+            validate_key(transport_key)?;
         }
 
         self.wallet_service.upsert_indy_object(wallet_handle, &did.0, endpoint)?;
@@ -428,7 +426,7 @@ impl DidCommandExecutor {
                             cb: Box<dyn Fn(IndyResult<(String, Option<String>)>) + Send>) {
         debug!("get_endpoint_for_did >>> wallet_handle: {:?}, pool_handle: {:?}, did: {:?}", wallet_handle, pool_handle, did);
 
-        try_cb!(self.crypto_service.validate_did(&did), cb);
+        try_cb!(validate_did(&did), cb);
 
         let endpoint =
             self.wallet_service.get_indy_object::<Endpoint>(wallet_handle, &did.0, &RecordOptions::id_value());
@@ -453,7 +451,7 @@ impl DidCommandExecutor {
                         metadata: String) -> IndyResult<()> {
         debug!("set_did_metadata >>> wallet_handle: {:?}, did: {:?}, metadata: {:?}", wallet_handle, did, metadata);
 
-        self.crypto_service.validate_did(did)?;
+        validate_did(did)?;
 
         let metadata = DidMetadata { value: metadata };
 
@@ -469,7 +467,7 @@ impl DidCommandExecutor {
                         did: &DidValue) -> IndyResult<String> {
         debug!("get_did_metadata >>> wallet_handle: {:?}, did: {:?}", wallet_handle, did);
 
-        self.crypto_service.validate_did(did)?;
+        validate_did(did)?;
 
         let metadata = self.wallet_service.get_indy_object::<DidMetadata>(wallet_handle, &did.0, &RecordOptions::id_value())?;
 
@@ -485,8 +483,8 @@ impl DidCommandExecutor {
                          verkey: String) -> IndyResult<String> {
         info!("abbreviate_verkey >>> did: {:?}, verkey: {:?}", did, verkey);
 
-        self.crypto_service.validate_did(&did)?;
-        self.crypto_service.validate_key(&verkey)?;
+        validate_did(&did)?;
+        validate_key(&verkey)?;
 
         if !did.is_abbreviatable() {
             return Ok(verkey);
@@ -514,7 +512,7 @@ impl DidCommandExecutor {
                    method: &DidMethod) -> IndyResult<String> {
         info!("qualify_did >>> wallet_handle: {:?}, curr_did: {:?}, method: {:?}", wallet_handle, did, method);
 
-        self.crypto_service.validate_did(did)?;
+        validate_did(did)?;
 
         let mut curr_did: Did = self.wallet_service.get_indy_object::<Did>(wallet_handle, &did.0, &RecordOptions::id_value())?;
 
@@ -597,7 +595,7 @@ impl DidCommandExecutor {
             GetNymReplyResult::GetNymReplyResultV1(res) => TheirDidInfo::new(res.txn.data.did.qualify(did.get_method()), res.txn.data.verkey)
         };
 
-        let their_did = self.crypto_service.create_their_did(&their_did_info)?;
+        let their_did = create_their_did(&their_did_info)?;
 
         self.wallet_service.add_indy_object(wallet_handle, &their_did.did.0, &their_did, &HashMap::new())?;
 
@@ -739,5 +737,130 @@ impl DidCommandExecutor {
 
     fn _wallet_get_their_did(&self, wallet_handle: WalletHandle, their_did: &DidValue) -> IndyResult<TheirDid> {
         self.wallet_service.get_indy_object(wallet_handle, &their_did.0, &RecordOptions::id_value())
+    }
+}
+
+pub fn create_did(my_did_info: &MyDidInfo) -> IndyResult<(Did, Key)> {
+    trace!("create_my_did >>> my_did_info: {:?}", secret!(my_did_info));
+
+    let key_info = KeyInfo { seed: my_did_info.seed.clone(), crypto_type: my_did_info.crypto_type.clone() };
+    let key = create_key(&key_info)?;
+
+    let did = match my_did_info.did {
+        Some(ref did) => did.clone(),
+        _ if my_did_info.cid == Some(true) => {
+            DidValue::new(&key.verkey, my_did_info.method_name.as_ref().map(|method| method.0.as_str()))
+        }
+        _ => {
+            let verkey = key.verkey.as_str().from_base58()?.as_slice()[0..16].to_vec().to_base58();
+            DidValue::new(&verkey, my_did_info.method_name.as_ref().map(|method| method.0.as_str()))
+        }
+    };
+
+    let res = (Did::new(did, key.verkey.clone()), key);
+
+    trace!("create_my_did <<< res: {:?}", res);
+
+    Ok(res)
+}
+
+pub fn create_their_did(their_did_info: &TheirDidInfo) -> IndyResult<TheirDid> {
+    trace!("create_their_did >>> their_did_info: {:?}", their_did_info);
+
+    // Check did is correct Base58
+    let _ = validate_did(&their_did_info.did)?;
+
+    let verkey = build_full_verkey(&their_did_info.did.to_unqualified().0,
+                                   their_did_info.verkey.as_ref().map(String::as_str))?;
+
+    validate_key(&verkey)?;
+
+    let did = TheirDid { did: their_did_info.did.clone(), verkey };
+
+    trace!("create_their_did <<< did: {:?}", did);
+
+    Ok(did)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_my_did_works() {
+        let did_info = MyDidInfo { did: None, cid: None, seed: None, crypto_type: None, method_name: None };
+        let _ = create_did(&did_info).unwrap();
+    }
+
+    #[test]
+    fn create_my_did_works_for_passed_did() {
+        let did = DidValue("NcYxiDXkpYi6ov5FcYDi1e".to_string());
+        let did_info = MyDidInfo { did: Some(did.clone()), cid: None, seed: None, crypto_type: None, method_name: None };
+
+        let (my_did, _) = create_did(&did_info).unwrap();
+        assert_eq!(did, my_did.did);
+    }
+
+    #[test]
+    fn create_my_did_works_as_cid() {
+        let did_info = MyDidInfo { did: None, cid: Some(true), seed: None, crypto_type: None, method_name: None };
+
+        let (my_did, my_vk) = create_did(&did_info).unwrap();
+        assert_eq!(my_did.did.0, my_vk.verkey);
+    }
+
+    #[test]
+    fn create_my_did_works_for_seed() {
+        let seed = String::from("00000000000000000000000000000My1");
+
+        let did_info = MyDidInfo { did: None, cid: None, seed: Some(seed), crypto_type: None, method_name: None };
+
+        let (my_did, _my_vk) = create_did(&did_info).unwrap();
+        assert_eq!(my_did.did, DidValue::new("VsKV7grR1BUE29mG2Fm2kX", None));
+        assert_eq!(my_did.verkey, String::from("GjZWsBLgZCR18aL468JAT7w9CZRiBnpxUPPgyQxh4voa"));
+    }
+
+    #[test]
+    fn create_my_did_works_for_network_name() {
+        let seed = String::from("00000000000000000000000000000My1");
+        let method_name = DidMethod(String::from("test"));
+
+        let did_info = MyDidInfo { did: None, cid: None, seed: Some(seed), crypto_type: None, method_name: Some(method_name.clone()) };
+
+        let (my_did, _) = create_did(&did_info).unwrap();
+        assert_eq!(my_did.did, DidValue::new("VsKV7grR1BUE29mG2Fm2kX", Some(&method_name.0)));
+    }
+
+    #[test]
+    fn create_their_did_works_without_verkey() {
+        let did = DidValue("CnEDk9HrMnmiHXEV1WFgbVCRteYnPqsJwrTdcZaNhFVW".to_string());
+
+        let their_did_info = TheirDidInfo::new(did.clone(), None);
+        let their_did = create_their_did(&their_did_info).unwrap();
+
+        assert_eq!(did, their_did.did);
+        assert_eq!(did.0, their_did.verkey);
+    }
+
+    #[test]
+    fn create_their_did_works_for_full_verkey() {
+        let did = DidValue("8wZcEriaNLNKtteJvx7f8i".to_string());
+        let verkey = "5L2HBnzbu6Auh2pkDRbFt5f4prvgE2LzknkuYLsKkacp";
+
+        let their_did_info = TheirDidInfo::new(did.clone(), Some(verkey.to_string()));
+        let their_did = create_their_did(&their_did_info).unwrap();
+
+        assert_eq!(did, their_did.did);
+        assert_eq!(verkey, their_did.verkey);
+    }
+
+    #[test]
+    fn create_their_did_works_for_abbreviated_verkey() {
+        let did = DidValue("8wZcEriaNLNKtteJvx7f8i".to_string());
+        let their_did_info = TheirDidInfo::new(did.clone(), Some("~NcYxiDXkpYi6ov5FcYDi1e".to_string()));
+        let their_did = create_their_did(&their_did_info).unwrap();
+
+        assert_eq!(did, their_did.did);
+        assert_eq!("5L2HBnzbu6Auh2pkDRbFt5f4prvgE2LzknkuYLsKkacp", their_did.verkey);
     }
 }

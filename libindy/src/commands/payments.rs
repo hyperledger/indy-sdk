@@ -9,13 +9,13 @@ use hex;
 use serde_json;
 
 use indy_api_types::errors::prelude::*;
-use crate::services::crypto::CryptoService;
 use crate::services::ledger::LedgerService;
 use crate::services::payments::{PaymentsMethodCBs, PaymentsService, RequesterInfo, Fees};
 use indy_wallet::{RecordOptions, WalletService};
 use indy_api_types::{WalletHandle, CommandHandle};
 use crate::domain::ledger::auth_rule::AuthRule;
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
+use indy_utils::crypto::validate_did;
 
 use indy_utils::next_command_handle;
 use crate::commands::BoxedCallbackStringStringSend;
@@ -170,7 +170,6 @@ pub enum PaymentsCommand {
 pub struct PaymentsCommandExecutor {
     payments_service: Rc<PaymentsService>,
     wallet_service: Rc<WalletService>,
-    crypto_service: Rc<CryptoService>,
     ledger_service: Rc<LedgerService>,
     pending_callbacks_str: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<String>) + Send>>>,
     pending_callbacks_str_i64: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<(String, i64)>) + Send>>>,
@@ -179,11 +178,10 @@ pub struct PaymentsCommandExecutor {
 }
 
 impl PaymentsCommandExecutor {
-    pub fn new(payments_service: Rc<PaymentsService>, wallet_service: Rc<WalletService>, crypto_service: Rc<CryptoService>, ledger_service: Rc<LedgerService>) -> PaymentsCommandExecutor {
+    pub fn new(payments_service: Rc<PaymentsService>, wallet_service: Rc<WalletService>, ledger_service: Rc<LedgerService>) -> PaymentsCommandExecutor {
         PaymentsCommandExecutor {
             payments_service,
             wallet_service,
-            crypto_service,
             ledger_service,
             pending_callbacks_str: RefCell::new(HashMap::new()),
             pending_callbacks_str_i64: RefCell::new(HashMap::new()),
@@ -403,7 +401,7 @@ impl PaymentsCommandExecutor {
         trace!("add_request_fees >>> wallet_handle: {:?}, submitter_did: {:?}, req: {:?}, inputs: {:?}, outputs: {:?}, extra: {:?}",
                wallet_handle, submitter_did, req, inputs, outputs, extra);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -454,7 +452,7 @@ impl PaymentsCommandExecutor {
     fn build_get_payment_sources_request(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, payment_address: &str, next: Option<i64>, cb: BoxedCallbackStringStringSend) {
         trace!("build_get_payment_sources_request >>> wallet_handle: {:?}, submitter_did: {:?}, payment_address: {:?}", wallet_handle, submitter_did, payment_address);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -497,7 +495,7 @@ impl PaymentsCommandExecutor {
     fn build_payment_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, inputs: &str, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
         trace!("build_payment_req >>> wallet_handle: {:?}, submitter_did: {:?}, inputs: {:?}, outputs: {:?}, extra: {:?}", wallet_handle, submitter_did, inputs, outputs, extra);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -568,7 +566,7 @@ impl PaymentsCommandExecutor {
     fn build_mint_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
         trace!("build_mint_req >>> wallet_handle: {:?}, submitter_did: {:?}, outputs: {:?}, extra: {:?}", wallet_handle, submitter_did, outputs, extra);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -596,7 +594,7 @@ impl PaymentsCommandExecutor {
     fn build_set_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, fees: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
         trace!("build_set_txn_fees_req >>> wallet_handle: {:?}, submitter_did: {:?}, type_: {:?}, fees: {:?}", wallet_handle, submitter_did, type_, fees);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -621,7 +619,7 @@ impl PaymentsCommandExecutor {
     fn build_get_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
         trace!("build_get_txn_fees_req >>> wallet_handle: {:?}, submitter_did: {:?}, type_: {:?}", wallet_handle, submitter_did, type_);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }
@@ -652,7 +650,7 @@ impl PaymentsCommandExecutor {
     fn build_verify_payment_request(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, receipt: &str, cb: BoxedCallbackStringStringSend) {
         trace!("build_verify_payment_request >>> wallet_handle: {:?}, submitter_did: {:?}, receipt: {:?}", wallet_handle, submitter_did, receipt);
         if let Some(ref did) = submitter_did {
-            match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
+            match validate_did(did).map_err(map_err_err!()) {
                 Err(err) => return cb(Err(err)),
                 _ => ()
             }

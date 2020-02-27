@@ -9,11 +9,11 @@ use serde_json::Value;
 use crate::utils::wql::Query;
 
 use super::credential::Credential;
-use super::super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use super::credential_definition::CredentialDefinitionId;
 use super::revocation_registry_definition::RevocationRegistryId;
 use super::schema::SchemaId;
-use crate::utils::qualifier;
+use indy_api_types::qualifier;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProofRequestPayload {

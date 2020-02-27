@@ -14,7 +14,7 @@ use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 
 use crate::domain::ledger::auth_rule::{Constraint, RoleConstraint, CombinationConstraint};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 pub struct PaymentsService {
     methods: RefCell<HashMap<String, PaymentsMethod>>

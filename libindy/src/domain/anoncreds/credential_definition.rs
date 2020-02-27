@@ -1,10 +1,11 @@
 use super::DELIMITER;
 use super::schema::SchemaId;
 use super::super::ledger::request::ProtocolVersion;
-use super::super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use indy_api_types::validation::Validatable;
-use crate::utils::qualifier;
+
+use indy_api_types::qualifier;
 
 use ursa::cl::{
     CredentialPrimaryPublicKey,

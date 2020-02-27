@@ -11,7 +11,7 @@ use crate::domain::anoncreds::credential_definition::{CredentialDefinition, Cred
 use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinition, RevocationRegistryId};
 use crate::domain::anoncreds::revocation_registry_delta::RevocationRegistryDelta;
 use crate::domain::anoncreds::schema::{Schema, SchemaId};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use crate::domain::ledger::auth_rule::{AuthRules, Constraint};
 use crate::domain::ledger::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::domain::ledger::node::NodeOperationData;

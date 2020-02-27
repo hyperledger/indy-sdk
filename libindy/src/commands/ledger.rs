@@ -18,20 +18,20 @@ use crate::domain::anoncreds::credential_definition::{CredentialDefinition, Cred
 use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinition, RevocationRegistryDefinitionV1, RevocationRegistryId};
 use crate::domain::anoncreds::revocation_registry_delta::{RevocationRegistryDelta, RevocationRegistryDeltaV1};
 use crate::domain::anoncreds::schema::{Schema, SchemaId, SchemaV1};
-use crate::domain::crypto::did::{Did, DidValue};
-use crate::domain::crypto::key::Key;
+use indy_api_types::domain::crypto::did::{Did, DidValue};
+use indy_api_types::domain::crypto::key::Key;
 use crate::domain::ledger::auth_rule::{AuthRules, Constraint};
 use crate::domain::ledger::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::domain::ledger::node::NodeOperationData;
 use crate::domain::ledger::pool::Schedule;
 use crate::domain::ledger::request::Request;
-use crate::services::crypto::CryptoService;
 use crate::services::ledger::LedgerService;
 use crate::services::pool::{
     parse_response_metadata,
-    PoolService
+    PoolService,
 };
-use crate::utils::crypto::signature_serializer::serialize_signature;
+use crate::utils::signature_serializer::serialize_signature;
+use indy_utils::crypto::{validate_did, validate_key, sign};
 
 pub enum LedgerCommand {
     SignAndSubmitRequest(
@@ -243,8 +243,8 @@ pub enum LedgerCommand {
         DidValue, // submitter did
         Option<String>, // text
         String, // version
-        Option<u64>,   // ratification date
-        Option<u64>,   // retirement date
+        Option<u64>, // ratification date
+        Option<u64>, // retirement date
         Box<dyn Fn(IndyResult<String>) + Send>),
     BuildDisableAllTxnAuthorAgreementsRequest(
         DidValue, // submitter did
@@ -280,7 +280,6 @@ pub enum LedgerCommand {
 
 pub struct LedgerCommandExecutor {
     pool_service: Rc<PoolService>,
-    crypto_service: Rc<CryptoService>,
     wallet_service: Rc<WalletService>,
     ledger_service: Rc<LedgerService>,
 
@@ -290,12 +289,10 @@ pub struct LedgerCommandExecutor {
 
 impl LedgerCommandExecutor {
     pub fn new(pool_service: Rc<PoolService>,
-               crypto_service: Rc<CryptoService>,
                wallet_service: Rc<WalletService>,
                ledger_service: Rc<LedgerService>) -> LedgerCommandExecutor {
         LedgerCommandExecutor {
             pool_service,
-            crypto_service,
             wallet_service,
             ledger_service,
             send_callbacks: RefCell::new(HashMap::new()),
@@ -574,7 +571,7 @@ impl LedgerCommandExecutor {
         }
 
         let serialized_request = serialize_signature(request.clone())?;
-        let signature = self.crypto_service.sign(&my_key, &serialized_request.as_bytes().to_vec())?;
+        let signature = sign(&my_key, &serialized_request.as_bytes().to_vec())?;
         let did = my_did.did.to_short();
 
         match signature_type {
@@ -685,10 +682,10 @@ impl LedgerCommandExecutor {
         debug!("build_nym_request >>> submitter_did: {:?}, target_did: {:?}, verkey: {:?}, alias: {:?}, role: {:?}",
                submitter_did, target_did, verkey, alias, role);
 
-        self.crypto_service.validate_did(submitter_did)?;
-        self.crypto_service.validate_did(target_did)?;
+        validate_did(submitter_did)?;
+        validate_did(target_did)?;
         if let Some(vk) = verkey {
-            self.crypto_service.validate_key(vk)?;
+            validate_key(vk)?;
         }
 
         let res = self.ledger_service.build_nym_request(submitter_did,
@@ -711,8 +708,8 @@ impl LedgerCommandExecutor {
         debug!("build_attrib_request >>> submitter_did: {:?}, target_did: {:?}, hash: {:?}, raw: {:?}, enc: {:?}",
                submitter_did, target_did, hash, raw, enc);
 
-        self.crypto_service.validate_did(submitter_did)?;
-        self.crypto_service.validate_did(target_did)?;
+        validate_did(submitter_did)?;
+        validate_did(target_did)?;
 
         let res = self.ledger_service.build_attrib_request(submitter_did,
                                                            target_did,
@@ -735,7 +732,7 @@ impl LedgerCommandExecutor {
                submitter_did, target_did, raw, hash, enc);
 
         self.validate_opt_did(submitter_did)?;
-        self.crypto_service.validate_did(target_did)?;
+        validate_did(target_did)?;
 
         let res = self.ledger_service.build_get_attrib_request(submitter_did,
                                                                target_did,
@@ -754,7 +751,7 @@ impl LedgerCommandExecutor {
         debug!("build_get_nym_request >>> submitter_did: {:?}, target_did: {:?}", submitter_did, target_did);
 
         self.validate_opt_did(submitter_did)?;
-        self.crypto_service.validate_did(target_did)?;
+        validate_did(target_did)?;
 
         let res = self.ledger_service.build_get_nym_request(submitter_did,
                                                             target_did)?;
@@ -765,7 +762,7 @@ impl LedgerCommandExecutor {
     }
 
     fn parse_get_nym_response(&self,
-                             get_nym_response: &str) -> IndyResult<String> {
+                              get_nym_response: &str) -> IndyResult<String> {
         debug!("parse_get_nym_response >>> get_nym_response: {:?}", get_nym_response);
 
         let res = self.ledger_service.parse_get_nym_response(get_nym_response)?;
@@ -780,7 +777,7 @@ impl LedgerCommandExecutor {
                             schema: SchemaV1) -> IndyResult<String> {
         debug!("build_schema_request >>> submitter_did: {:?}, schema: {:?}", submitter_did, schema);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_schema_request(submitter_did, schema)?;
 
@@ -820,7 +817,7 @@ impl LedgerCommandExecutor {
         debug!("build_cred_def_request >>> submitter_did: {:?}, cred_def: {:?}",
                submitter_did, cred_def);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_cred_def_request(submitter_did, cred_def)?;
 
@@ -861,7 +858,7 @@ impl LedgerCommandExecutor {
         debug!("build_node_request >>> submitter_did: {:?}, target_did: {:?}, data: {:?}",
                submitter_did, target_did, data);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_node_request(submitter_did, target_did, data)?;
 
@@ -874,7 +871,7 @@ impl LedgerCommandExecutor {
                                         submitter_did: &DidValue) -> IndyResult<String> {
         info!("build_get_validator_info_request >>> submitter_did: {:?}", submitter_did);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_get_validator_info_request(submitter_did)?;
 
@@ -906,7 +903,7 @@ impl LedgerCommandExecutor {
         debug!("build_pool_config_request >>> submitter_did: {:?}, writes: {:?}, force: {:?}",
                submitter_did, writes, force);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_pool_config(submitter_did, writes, force)?;
 
@@ -919,7 +916,7 @@ impl LedgerCommandExecutor {
                                   datetime: Option<&str>) -> IndyResult<String> {
         debug!("build_pool_restart_request >>> submitter_did: {:?}, action: {:?}, datetime: {:?}", submitter_did, action, datetime);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        validate_did(&submitter_did)?;
 
         let res = self.ledger_service.build_pool_restart(&submitter_did, action, datetime)?;
 
@@ -944,7 +941,7 @@ impl LedgerCommandExecutor {
          timeout: {:?}, schedule: {:?}, justification: {:?}, reinstall: {:?}, force: {:?}, package: {:?}",
                submitter_did, name, version, action, sha256, timeout, schedule, justification, reinstall, force, package);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        validate_did(&submitter_did)?;
 
         let res = self.ledger_service.build_pool_upgrade(&submitter_did, name, version, action, sha256,
                                                          timeout, schedule, justification, reinstall, force, package)?;
@@ -959,7 +956,7 @@ impl LedgerCommandExecutor {
                                    data: RevocationRegistryDefinitionV1) -> IndyResult<String> {
         debug!("build_revoc_reg_def_request >>> submitter_did: {:?}, data: {:?}", submitter_did, data);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        validate_did(&submitter_did)?;
 
         let res = self.ledger_service.build_revoc_reg_def_request(&submitter_did, data)?;
 
@@ -1001,7 +998,7 @@ impl LedgerCommandExecutor {
         debug!("build_revoc_reg_entry_request >>> submitter_did: {:?}, revoc_reg_def_id: {:?}, revoc_def_type: {:?}, value: {:?}",
                submitter_did, revoc_reg_def_id, revoc_def_type, value);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        validate_did(&submitter_did)?;
 
         let res = self.ledger_service.build_revoc_reg_entry_request(&submitter_did, revoc_reg_def_id, revoc_def_type, value)?;
 
@@ -1088,7 +1085,7 @@ impl LedgerCommandExecutor {
         debug!("build_auth_rule_request >>> submitter_did: {:?}, txn_type: {:?}, action: {:?}, field: {:?}, \
             old_value: {:?}, new_value: {:?}, constraint: {:?}", submitter_did, txn_type, action, field, old_value, new_value, constraint);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        validate_did(&submitter_did)?;
 
         let res = self.ledger_service.build_auth_rule_request(&submitter_did, txn_type, action, field, old_value, new_value, constraint)?;
 
@@ -1139,7 +1136,7 @@ impl LedgerCommandExecutor {
         debug!("build_txn_author_agreement_request >>> submitter_did: {:?}, text: {:?}, version: {:?}, ratification_ts {:?}, retirement_ts {:?}",
                submitter_did, text, version, ratification_ts, retirement_ts);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_txn_author_agreement_request(submitter_did, text, version, ratification_ts, retirement_ts)?;
 
@@ -1151,7 +1148,7 @@ impl LedgerCommandExecutor {
     fn build_disable_all_txn_author_agreements_request(&self, submitter_did: &DidValue) -> IndyResult<String> {
         debug!("build_disable_all_txn_author_agreements_request >>> submitter_did: {:?}", submitter_did);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_disable_all_txn_author_agreements_request(submitter_did)?;
 
@@ -1181,7 +1178,7 @@ impl LedgerCommandExecutor {
                                            aml_context: Option<&str>) -> IndyResult<String> {
         debug!("build_acceptance_mechanisms_request >>> submitter_did: {:?}, aml: {:?}, version: {:?}, aml_context: {:?}", submitter_did, aml, version, aml_context);
 
-        self.crypto_service.validate_did(submitter_did)?;
+        validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_acceptance_mechanisms_request(submitter_did, aml, version, aml_context)?;
 
@@ -1233,7 +1230,7 @@ impl LedgerCommandExecutor {
                                endorser_did: &DidValue) -> IndyResult<String> {
         debug!("append_request_endorser >>> request_json: {:?}, endorser_did: {:?}", request_json, endorser_did);
 
-        self.crypto_service.validate_did(endorser_did)?;
+        validate_did(endorser_did)?;
 
         let endorser_did = endorser_did.to_short();
 
@@ -1252,7 +1249,7 @@ impl LedgerCommandExecutor {
 
     fn validate_opt_did(&self, did: Option<&DidValue>) -> IndyResult<()> {
         match did {
-            Some(did) => Ok(self.crypto_service.validate_did(did)?),
+            Some(did) => Ok(validate_did(did)?),
             None => Ok(())
         }
     }
@@ -1270,7 +1267,7 @@ impl LedgerCommandExecutor {
                     LedgerCommand::GetSchemaContinue(
                         id.clone(),
                         response,
-                        cb_id
+                        cb_id,
                     )
                 )
             ).unwrap();
@@ -1296,7 +1293,7 @@ impl LedgerCommandExecutor {
                     LedgerCommand::GetCredDefContinue(
                         id.clone(),
                         response,
-                        cb_id
+                        cb_id,
                     )
                 )
             ).unwrap();
@@ -1312,5 +1309,5 @@ impl LedgerCommandExecutor {
 
 enum SignatureType {
     Single,
-    Multi
+    Multi,
 }

@@ -32,6 +32,8 @@ serde_json = "1.0.40"
 serde_derive = "1.0.99"
 sodiumoxide = {version = "0.0.16"}
 zeroize = "0.9.3"
+rust-base58 = {version = "0.0.4"}
+hex = "0.3.2"
 
 [dev-dependencies]
 rmp-serde = "0.13.7"

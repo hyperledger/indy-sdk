@@ -4,7 +4,7 @@ use crate::commands::pairwise::PairwiseCommand;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 use indy_api_types::validation::Validatable;
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use libc::c_char;
 

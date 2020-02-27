@@ -3,10 +3,12 @@ extern crate indy_api_types;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
 extern crate log;
 
 extern crate serde;
 
+#[macro_use]
 extern crate serde_derive;
 
 #[macro_use]
@@ -15,6 +17,10 @@ extern crate serde_json;
 extern crate zeroize;
 
 extern crate dirs;
+
+extern crate rust_base58;
+
+extern crate hex;
 
 #[cfg(debug_assertions)]
 #[macro_export]

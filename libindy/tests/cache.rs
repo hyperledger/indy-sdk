@@ -8,7 +8,7 @@ extern crate indyrs as api;
 
 use crate::utils::cache::*;
 use crate::utils::Setup;
-use crate::utils::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use self::indy::ErrorCode;
 

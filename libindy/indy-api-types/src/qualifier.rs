@@ -30,6 +30,7 @@ pub fn is_fully_qualified(entity: &str) -> bool {
     REGEX.is_match(&entity)
 }
 
+#[macro_export]
 macro_rules! qualifiable_type (($newtype:ident) => (
 
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

@@ -43,7 +43,7 @@ pub mod sequence;
 pub mod ctypes;
 
 #[macro_use]
-#[path = "../../src/utils/qualifier.rs"]
+#[path = "../../indy-api-types/src/qualifier.rs"]
 pub mod qualifier;
 
 pub(crate) use indy::ErrorCode;
@@ -67,8 +67,8 @@ macro_rules! inject_indy_dependencies {
         #[macro_use]
         extern crate named_type_derive;
 
-        #[macro_use]
-        extern crate derivative;
+//        #[macro_use]
+//        extern crate derivative;
 
         #[macro_use]
         extern crate serde_derive;

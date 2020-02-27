@@ -19,15 +19,15 @@ use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistr
 use crate::domain::anoncreds::revocation_registry_delta::{RevocationRegistryDelta, RevocationRegistryDeltaV1};
 use crate::domain::anoncreds::revocation_state::{RevocationState, RevocationStates};
 use crate::domain::anoncreds::schema::{schemas_map_to_schemas_v1_map, SchemaV1, SchemaId, Schemas};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use indy_api_types::errors::prelude::*;
 use crate::services::anoncreds::AnoncredsService;
 use crate::services::anoncreds::helpers::{parse_cred_rev_id, get_non_revoc_interval};
 use crate::services::blob_storage::BlobStorageService;
-use crate::services::crypto::CryptoService;
 use indy_wallet::{RecordOptions, SearchOptions, WalletRecord, WalletSearch, WalletService};
-use indy_utils::{next_search_handle};
+use indy_utils::next_search_handle;
 use crate::utils::wql::Query;
+use indy_utils::crypto::validate_did;
 
 use super::tails::SDKTailsAccessor;
 use indy_api_types::{WalletHandle, SearchHandle};
@@ -126,7 +126,7 @@ pub enum ProverCommand {
         RevocationRegistryDelta, // revocation registry delta
         u64, //timestamp
         String, //credential revocation id
-        Box<dyn Fn(IndyResult<String>) + Send>)
+        Box<dyn Fn(IndyResult<String>) + Send>),
 }
 
 struct SearchForProofRequest {
@@ -150,7 +150,6 @@ impl SearchForProofRequest {
 pub struct ProverCommandExecutor {
     anoncreds_service: Rc<AnoncredsService>,
     wallet_service: Rc<WalletService>,
-    crypto_service: Rc<CryptoService>,
     blob_storage_service: Rc<BlobStorageService>,
     searches: RefCell<HashMap<SearchHandle, Box<WalletSearch>>>,
     searches_for_proof_requests: RefCell<HashMap<SearchHandle, Box<HashMap<String, SearchForProofRequest>>>>,
@@ -159,12 +158,10 @@ pub struct ProverCommandExecutor {
 impl ProverCommandExecutor {
     pub fn new(anoncreds_service: Rc<AnoncredsService>,
                wallet_service: Rc<WalletService>,
-               crypto_service: Rc<CryptoService>,
                blob_storage_service: Rc<BlobStorageService>) -> ProverCommandExecutor {
         ProverCommandExecutor {
             anoncreds_service,
             wallet_service,
-            crypto_service,
             blob_storage_service,
             searches: RefCell::new(HashMap::new()),
             searches_for_proof_requests: RefCell::new(HashMap::new()),
@@ -290,7 +287,7 @@ impl ProverCommandExecutor {
         debug!("create_credential_request >>> wallet_handle: {:?}, prover_did: {:?}, cred_offer: {:?}, cred_def: {:?}, master_secret_id: {:?}",
                wallet_handle, prover_did, cred_offer, cred_def, master_secret_id);
 
-        self.crypto_service.validate_did(&prover_did)?;
+        validate_did(&prover_did)?;
 
         let master_secret: MasterSecret = self._wallet_get_master_secret(wallet_handle, &master_secret_id)?;
 
@@ -306,13 +303,13 @@ impl ProverCommandExecutor {
             cred_def_id: cred_offer.cred_def_id.clone(),
             blinded_ms,
             blinded_ms_correctness_proof,
-            nonce
+            nonce,
         };
 
         let credential_request_metadata = CredentialRequestMetadata {
             master_secret_blinding_data: ms_blinding_data,
             nonce: credential_request.nonce.try_clone()?,
-            master_secret_name: master_secret_id.to_string()
+            master_secret_name: master_secret_id.to_string(),
         };
 
         let cred_req_json = serde_json::to_string(&credential_request)
@@ -468,7 +465,7 @@ impl ProverCommandExecutor {
 
         let total_count = credentials_search.get_total_count()?.unwrap_or(0);
 
-        let handle : SearchHandle = next_search_handle();
+        let handle: SearchHandle = next_search_handle();
 
         self.searches.borrow_mut().insert(handle, Box::new(credentials_search));
 
@@ -803,7 +800,7 @@ impl ProverCommandExecutor {
             schema_id: credential.schema_id,
             cred_def_id: credential.cred_def_id,
             rev_reg_id: credential.rev_reg_id,
-            cred_rev_id: credential.signature.extract_index().map(|idx| idx.to_string())
+            cred_rev_id: credential.signature.extract_index().map(|idx| idx.to_string()),
         }
     }
 
@@ -863,7 +860,7 @@ impl ProverCommandExecutor {
             credentials.push(
                 RequestedCredential {
                     cred_info: self._get_credential_info(&referent, credential),
-                    interval: interval.clone()
+                    interval: interval.clone(),
                 });
 
             if let Some(mut count) = max_count {

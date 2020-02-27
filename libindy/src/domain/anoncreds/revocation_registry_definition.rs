@@ -2,13 +2,13 @@ use ursa::cl::{RevocationKeyPublic, RevocationKeyPrivate};
 
 use super::DELIMITER;
 use super::credential_definition::CredentialDefinitionId;
-use super::super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use std::collections::{HashMap, HashSet};
 use named_type::NamedType;
 
 use indy_api_types::validation::Validatable;
-use crate::utils::qualifier;
+use indy_api_types::qualifier;
 
 pub const CL_ACCUM: &str = "CL_ACCUM";
 pub const REV_REG_DEG_MARKER: &str = "4";

@@ -3,7 +3,6 @@ pub use indy_utils::environment;
 #[macro_use]
 pub mod ccallback;
 
-pub mod crypto;
 #[macro_use]
 pub mod logger;
 
@@ -21,5 +20,4 @@ pub use indy_api_types::validation;
 
 pub use indy_utils::wql;
 
-#[macro_use]
-pub mod qualifier;
+pub mod signature_serializer;

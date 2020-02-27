@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate serde;
 
 #[macro_use]
@@ -12,36 +15,58 @@ extern crate serde_json;
 #[cfg(feature = "casting_errors")]
 extern crate zmq;
 
+extern crate rmp_serde;
+
+extern crate zeroize;
+
+extern crate named_type;
+
+#[macro_use]
+extern crate named_type_derive;
+
+extern crate regex;
+
+#[macro_use]
+extern crate derivative;
+
 pub type IndyHandle = i32;
 
 #[repr(transparent)]
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct WalletHandle(pub i32);
-pub const INVALID_WALLET_HANDLE : WalletHandle = WalletHandle(0);
+
+pub const INVALID_WALLET_HANDLE: WalletHandle = WalletHandle(0);
 
 pub type CallbackHandle = i32;
 
 pub type PoolHandle = i32;
-pub const INVALID_POOL_HANDLE : PoolHandle = 0;
+
+pub const INVALID_POOL_HANDLE: PoolHandle = 0;
 
 pub type CommandHandle = i32;
-pub const INVALID_COMMAND_HANDLE : CommandHandle = 0;
+
+pub const INVALID_COMMAND_HANDLE: CommandHandle = 0;
 
 pub type StorageHandle = i32;
 
 #[repr(transparent)]
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct SearchHandle(pub i32);
-pub const INVALID_SEARCH_HANDLE : SearchHandle = SearchHandle(0);
+
+pub const INVALID_SEARCH_HANDLE: SearchHandle = SearchHandle(0);
 
 /*
 pub type SearchHandle = i32;
 pub const INVALID_SEARCH_HANDLE : SearchHandle = 0;
 */
 
+#[macro_use]
+pub mod qualifier;
+
 pub mod domain;
 
 pub mod errors;
+
 pub use errors::IndyError;
 
 pub mod validation;
@@ -585,5 +610,4 @@ pub mod wallet {
     /// search_handle: wallet search handle (See search_records handler)
     pub type WalletFreeSearch = extern fn(storage_handle: StorageHandle,
                                           search_handle: i32) -> ErrorCode;
-
 }

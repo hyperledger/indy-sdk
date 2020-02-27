@@ -685,8 +685,8 @@ mod tests {
 
         pub fn start(gt: &mut NodeTransactionV1) -> zmq::Socket {
             let (vk, sk) = ed25519_sign::create_key_pair_for_signature(None).unwrap();
-            let pkc = ed25519_sign::vk_to_curve25519(&vk).expect("Invalid pkc");
-            let skc = ed25519_sign::sk_to_curve25519(&sk).expect("Invalid skc");
+            let pkc = vk.to_curve25519().expect("Invalid pkc");
+            let skc = sk.to_curve25519().expect("Invalid skc");
             let ctx = zmq::Context::new();
             let s: zmq::Socket = ctx.socket(zmq::SocketType::ROUTER).unwrap();
 

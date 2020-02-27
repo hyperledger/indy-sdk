@@ -4,7 +4,7 @@ use crate::domain::anoncreds::credential::AttributeValues;
 use crate::domain::anoncreds::proof_request::{AttributeInfo, PredicateInfo, NonRevocedInterval};
 use ursa::cl::{issuer, verifier, CredentialSchema, NonCredentialSchema, MasterSecret, CredentialValues, SubProofRequest};
 
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use crate::domain::anoncreds::schema::SchemaId;
 use crate::domain::anoncreds::credential_definition::CredentialDefinitionId;
 use crate::domain::anoncreds::revocation_registry_definition::RevocationRegistryId;

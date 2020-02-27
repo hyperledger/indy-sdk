@@ -59,20 +59,24 @@ pub fn verify(public_key: &PublicKey, doc: &[u8], signature: &Signature) -> Resu
     ))
 }
 
-pub fn sk_to_curve25519(sk: &SecretKey) -> Result<ed25519_box::SecretKey, IndyError> {
-    let mut to: [u8; ENC_SECRETKEYBYTES] = [0; ENC_SECRETKEYBYTES];
-    unsafe {
-        crypto_sign_ed25519_sk_to_curve25519(&mut to, &(sk.0).0);
+impl SecretKey {
+    pub fn to_curve25519(&self) -> Result<ed25519_box::SecretKey, IndyError> {
+        let mut to: [u8; ENC_SECRETKEYBYTES] = [0; ENC_SECRETKEYBYTES];
+        unsafe {
+            crypto_sign_ed25519_sk_to_curve25519(&mut to, &(self.0).0);
+        }
+        ed25519_box::SecretKey::from_slice(&to)
     }
-    ed25519_box::SecretKey::from_slice(&to)
 }
 
-pub fn vk_to_curve25519(pk: &PublicKey) -> Result<ed25519_box::PublicKey, IndyError> {
-    let mut to: [u8; ENC_PUBLICKEYBYTES] = [0; ENC_PUBLICKEYBYTES];
-    unsafe {
-        crypto_sign_ed25519_pk_to_curve25519(&mut to, &(pk.0).0);
+impl PublicKey {
+    pub fn to_curve25519(&self) -> Result<ed25519_box::PublicKey, IndyError> {
+        let mut to: [u8; ENC_PUBLICKEYBYTES] = [0; ENC_PUBLICKEYBYTES];
+        unsafe {
+            crypto_sign_ed25519_pk_to_curve25519(&mut to, &(self.0).0);
+        }
+        ed25519_box::PublicKey::from_slice(&to)
     }
-    ed25519_box::PublicKey::from_slice(&to)
 }
 
 #[cfg(test)]
@@ -96,7 +100,7 @@ mod tests {
     fn pk_to_curve25519_works() {
         let pk = vec!(236, 191, 114, 144, 108, 87, 211, 244, 148, 23, 20, 175, 122, 6, 159, 254, 85, 99, 145, 152, 178, 133, 230, 236, 192, 69, 35, 136, 141, 194, 243, 134);
         let pk = PublicKey::from_slice(&pk).unwrap();
-        let pkc_test = vk_to_curve25519(&pk).unwrap();
+        let pkc_test = pk.to_curve25519().unwrap();
         let pkc_exp = vec!(8, 45, 124, 147, 248, 201, 112, 171, 11, 51, 29, 248, 34, 127, 197, 241, 60, 158, 84, 47, 4, 176, 238, 166, 110, 39, 207, 58, 127, 110, 76, 42);
         let pkc_exp = ed25519_box::PublicKey::from_slice(&pkc_exp).unwrap();
         assert_eq!(pkc_exp, pkc_test);
@@ -106,7 +110,7 @@ mod tests {
     fn sk_to_curve25519_works() {
         let sk = vec!(78, 67, 205, 99, 150, 131, 75, 110, 56, 154, 76, 61, 27, 142, 36, 141, 44, 223, 122, 199, 14, 230, 12, 163, 4, 255, 94, 230, 21, 242, 97, 200, 236, 191, 114, 144, 108, 87, 211, 244, 148, 23, 20, 175, 122, 6, 159, 254, 85, 99, 145, 152, 178, 133, 230, 236, 192, 69, 35, 136, 141, 194, 243, 134);
         let sk = SecretKey::from_slice(&sk).unwrap();
-        let skc_test = sk_to_curve25519(&sk).unwrap();
+        let skc_test = sk.to_curve25519().unwrap();
         let skc_exp = vec!(144, 112, 64, 101, 69, 167, 61, 44, 220, 148, 58, 187, 108, 73, 11, 247, 130, 161, 158, 40, 100, 1, 40, 27, 76, 148, 209, 240, 195, 35, 153, 121);
         let skc_exp = ed25519_box::SecretKey::from_slice(&skc_exp).unwrap();
         assert_eq!(skc_exp, skc_test);

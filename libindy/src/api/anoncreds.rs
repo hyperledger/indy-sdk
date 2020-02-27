@@ -6,7 +6,7 @@ use crate::commands::anoncreds::issuer::IssuerCommand;
 use crate::commands::anoncreds::prover::ProverCommand;
 use crate::commands::anoncreds::verifier::VerifierCommand;
 use crate::domain::anoncreds::schema::{Schema, AttributeNames, Schemas};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use crate::domain::anoncreds::credential_definition::{CredentialDefinition, CredentialDefinitionConfig, CredentialDefinitionId, CredentialDefinitions};
 use crate::domain::anoncreds::credential_offer::CredentialOffer;
 use crate::domain::anoncreds::credential_request::{CredentialRequest, CredentialRequestMetadata};

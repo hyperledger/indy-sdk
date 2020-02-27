@@ -1,5 +1,5 @@
 use named_type::NamedType;
-use super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 #[derive(Serialize, Deserialize, NamedType)]
 pub struct Pairwise {

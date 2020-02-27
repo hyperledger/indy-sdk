@@ -1,13 +1,12 @@
-extern crate zeroize;
 
-use self::zeroize::Zeroize;
+use zeroize::Zeroize;
 
 use named_type::NamedType;
 
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-#[derive(Serialize, Deserialize, Clone, NamedType)]
+#[derive(Serialize, Deserialize, Clone, NamedType, PartialEq)]
 pub struct Key {
     pub verkey: String,
     #[cfg(not(test))]

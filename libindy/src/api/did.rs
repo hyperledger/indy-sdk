@@ -1,8 +1,8 @@
 use indy_api_types::{ErrorCode, CommandHandle, WalletHandle, PoolHandle};
 use crate::commands::{Command, CommandExecutor};
 use crate::commands::did::DidCommand;
-use crate::domain::crypto::did::{TheirDidInfo, DidValue, MyDidInfo, DidMethod};
-use crate::domain::crypto::key::KeyInfo;
+use indy_api_types::domain::crypto::did::{TheirDidInfo, DidValue, MyDidInfo, DidMethod};
+use indy_api_types::domain::crypto::key::KeyInfo;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 use indy_api_types::validation::Validatable;

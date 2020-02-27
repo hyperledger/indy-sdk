@@ -7,7 +7,7 @@ use crate::commands::Command;
 use crate::commands::payments::PaymentsCommand;
 use indy_utils::ctypes;
 use indy_api_types::errors::prelude::*;
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use indy_api_types::validation::Validatable;
 
 /// Builds Indy request for getting sources list for payment address

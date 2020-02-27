@@ -10,7 +10,7 @@ use crate::domain::anoncreds::revocation_registry::RevocationRegistry;
 use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinition, RevocationRegistryDefinitionV1, RevocationRegistryId};
 use crate::domain::anoncreds::revocation_registry_delta::{RevocationRegistryDelta, RevocationRegistryDeltaV1};
 use crate::domain::anoncreds::schema::{Schema, SchemaV1, SchemaId};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use crate::domain::ledger::attrib::{AttribOperation, GetAttribOperation};
 use crate::domain::ledger::constants::{GET_VALIDATOR_INFO, POOL_RESTART, ROLE_REMOVE, STEWARD, ENDORSER, TRUSTEE, NETWORK_MONITOR, ROLES, txn_name_to_code};
 use crate::domain::ledger::cred_def::{CredDefOperation, GetCredDefOperation, GetCredDefReplyResult};

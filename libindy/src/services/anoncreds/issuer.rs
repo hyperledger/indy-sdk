@@ -18,7 +18,7 @@ use crate::domain::anoncreds::credential::CredentialValues;
 use crate::domain::anoncreds::credential_definition::{CredentialDefinitionData, CredentialDefinitionV1 as CredentialDefinition};
 use crate::domain::anoncreds::credential_request::CredentialRequest;
 use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinitionV1, RevocationRegistryDefinitionValuePublicKeys};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use indy_api_types::errors::prelude::*;
 use crate::services::anoncreds::helpers::*;
 

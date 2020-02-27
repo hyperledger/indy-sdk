@@ -6,7 +6,7 @@ use indy_utils::ctypes;
 use crate::domain::cache::{GetCacheOptions, PurgeOptions};
 use crate::domain::anoncreds::schema::SchemaId;
 use crate::domain::anoncreds::credential_definition::CredentialDefinitionId;
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use indy_api_types::validation::Validatable;
 use libc::c_char;
 

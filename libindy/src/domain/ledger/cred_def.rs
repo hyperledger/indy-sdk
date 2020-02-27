@@ -3,7 +3,7 @@ use super::response::{GetReplyResultV1, ReplyType};
 use super::super::anoncreds::credential_definition::{CredentialDefinitionData, CredentialDefinitionV1, SignatureType, CredentialDefinitionId};
 use super::super::anoncreds::schema::SchemaId;
 use super::super::ledger::request::ProtocolVersion;
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 
 #[derive(Serialize, Debug)]
 pub struct CredDefOperation {

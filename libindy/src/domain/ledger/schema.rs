@@ -1,6 +1,6 @@
 use super::constants::{SCHEMA, GET_SCHEMA};
 use super::response::{GetReplyResultV1, ReplyType};
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 use super::super::anoncreds::schema::SchemaId;
 
 use std::collections::HashSet;

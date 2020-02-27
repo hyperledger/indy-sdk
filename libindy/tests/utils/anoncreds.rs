@@ -19,7 +19,7 @@ use crate::utils::domain::anoncreds::credential_definition::{CredentialDefinitio
 use crate::utils::domain::anoncreds::revocation_registry_definition::{RevocationRegistryConfig, IssuanceType, RevocationRegistryId};
 use crate::utils::domain::anoncreds::credential::{AttributeValues, CredentialInfo};
 use crate::utils::domain::anoncreds::credential_for_proof_request::CredentialsForProofRequest;
-use crate::utils::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use indy::WalletHandle;
 

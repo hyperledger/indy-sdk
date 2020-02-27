@@ -17,7 +17,7 @@ use crate::utils::Setup;
 use crate::utils::domain::anoncreds::credential::CredentialInfo;
 use crate::utils::domain::anoncreds::credential_for_proof_request::{CredentialsForProofRequest, RequestedCredential};
 use crate::utils::domain::anoncreds::proof::Proof;
-use crate::utils::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use indy::INVALID_WALLET_HANDLE;
 

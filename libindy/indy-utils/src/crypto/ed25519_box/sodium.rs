@@ -49,12 +49,12 @@ mod tests {
         let seed = ed25519_sign::Seed::from_slice(&randombytes(32)).unwrap();
 
         let (alice_ver_key, alice_sign_key) = ed25519_sign::create_key_pair_for_signature(Some(&seed)).unwrap();
-        let alice_pk = ed25519_sign::vk_to_curve25519(&alice_ver_key).unwrap();
-        let alice_sk = ed25519_sign::sk_to_curve25519(&alice_sign_key).unwrap();
+        let alice_pk = alice_ver_key.to_curve25519().unwrap();
+        let alice_sk = alice_sign_key.to_curve25519().unwrap();
 
         let (bob_ver_key, bob_sign_key) = ed25519_sign::create_key_pair_for_signature(Some(&seed)).unwrap();
-        let bob_pk = ed25519_sign::vk_to_curve25519(&bob_ver_key).unwrap();
-        let bob_sk = ed25519_sign::sk_to_curve25519(&bob_sign_key).unwrap();
+        let bob_pk = bob_ver_key.to_curve25519().unwrap();
+        let bob_sk = bob_sign_key.to_curve25519().unwrap();
 
         let bob_encrypted_text = encrypt(&bob_sk, &alice_pk, &text, &nonce).unwrap();
         let bob_decrypt_result = decrypt(&alice_sk, &bob_pk, &bob_encrypted_text, &nonce);

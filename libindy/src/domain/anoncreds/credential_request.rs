@@ -4,7 +4,7 @@ use ursa::cl::{
     CredentialSecretsBlindingFactors,
     Nonce
 };
-use super::super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use super::credential_definition::CredentialDefinitionId;
 

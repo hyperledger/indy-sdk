@@ -1,7 +1,7 @@
 use super::constants::NODE;
 
 use indy_api_types::validation::Validatable;
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NodeOperation {

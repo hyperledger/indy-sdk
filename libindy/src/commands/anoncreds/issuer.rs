@@ -45,19 +45,20 @@ use crate::domain::anoncreds::revocation_registry_delta::{
     RevocationRegistryDeltaV1,
 };
 use crate::domain::anoncreds::schema::{AttributeNames, Schema, SchemaV1, SchemaId};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 use indy_api_types::domain::wallet::Tags;
 use indy_api_types::errors::prelude::*;
 use crate::services::anoncreds::AnoncredsService;
 use crate::services::anoncreds::helpers::parse_cred_rev_id;
 use crate::services::blob_storage::BlobStorageService;
-use crate::services::crypto::CryptoService;
 use crate::services::pool::PoolService;
 use indy_wallet::{RecordOptions, WalletService};
 
 use super::tails::{SDKTailsAccessor, store_tails_from_generator};
 use indy_api_types::{WalletHandle, CommandHandle};
+
 use indy_utils::next_command_handle;
+use indy_utils::crypto::validate_did;
 
 pub enum IssuerCommand {
     CreateSchema(
@@ -148,7 +149,6 @@ pub struct IssuerCommandExecutor {
     pub blob_storage_service: Rc<BlobStorageService>,
     pub pool_service: Rc<PoolService>,
     pub wallet_service: Rc<WalletService>,
-    pub crypto_service: Rc<CryptoService>,
     pending_str_str_callbacks: RefCell<HashMap<CommandHandle, BoxedCallbackStringStringSend>>,
     pending_str_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<String>) + Send>>>,
 }
@@ -157,14 +157,12 @@ impl IssuerCommandExecutor {
     pub fn new(anoncreds_service: Rc<AnoncredsService>,
                pool_service: Rc<PoolService>,
                blob_storage_service: Rc<BlobStorageService>,
-               wallet_service: Rc<WalletService>,
-               crypto_service: Rc<CryptoService>) -> IssuerCommandExecutor {
+               wallet_service: Rc<WalletService>) -> IssuerCommandExecutor {
         IssuerCommandExecutor {
             anoncreds_service,
             pool_service,
             blob_storage_service,
             wallet_service,
-            crypto_service,
             pending_str_str_callbacks: RefCell::new(HashMap::new()),
             pending_str_callbacks: RefCell::new(HashMap::new()),
         }
@@ -239,7 +237,7 @@ impl IssuerCommandExecutor {
                      attrs: AttributeNames) -> IndyResult<(String, String)> {
         debug!("create_schema >>> issuer_did: {:?}, name: {:?}, version: {:?}, attrs: {:?}", issuer_did, name, version, attrs);
 
-        self.crypto_service.validate_did(issuer_did)?;
+        validate_did(issuer_did)?;
 
         let schema_id = SchemaId::new(&issuer_did, name, version);
 

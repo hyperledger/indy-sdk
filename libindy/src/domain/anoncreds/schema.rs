@@ -1,12 +1,12 @@
 use super::DELIMITER;
 
-use super::super::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use std::collections::{HashMap, HashSet};
 use named_type::NamedType;
 
 use indy_api_types::validation::Validatable;
-use crate::utils::qualifier;
+use indy_api_types::qualifier;
 
 pub const MAX_ATTRIBUTES_COUNT: usize = 125;
 

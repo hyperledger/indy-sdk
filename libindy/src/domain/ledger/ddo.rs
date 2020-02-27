@@ -1,5 +1,5 @@
 use super::constants::GET_DDO;
-use super::super::crypto::did::ShortDidValue;
+use indy_api_types::domain::crypto::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetDdoOperation {

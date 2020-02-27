@@ -12,7 +12,7 @@ use indy_api_types::{WalletHandle, PoolHandle, CommandHandle};
 use crate::commands::{Command, CommandExecutor};
 use crate::commands::ledger::LedgerCommand;
 use crate::domain::cache::{GetCacheOptions, PurgeOptions};
-use crate::domain::crypto::did::DidValue;
+use indy_api_types::domain::crypto::did::DidValue;
 
 use indy_utils::next_command_handle;
 
