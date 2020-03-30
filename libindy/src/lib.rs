@@ -1,6 +1,7 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
+#[macro_use]
+extern crate futures;
 
-extern crate byteorder;
 extern crate failure;
 
 #[macro_use]
@@ -20,7 +21,6 @@ extern crate rmp_serde;
 extern crate lazy_static;
 
 extern crate ursa;
-extern crate rlp;
 extern crate time;
 extern crate libc;
 extern crate rand;
@@ -36,11 +36,12 @@ extern crate log_derive;
 extern crate rust_base58;
 
 extern crate sha2;
-extern crate sha3;
 
 extern crate zeroize;
 
 extern crate regex;
+
+extern crate byteorder;
 
 extern crate indy_api_types;
 
@@ -48,6 +49,8 @@ extern crate indy_api_types;
 extern crate indy_utils;
 
 extern crate indy_wallet;
+
+extern crate indy_vdr;
 
 // Note that to use macroses from util inside of other modules it must be loaded first!
 #[macro_use]

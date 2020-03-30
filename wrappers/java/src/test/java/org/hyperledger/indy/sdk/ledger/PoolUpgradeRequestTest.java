@@ -3,66 +3,82 @@ package org.hyperledger.indy.sdk.ledger;
 import org.hyperledger.indy.sdk.IndyIntegrationTestWithPoolAndSingleWallet;
 import org.hyperledger.indy.sdk.did.Did;
 import org.hyperledger.indy.sdk.did.DidResults;
+import org.json.JSONObject;
 import org.junit.Test;
 
 import java.util.Calendar;
-
-import static org.junit.Assert.assertTrue;
 
 public class PoolUpgradeRequestTest extends IndyIntegrationTestWithPoolAndSingleWallet {
 
 	@Test
 	public void testBuildPoolUpgradeRequestWorksForStartAction() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{\"type\":\"109\"," +
-				"\"name\":\"upgrade-java\"," +
-				"\"version\":\"2.0.0\"," +
-				"\"action\":\"start\"," +
-				"\"sha256\":\"f284b\"," +
-				"\"schedule\":{}," +
-				"\"reinstall\":false," +
-				"\"force\":false}", DID);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "109")
+								.put("name", "upgrade-java")
+								.put("version", "2.0.0")
+								.put("action", "start")
+								.put("sha256", "f284b")
+								.put("schedule", new JSONObject())
+								.put("reinstall", false)
+								.put("force", false)
+				);
 
 		String request = Ledger.buildPoolUpgradeRequest(DID, "upgrade-java", "2.0.0", "start", "f284b", - 1,
 				"{}", null, false, false, null).get();
-
-		assertTrue(request.contains(expectedResult));
+		assert (new JSONObject(request).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildPoolUpgradeRequestWorksForPackage() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{\"type\":\"109\"," +
-				"\"name\":\"upgrade-java\"," +
-				"\"version\":\"2.0.0\"," +
-				"\"action\":\"start\"," +
-				"\"sha256\":\"f284b\"," +
-				"\"schedule\":{}," +
-				"\"reinstall\":false," +
-				"\"force\":false," +
-				"\"package\":\"some_package\"}", DID);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "109")
+								.put("name", "upgrade-java")
+								.put("version", "2.0.0")
+								.put("action", "start")
+								.put("sha256", "f284b")
+								.put("schedule", new JSONObject())
+								.put("reinstall", false)
+								.put("force", false)
+								.put("package", "some_package")
+				);
 
 		String request = Ledger.buildPoolUpgradeRequest(DID, "upgrade-java", "2.0.0", "start", "f284b", - 1,
 				"{}", null, false, false, "some_package").get();
 
-		assertTrue(request.contains(expectedResult));
+		assert (new JSONObject(request).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildPoolUpgradeRequestWorksForCancelAction() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{\"type\":\"109\"," +
-				"\"name\":\"upgrade-java\"," +
-				"\"version\":\"2.0.0\"," +
-				"\"action\":\"cancel\"," +
-				"\"sha256\":\"f284b\"," +
-				"\"reinstall\":false," +
-				"\"force\":false}", DID);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "109")
+								.put("name", "upgrade-java")
+								.put("version", "2.0.0")
+								.put("action", "cancel")
+								.put("sha256", "f284b")
+								.put("reinstall", false)
+								.put("force", false)
+				);
 
 		String request = Ledger.buildPoolUpgradeRequest(DID, "upgrade-java", "2.0.0", "cancel", "f284b", - 1,
 				null, null, false, false, null).get();
 
-		assertTrue(request.contains(expectedResult));
+		assert (new JSONObject(request).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test

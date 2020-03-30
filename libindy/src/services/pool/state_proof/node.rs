@@ -1,3 +1,4 @@
+/*
 use std::collections::HashMap;
 
 use rlp::{DecoderError as RlpDecoderError, Prototype as RlpPrototype,
@@ -421,3 +422,4 @@ mod tests {
                    "wYA=");
     }
 }
+*/

@@ -4,10 +4,12 @@ use crate::commands::cache::CacheCommand;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 use crate::domain::cache::{GetCacheOptions, PurgeOptions};
-use crate::domain::anoncreds::schema::SchemaId;
-use crate::domain::anoncreds::credential_definition::CredentialDefinitionId;
-use crate::domain::crypto::did::DidValue;
-use indy_api_types::validation::Validatable;
+
+use indy_vdr::common::did::DidValue;
+use indy_vdr::ledger::identifiers::schema::SchemaId;
+use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
+use indy_vdr::utils::validation::Validatable;
+
 use libc::c_char;
 
 
@@ -56,7 +58,7 @@ pub extern fn indy_get_cred_def(command_handle: CommandHandle,
             submitter_did,
             id,
             options_json,
-            boxed_callback_string!("indy_get_cred_def", cb, command_handle)
+            boxed_callback_string!("indy_get_cred_def", cb, command_handle),
         )));
 
     let res = prepare_result!(result);
@@ -114,7 +116,7 @@ pub extern fn indy_get_schema(command_handle: CommandHandle,
             submitter_did,
             id,
             options_json,
-            boxed_callback_string!("indy_get_schema", cb, command_handle)
+            boxed_callback_string!("indy_get_schema", cb, command_handle),
         )));
 
     let res = prepare_result!(result);
@@ -159,7 +161,7 @@ pub extern fn indy_purge_cred_def_cache(command_handle: CommandHandle,
                 let err = prepare_result!(result);
                 trace!("indy_purge_cred_def_cache:");
                 cb(command_handle, err)
-            })
+            }),
         )));
 
     let res = prepare_result!(result);
@@ -204,7 +206,7 @@ pub extern fn indy_purge_schema_cache(command_handle: CommandHandle,
                 let err = prepare_result!(result);
                 trace!("indy_purge_schema_cache:");
                 cb(command_handle, err)
-            })
+            }),
         )));
 
     let res = prepare_result!(result);

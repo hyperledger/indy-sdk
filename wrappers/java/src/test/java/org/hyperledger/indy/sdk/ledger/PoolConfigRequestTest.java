@@ -3,24 +3,27 @@ package org.hyperledger.indy.sdk.ledger;
 import org.hyperledger.indy.sdk.IndyIntegrationTestWithPoolAndSingleWallet;
 import org.hyperledger.indy.sdk.did.Did;
 import org.hyperledger.indy.sdk.did.DidResults;
+import org.json.JSONObject;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class PoolConfigRequestTest extends IndyIntegrationTestWithPoolAndSingleWallet {
 
 	@Test
 	public void testBuildPoolConfigRequestWorks() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"111\"," +
-				"\"writes\":false," +
-				"\"force\":false" +
-				"}", DID);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "111")
+								.put("writes", false)
+								.put("force", false)
+				);
+
 
 		String request = Ledger.buildPoolConfigRequest(DID, false, false).get();
-
-		assertTrue(request.contains(expectedResult));
+		assert (new JSONObject(request).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test

@@ -505,25 +505,6 @@ mod test_parse_get_schema_response {
 }
 
 #[cfg(test)]
-mod test_build_get_ddo_request {
-
-    use super::*;
-
-    #[test]
-    pub fn build_get_ddo_request_success() {
-        let wallet = Wallet::new();
-        let (did, _) = did::create_and_store_my_did(wallet.handle, "{}").wait().unwrap();
-
-        match ledger::build_get_ddo_request(Some(&did), &did).wait() {
-            Ok(_) => {},
-            Err(ec) => {
-                assert!(false, "build_get_ddo_request failed error_code {:?}", ec);
-            }
-        }
-    }
-}
-
-#[cfg(test)]
 mod test_build_get_txn_request {
     use super::*;
 

@@ -493,6 +493,7 @@ pub mod tests {
         let _setup = SetupLibraryWalletPool::init();
 
         let (_, schema_id, did, revocation_details) = prepare_create_cred_def_data(false);
+        sleep(Duration::from_secs(2));
 
         let handle_1 = create_and_publish_credentialdef("1".to_string(),
                                                         "name".to_string(),

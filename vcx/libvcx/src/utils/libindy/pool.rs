@@ -70,6 +70,10 @@ pub fn open_pool_ledger(pool_name: &str, config: Option<&str>) -> VcxResult<u32>
                     err.to_vcx(VcxErrorKind::PoolLedgerConnect,
                                format!("Pool \"{}\" is not compatible with Protocol Version \"{}\".", pool_name, protocol_version))
                 }
+                ErrorCode::CommonInvalidStructure => {
+                    err.to_vcx(VcxErrorKind::PoolLedgerConnect,
+                               format!("Geneses transactions are invalid."))
+                }
                 ErrorCode::CommonInvalidState => {
                     err.to_vcx(VcxErrorKind::PoolLedgerConnect,
                                format!("Geneses transactions are invalid."))

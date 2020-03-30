@@ -2,37 +2,59 @@ package org.hyperledger.indy.sdk.ledger;
 
 import org.hyperledger.indy.sdk.InvalidStructureException;
 import org.hyperledger.indy.sdk.utils.PoolUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.*;
 
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.CoreMatchers.isA;
-import static org.junit.Assert.assertTrue;
 
 public class SchemaRequestsTest extends LedgerIntegrationTest {
 
 	@Test
 	public void testBuildSchemaRequestWorks() throws Exception {
-		String expectedResult = "\"operation\": {\n" +
-				"            \"type\": \"101\",\n" +
-				"            \"data\": {\"name\": \"gvt\", \"version\": \"1.0\", \"attr_names\": [\"name\"]}\n" +
-				"        }";
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "101")
+								.put("data", new JSONObject()
+										.put("name", "gvt")
+										.put("version", "1.0")
+										.put("attr_names", new JSONArray().put("name"))
+
+								)
+				);
 
 		String schemaRequest = Ledger.buildSchemaRequest(DID, SCHEMA_DATA).get();
-
-		assertTrue(schemaRequest.replaceAll("\\s+", "").contains(expectedResult.replaceAll("\\s+", "")));
+		assert (new JSONObject(schemaRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildGetSchemaRequestWorks() throws Exception {
 		String id = String.format("%s:1:%s:%s", DID, GVT_SCHEMA_NAME, SCHEMA_VERSION);
 
-		String expectedResult = "\"operation\":{\"type\":\"107\",\"dest\":\"CnEDk9HrMnmiHXEV1WFgbVCRteYnPqsJwrTdcZaNhFVW\",\"data\":{\"name\":\"gvt\",\"version\":\"1.0\"}}";
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "107")
+								.put("dest", "CnEDk9HrMnmiHXEV1WFgbVCRteYnPqsJwrTdcZaNhFVW")
+								.put("data", new JSONObject()
+										.put("name", "gvt")
+										.put("version", "1.0")
+
+								)
+				);
 
 		String getSchemaRequest = Ledger.buildGetSchemaRequest(DID, id).get();
 
-		assertTrue(getSchemaRequest.contains(expectedResult));
+		assert (new JSONObject(getSchemaRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test

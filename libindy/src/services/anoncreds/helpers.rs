@@ -14,6 +14,7 @@ use crate::domain::anoncreds::revocation_registry_definition::RevocationRegistry
 use crate::domain::anoncreds::credential_offer::CredentialOffer;
 use crate::domain::anoncreds::credential_request::CredentialRequest;
 use crate::domain::anoncreds::proof_request::ProofRequest;
+use indy_vdr::utils::qualifier::Qualifiable;
 
 use std::collections::{HashSet, HashMap};
 
@@ -122,7 +123,7 @@ pub fn get_non_revoc_interval(global_interval: &Option<NonRevocedInterval>, loca
 
 macro_rules! _id_to_unqualified {
     ($entity:expr, $type_:ident) => ({
-        if $entity.starts_with($type_::PREFIX) {
+        if $entity.starts_with($type_::prefix()) {
             return Ok($type_($entity.to_string()).to_unqualified().0);
         }
     })

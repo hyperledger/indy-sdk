@@ -1,3 +1,4 @@
+/*
 use std::cmp;
 
 use indy_api_types::errors::prelude::*;
@@ -217,3 +218,4 @@ impl IntoIterator for Tree {
     }
 
 }
+*/

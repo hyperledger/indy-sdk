@@ -17,6 +17,7 @@ use crate::utils::crypto::verkey_builder::{build_full_verkey, split_verkey, verk
 use self::ed25519::ED25519CryptoType;
 use self::hex::FromHex;
 use rust_base58::{FromBase58, ToBase58};
+use indy_vdr::utils::qualifier::Qualifiable;
 
 mod ed25519;
 
@@ -372,6 +373,13 @@ impl CryptoService {
         trace!("validate_did <<< res: ()");
 
         Ok(())
+    }
+
+    pub fn validate_opt_did(&self, did: Option<&DidValue>) -> IndyResult<()> {
+        match did {
+            Some(did) => Ok(self.validate_did(did)?),
+            None => Ok(())
+        }
     }
 
     pub fn encrypt_plaintext(&self,

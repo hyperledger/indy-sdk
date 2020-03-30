@@ -42,10 +42,6 @@ pub mod sequence;
 #[path = "../../indy-utils/src/ctypes.rs"]
 pub mod ctypes;
 
-#[macro_use]
-#[path = "../../src/utils/qualifier.rs"]
-pub mod qualifier;
-
 pub(crate) use indy::ErrorCode;
 
 #[path = "../../indy-utils/src/inmem_wallet.rs"]
@@ -90,6 +86,7 @@ macro_rules! inject_indy_dependencies {
         extern crate time;
         extern crate libc;
         extern crate dirs;
+        extern crate indy_vdr;
     }
 }
 

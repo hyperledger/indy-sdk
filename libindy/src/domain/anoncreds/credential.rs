@@ -12,6 +12,8 @@ use indy_api_types::validation::Validatable;
 use super::credential_definition::CredentialDefinitionId;
 use super::revocation_registry_definition::RevocationRegistryId;
 use super::schema::SchemaId;
+use indy_vdr::utils::validation::Validatable as VdrValidatable;
+use indy_vdr::common::error::VdrResultExt;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Credential {
@@ -67,8 +69,8 @@ impl Validatable for CredentialValues {
 
 impl Validatable for Credential {
     fn validate(&self) -> Result<(), String> {
-        self.schema_id.validate()?;
-        self.cred_def_id.validate()?;
+        self.schema_id.validate().map_err_string()?;
+        self.cred_def_id.validate().map_err_string()?;
         self.values.validate()?;
 
         if self.rev_reg_id.is_some() && (self.witness.is_none() || self.rev_reg.is_none()) {

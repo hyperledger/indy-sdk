@@ -1,15 +1,9 @@
-use ursa::cl::RevocationRegistry as CryptoRevocationRegistry;
-
 use std::collections::HashMap;
 
 use indy_api_types::validation::Validatable;
 
 use super::revocation_registry_definition::RevocationRegistryId;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RevocationRegistryV1 {
-    pub value: CryptoRevocationRegistry
-}
+pub use indy_vdr::ledger::requests::rev_reg::RevocationRegistryV1;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "ver")]
@@ -35,7 +29,11 @@ pub fn rev_regs_map_to_rev_regs_local_map(rev_regs: RevocationRegistries) -> Has
         .map(|(rev_reg_id, rev_reg_to_timespams)| {
             let val = rev_reg_to_timespams
                 .into_iter()
-                .map(|(timestamp, rev_reg)| (timestamp, RevocationRegistryV1::from(rev_reg)))
+                .map(|(timestamp, rev_reg)| {
+                    match rev_reg {
+                        RevocationRegistry::RevocationRegistryV1(rev_reg) => (timestamp, rev_reg)
+                    }
+                })
                 .collect();
             (rev_reg_id, val)
         })

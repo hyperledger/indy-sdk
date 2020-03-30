@@ -96,10 +96,6 @@ test('ledger', async function (t) {
   req = await indy.buildPoolUpgradeRequest(myDid, 'some upgrade action', '2.0.0', 'cancel', 'abc12345', -1, null, null, false, false, null)
   t.is(req.operation.name, 'some upgrade action')
 
-  // DDO
-  req = await indy.buildGetDdoRequest(myDid, trusteeDid)
-  t.is(req.operation.dest, trusteeDid)
-
   // Cred Def
   var [credDefId, credDef] = await indy.issuerCreateAndStoreCredentialDef(wh, myDid, schema, 'TAG', 'CL', { support_revocation: true })
   req = await indy.buildCredDefRequest(myDid, credDef)

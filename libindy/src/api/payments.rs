@@ -7,7 +7,7 @@ use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 use crate::services::payments::{RequesterInfo, Fees};
 use crate::domain::crypto::did::DidValue;
-use indy_api_types::validation::Validatable;
+use indy_vdr::utils::validation::Validatable;
 
 /// Create the payment address for this payment method.
 ///

@@ -26,7 +26,7 @@ use crate::services::anoncreds::helpers::{parse_cred_rev_id, get_non_revoc_inter
 use crate::services::blob_storage::BlobStorageService;
 use crate::services::crypto::CryptoService;
 use indy_wallet::{RecordOptions, SearchOptions, WalletRecord, WalletSearch, WalletService};
-use indy_utils::{next_search_handle};
+use indy_utils::next_search_handle;
 use crate::utils::wql::Query;
 
 use super::tails::SDKTailsAccessor;
@@ -126,7 +126,7 @@ pub enum ProverCommand {
         RevocationRegistryDelta, // revocation registry delta
         u64, //timestamp
         String, //credential revocation id
-        Box<dyn Fn(IndyResult<String>) + Send>)
+        Box<dyn Fn(IndyResult<String>) + Send>),
 }
 
 struct SearchForProofRequest {
@@ -180,8 +180,12 @@ impl ProverCommandExecutor {
             ProverCommand::CreateCredentialRequest(wallet_handle, prover_did, credential_offer,
                                                    credential_def, master_secret_name, cb) => {
                 debug!(target: "prover_command_executor", "CreateCredentialRequest command received");
-                cb(self.create_credential_request(wallet_handle, &prover_did, &credential_offer,
-                                                  &CredentialDefinitionV1::from(credential_def), &master_secret_name));
+                match credential_def {
+                    CredentialDefinition::CredentialDefinitionV1(credential_def) => {
+                        cb(self.create_credential_request(wallet_handle, &prover_did, &credential_offer,
+                                                          &credential_def, &master_secret_name));
+                    }
+                }
             }
             ProverCommand::SetCredentialAttrTagPolicy(wallet_handle, cred_def_id, catpol, retroactive, cb) => {
                 debug!(target: "prover_command_executor", "SetCredentialAttrTagPolicy command received");
@@ -193,10 +197,22 @@ impl ProverCommandExecutor {
             }
             ProverCommand::StoreCredential(wallet_handle, cred_id, cred_req_metadata, mut cred, cred_def, rev_reg_def, cb) => {
                 debug!(target: "prover_command_executor", "StoreCredential command received");
-                cb(self.store_credential(wallet_handle, cred_id.as_ref().map(String::as_str),
-                                         &cred_req_metadata, &mut cred,
-                                         &CredentialDefinitionV1::from(cred_def),
-                                         rev_reg_def.map(RevocationRegistryDefinitionV1::from).as_ref()));
+
+                match (cred_def, rev_reg_def) {
+                    (CredentialDefinition::CredentialDefinitionV1(cred_def), None) => {
+                        cb(self.store_credential(wallet_handle, cred_id.as_ref().map(String::as_str),
+                                                 &cred_req_metadata, &mut cred,
+                                                 &cred_def,
+                                                 None));
+                    }
+                    (CredentialDefinition::CredentialDefinitionV1(cred_def),
+                        Some(RevocationRegistryDefinition::RevocationRegistryDefinitionV1(rev_reg_def))) => {
+                        cb(self.store_credential(wallet_handle, cred_id.as_ref().map(String::as_str),
+                                                 &cred_req_metadata, &mut cred,
+                                                 &cred_def,
+                                                 Some(&rev_reg_def)));
+                    }
+                }
             }
             ProverCommand::GetCredentials(wallet_handle, filter_json, cb) => {
                 debug!(target: "prover_command_executor", "GetCredentials command received");
@@ -248,11 +264,21 @@ impl ProverCommandExecutor {
             }
             ProverCommand::CreateRevocationState(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, cred_rev_id, cb) => {
                 debug!(target: "prover_command_executor", "CreateRevocationState command received");
-                cb(self.create_revocation_state(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                match (rev_reg_def, rev_reg_delta) {
+                    (RevocationRegistryDefinition::RevocationRegistryDefinitionV1(rev_reg_def),
+                        RevocationRegistryDelta::RevocationRegistryDeltaV1(rev_reg_delta)) => {
+                        cb(self.create_revocation_state(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                    }
+                }
             }
             ProverCommand::UpdateRevocationState(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, cred_rev_id, cb) => {
                 debug!(target: "prover_command_executor", "UpdateRevocationState command received");
-                cb(self.update_revocation_state(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                match (rev_reg_def, rev_reg_delta) {
+                    (RevocationRegistryDefinition::RevocationRegistryDefinitionV1(rev_reg_def),
+                        RevocationRegistryDelta::RevocationRegistryDeltaV1(rev_reg_delta)) => {
+                        cb(self.update_revocation_state(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                    }
+                }
             }
         };
     }
@@ -306,13 +332,13 @@ impl ProverCommandExecutor {
             cred_def_id: cred_offer.cred_def_id.clone(),
             blinded_ms,
             blinded_ms_correctness_proof,
-            nonce
+            nonce,
         };
 
         let credential_request_metadata = CredentialRequestMetadata {
             master_secret_blinding_data: ms_blinding_data,
             nonce: credential_request.nonce.try_clone()?,
-            master_secret_name: master_secret_id.to_string()
+            master_secret_name: master_secret_id.to_string(),
         };
 
         let cred_req_json = serde_json::to_string(&credential_request)
@@ -344,7 +370,7 @@ impl ProverCommandExecutor {
             }
         };
 
-        // Cascade whether we updated policy or not: could be a retroactive cred attr tags reset to existing policy
+// Cascade whether we updated policy or not: could be a retroactive cred attr tags reset to existing policy
         if retroactive {
             let query_json = format!(r#"{{"cred_def_id": "{}"}}"#, cred_def_id.0);
             let mut credentials_search = self.wallet_service.search_indy_records::<Credential>(wallet_handle, query_json.as_str(), &SearchOptions::id_value())?;
@@ -468,7 +494,7 @@ impl ProverCommandExecutor {
 
         let total_count = credentials_search.get_total_count()?.unwrap_or(0);
 
-        let handle : SearchHandle = next_search_handle();
+        let handle: SearchHandle = next_search_handle();
 
         self.searches.borrow_mut().insert(handle, Box::new(credentials_search));
 
@@ -722,22 +748,18 @@ impl ProverCommandExecutor {
 
     fn create_revocation_state(&self,
                                blob_storage_reader_handle: i32,
-                               revoc_reg_def: RevocationRegistryDefinition,
-                               rev_reg_delta: RevocationRegistryDelta,
+                               revoc_reg_def: RevocationRegistryDefinitionV1,
+                               rev_reg_delta: RevocationRegistryDeltaV1,
                                timestamp: u64,
                                cred_rev_id: &str) -> IndyResult<String> {
         debug!("create_revocation_state >>> , blob_storage_reader_handle: {:?}, revoc_reg_def: {:?}, rev_reg_delta: {:?}, timestamp: {:?}, cred_rev_id: {:?}",
                blob_storage_reader_handle, revoc_reg_def, rev_reg_delta, timestamp, cred_rev_id);
-
-        let revoc_reg_def = RevocationRegistryDefinitionV1::from(revoc_reg_def);
 
         let rev_idx = parse_cred_rev_id(cred_rev_id)?;
 
         let sdk_tails_accessor = SDKTailsAccessor::new(self.blob_storage_service.clone(),
                                                        blob_storage_reader_handle,
                                                        &revoc_reg_def)?;
-
-        let rev_reg_delta = RevocationRegistryDeltaV1::from(rev_reg_delta);
 
         let witness = Witness::new(rev_idx, revoc_reg_def.value.max_cred_num, revoc_reg_def.value.issuance_type.to_bool(), &rev_reg_delta.value, &sdk_tails_accessor)?;
 
@@ -758,24 +780,20 @@ impl ProverCommandExecutor {
     fn update_revocation_state(&self,
                                blob_storage_reader_handle: i32,
                                mut rev_state: RevocationState,
-                               rev_reg_def: RevocationRegistryDefinition,
-                               rev_reg_delta: RevocationRegistryDelta,
+                               rev_reg_def: RevocationRegistryDefinitionV1,
+                               rev_reg_delta: RevocationRegistryDeltaV1,
                                timestamp: u64,
                                cred_rev_id: &str) -> IndyResult<String> {
         debug!("update_revocation_state >>> blob_storage_reader_handle: {:?}, rev_state: {:?}, rev_reg_def: {:?}, rev_reg_delta: {:?}, timestamp: {:?}, cred_rev_id: {:?}",
                blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, cred_rev_id);
 
-        let revocation_registry_definition = RevocationRegistryDefinitionV1::from(rev_reg_def);
-
-        let rev_reg_delta = RevocationRegistryDeltaV1::from(rev_reg_delta);
-
         let rev_idx = parse_cred_rev_id(cred_rev_id)?;
 
         let sdk_tails_accessor = SDKTailsAccessor::new(self.blob_storage_service.clone(),
                                                        blob_storage_reader_handle,
-                                                       &revocation_registry_definition)?;
+                                                       &rev_reg_def)?;
 
-        rev_state.witness.update(rev_idx, revocation_registry_definition.value.max_cred_num, &rev_reg_delta.value, &sdk_tails_accessor)?;
+        rev_state.witness.update(rev_idx, rev_reg_def.value.max_cred_num, &rev_reg_delta.value, &sdk_tails_accessor)?;
 
         rev_state.rev_reg = RevocationRegistry::from(rev_reg_delta.value);
         rev_state.timestamp = timestamp;
@@ -803,7 +821,7 @@ impl ProverCommandExecutor {
             schema_id: credential.schema_id,
             cred_def_id: credential.cred_def_id,
             rev_reg_id: credential.rev_reg_id,
-            cred_rev_id: credential.signature.extract_index().map(|idx| idx.to_string())
+            cred_rev_id: credential.signature.extract_index().map(|idx| idx.to_string()),
         }
     }
 
@@ -863,7 +881,7 @@ impl ProverCommandExecutor {
             credentials.push(
                 RequestedCredential {
                     cred_info: self._get_credential_info(&referent, credential),
-                    interval: interval.clone()
+                    interval: interval.clone(),
                 });
 
             if let Some(mut count) = max_count {

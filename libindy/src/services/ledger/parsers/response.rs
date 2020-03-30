@@ -71,10 +71,6 @@ pub enum Message<T> {
     Reject(Response)
 }
 
-pub trait ReplyType {
-    fn get_type<'a>() -> &'a str;
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMetadata {

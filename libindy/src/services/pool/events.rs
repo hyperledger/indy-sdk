@@ -1,3 +1,4 @@
+/*
 use serde_json;
 use serde_json::Value as SJsonValue;
 
@@ -305,3 +306,4 @@ fn _get_req_json(msg: &str) -> IndyResult<SJsonValue> {
     serde_json::from_str(msg)
         .to_indy(IndyErrorKind::InvalidStructure, "Invalid request json") // FIXME: Review kind
 }
+*/

@@ -7,18 +7,20 @@ import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
-
 public class GetValidatorInfoRequestTest extends IndyIntegrationTestWithPoolAndSingleWallet {
     @Test
     public void testBuildGetValidatorInfoRequestWorks() throws Exception {
-        String expectedResult = "" +
-                "\"operation\":{" +
-                "\"type\":\"119\"" +
-                "}";
+        JSONObject expectedResult = new JSONObject()
+                .put("identifier", DID)
+                .put("operation",
+                        new JSONObject()
+                                .put("type", "119")
+                );
 
         String getValidatorInfoRequest = Ledger.buildGetValidatorInfoRequest(DID).get();
-        assertTrue(getValidatorInfoRequest.replace("\\", "").contains(expectedResult));
+        assert (new JSONObject(getValidatorInfoRequest).toMap().entrySet()
+                .containsAll(
+                        expectedResult.toMap().entrySet()));
     }
 
     @Test(timeout = PoolUtils.TEST_TIMEOUT_FOR_REQUEST_ENSURE)

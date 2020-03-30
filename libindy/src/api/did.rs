@@ -6,12 +6,13 @@ use crate::domain::crypto::key::KeyInfo;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 use indy_api_types::validation::Validatable;
+use indy_vdr::utils::validation::Validatable as VdrValidatable;
 
 use serde_json;
 use libc::c_char;
 
 use std::ptr;
-use crate::domain::ledger::attrib::Endpoint;
+use crate::services::ledger::parsers::attrib::Endpoint;
 
 
 /// Creates keys (signing and encryption keys) for a new

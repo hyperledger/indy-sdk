@@ -28,6 +28,7 @@ use crate::domain::anoncreds::schema::{SchemaV1, SchemaId};
 use indy_api_types::errors::prelude::*;
 use crate::services::anoncreds::helpers::*;
 use crate::utils::wql::Query;
+use indy_vdr::utils::qualifier::Qualifiable;
 
 const ATTRIBUTE_EXISTENCE_MARKER: &str = "1";
 
@@ -279,7 +280,7 @@ impl Prover {
 
         let mut res: HashMap<String, String> = HashMap::new();
 
-        let (schema_issuer_did, schema_name, schema_version) = credential.schema_id.parts()
+        let (_, schema_issuer_did, schema_name, schema_version) = credential.schema_id.parts()
             .ok_or(IndyError::from_msg(IndyErrorKind::InvalidState, format!("Invalid Schema ID `{}`: wrong number of parts", credential.schema_id.0)))?;
 
         let issuer_did = credential.cred_def_id.issuer_did()

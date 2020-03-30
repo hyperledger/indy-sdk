@@ -2,7 +2,7 @@ extern crate futures;
 
 use indy::IndyError;
 use indy::anoncreds;
-use self::futures::Future;
+use crate::indy::future::Future;
 use serde_json;
 
 use crate::utils::{environment, wallet, blob_storage, test};

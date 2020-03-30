@@ -1,21 +1,18 @@
-extern crate byteorder;
 extern crate futures;
 extern crate rmp_serde;
-
-use self::byteorder::{LittleEndian, WriteBytesExt};
 
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use indy::{ErrorCode, IndyError};
-use indy::pool;
-use self::futures::Future;
 use serde_json;
 
 use crate::utils::types::{Response, ResponseType};
 use crate::utils::{environment, test};
 use crate::api::PoolHandle;
+use crate::indy::future::Future;
+use indy::{pool, ErrorCode, IndyError};
+use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Serialize, Deserialize)]
 struct PoolConfig {

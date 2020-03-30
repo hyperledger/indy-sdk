@@ -1,3 +1,4 @@
+/*
 pub mod tree;
 pub mod proof;
 pub mod merkletree;
@@ -393,3 +394,4 @@ mod tests {
         assert!(mt.consistency_proof(&full_root_hash, 8, &proofs_for_8).unwrap());
     }
 }
+*/

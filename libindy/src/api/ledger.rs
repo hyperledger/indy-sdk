@@ -1,21 +1,26 @@
 use indy_api_types::{CommandHandle, ErrorCode, PoolHandle, WalletHandle};
 use indy_api_types::errors::prelude::*;
-use indy_api_types::validation::Validatable;
 use indy_utils::ctypes;
 use libc::c_char;
 use serde_json;
 
 use crate::commands::{Command, CommandExecutor};
 use crate::commands::ledger::LedgerCommand;
-use crate::domain::anoncreds::credential_definition::{CredentialDefinition, CredentialDefinitionId};
-use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinition, RevocationRegistryId};
-use crate::domain::anoncreds::revocation_registry_delta::RevocationRegistryDelta;
-use crate::domain::anoncreds::schema::{Schema, SchemaId};
-use crate::domain::crypto::did::DidValue;
-use crate::domain::ledger::auth_rule::{AuthRules, Constraint};
-use crate::domain::ledger::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
-use crate::domain::ledger::node::NodeOperationData;
-use crate::domain::ledger::pool::Schedule;
+
+use indy_vdr::common::did::DidValue;
+use indy_vdr::ledger::requests::schema::Schema;
+use indy_vdr::ledger::requests::cred_def::CredentialDefinition;
+use indy_vdr::ledger::requests::rev_reg_def::RevocationRegistryDefinition;
+use indy_vdr::ledger::requests::rev_reg::RevocationRegistryDelta;
+use indy_vdr::ledger::requests::node::NodeOperationData;
+use indy_vdr::ledger::requests::auth_rule::{Constraint, AuthRules};
+use indy_vdr::ledger::requests::author_agreement::{GetTxnAuthorAgreementData, AcceptanceMechanisms};
+use indy_vdr::ledger::requests::pool::Schedule;
+use indy_vdr::ledger::identifiers::schema::SchemaId;
+use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
+use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
+use indy_vdr::utils::validation::Validatable;
+
 
 /// Signs and submits request message to validator pool.
 ///
@@ -1268,7 +1273,7 @@ pub extern fn indy_build_revoc_reg_def_request(command_handle: CommandHandle,
     trace!("indy_build_revoc_reg_def_request: >>> submitter_did: {:?}, data: {:?}", submitter_did, data);
 
     check_useful_validatable_string!(submitter_did, ErrorCode::CommonInvalidParam2, DidValue);
-    check_useful_validatable_json!(data, ErrorCode::CommonInvalidParam3, RevocationRegistryDefinition);
+    check_useful_json!(data, ErrorCode::CommonInvalidParam3, RevocationRegistryDefinition);
     check_useful_c_callback!(cb, ErrorCode::CommonInvalidParam4);
 
     trace!("indy_build_revoc_reg_def_request: entities >>> submitter_did: {:?}, data: {:?}", submitter_did, data);

@@ -455,7 +455,7 @@ impl Verifier {
                 format!("Identifier not found for referent: {}", referent))
             )?;
 
-        let (schema_issuer_did, schema_name, schema_version) = identifier.schema_id.parts()
+        let (_, schema_issuer_did, schema_name, schema_version) = identifier.schema_id.parts()
             .ok_or(IndyError::from_msg(IndyErrorKind::InvalidState, format!("Invalid Schema ID `{}`: wrong number of parts", identifier.schema_id.0)))?;
 
         let issuer_did = identifier.cred_def_id.issuer_did()

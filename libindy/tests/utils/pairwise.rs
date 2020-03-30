@@ -2,7 +2,7 @@ extern crate futures;
 
 use indy::IndyError;
 use indy::pairwise;
-use self::futures::Future;
+use crate::indy::future::Future;
 
 use indy::WalletHandle;
 

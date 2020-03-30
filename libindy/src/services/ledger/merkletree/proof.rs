@@ -1,3 +1,4 @@
+/*
 use crate::services::ledger::merkletree::tree::{Tree, TreeLeafData};
 use indy_utils::crypto::hash::Hash;
 use indy_api_types::errors::prelude::*;
@@ -141,3 +142,4 @@ pub enum Positioned<T> {
     /// The value was found in the right branch
     Right(T)
 }
+*/

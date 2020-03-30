@@ -8,10 +8,11 @@ edition = "2018"
 
 [features]
 default = ["casting_errors"]
-casting_errors = ["openssl", "rust-base58", "rusqlite", "zmq", "ursa", "rusqlite"]
+casting_errors = ["openssl", "rust-base58", "rusqlite", "zmq", "ursa", "rusqlite", "indy-vdr"]
 
 [dependencies]
 failure = "0.1.6"
+futures = "0.3.1"
 libc = "0.2.66"
 log = "0.4.8"
 openssl = {version = "0.10", optional = true}
@@ -24,8 +25,17 @@ zmq = {version = "0.9.1", optional = true}
 
 [dependencies.ursa]
 version =  "0.3.2"
+default-features = false
 optional = true
 features = ["logger"]
+
+[dependencies.indy-vdr]
+version = "0.1.0"
+git = "https://github.com/hyperledger/indy-vdr"
+rev = "be922a6"
+optional = true
+default-features = false
+features = ["ffi", "log", "zmq_dynamic"]
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 rusqlite = { version = "0.20", features=["bundled"], optional = true }

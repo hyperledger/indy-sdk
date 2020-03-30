@@ -6,13 +6,17 @@ use std::ffi::{CString, NulError};
 use std::cell::RefCell;
 use std::ptr;
 
-
 use failure::{Backtrace, Context, Fail};
 
 use log;
 
 #[cfg(feature = "casting_errors")]
 use ursa::errors::{UrsaCryptoError, UrsaCryptoErrorKind};
+
+#[cfg(feature = "casting_errors")]
+use indy_vdr::common::error::{VdrError, VdrErrorKind};
+#[cfg(feature = "casting_errors")]
+use indy_vdr::utils::validation::ValidationError;
 
 use libc::c_char;
 
@@ -212,6 +216,12 @@ impl From<cell::BorrowError> for IndyError {
 
 impl From<cell::BorrowMutError> for IndyError {
     fn from(err: cell::BorrowMutError) -> Self {
+        err.context(IndyErrorKind::InvalidState).into()
+    }
+}
+
+impl From<futures::channel::oneshot::Canceled> for IndyError {
+    fn from(err: futures::channel::oneshot::Canceled) -> Self {
         err.context(IndyErrorKind::InvalidState).into()
     }
 }
@@ -515,4 +525,30 @@ pub fn get_current_error_c_json() -> *const c_char {
 
 pub fn string_to_cstring(s: String) -> CString {
     CString::new(s).unwrap()
+}
+
+#[cfg(feature = "casting_errors")]
+impl From<VdrError> for IndyError {
+    fn from(err: VdrError) -> Self {
+        match err.kind() {
+            VdrErrorKind::Config => IndyError::from_msg(IndyErrorKind::PoolNotCreated, err.to_string()),
+            VdrErrorKind::Connection => IndyError::from_msg(IndyErrorKind::PoolTimeout, err.to_string()),
+            VdrErrorKind::FileSystem(err) => IndyError::from_msg(IndyErrorKind::IOError, err.to_string()),
+            VdrErrorKind::Input => IndyError::from_msg(IndyErrorKind::InvalidStructure, err.to_string()),
+            VdrErrorKind::Resource => IndyError::from_msg(IndyErrorKind::InvalidState, err.to_string()),
+            VdrErrorKind::Unavailable => IndyError::from_msg(IndyErrorKind::PoolTerminated, err.to_string()),
+            VdrErrorKind::Unexpected => IndyError::from_msg(IndyErrorKind::InvalidState, err.to_string()),
+            VdrErrorKind::Incompatible => IndyError::from_msg(IndyErrorKind::PoolIncompatibleProtocolVersion, err.to_string()),
+            VdrErrorKind::PoolNoConsensus => IndyError::from_msg(IndyErrorKind::NoConsensus, err.to_string()),
+            VdrErrorKind::PoolRequestFailed(failure) => IndyError::from_msg(IndyErrorKind::InvalidTransaction, failure.to_string()),
+            VdrErrorKind::PoolTimeout => IndyError::from_msg(IndyErrorKind::PoolTimeout, err.to_string()),
+        }
+    }
+}
+
+#[cfg(feature = "casting_errors")]
+impl From<ValidationError> for IndyError {
+    fn from(err: ValidationError) -> Self {
+        IndyError::from_msg(IndyErrorKind::InvalidStructure, err.to_string())
+    }
 }

@@ -3,8 +3,8 @@ use crate::commands::{Command, CommandExecutor};
 use crate::commands::pairwise::PairwiseCommand;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
-use indy_api_types::validation::Validatable;
 use crate::domain::crypto::did::DidValue;
+use indy_vdr::utils::validation::Validatable;
 
 use libc::c_char;
 

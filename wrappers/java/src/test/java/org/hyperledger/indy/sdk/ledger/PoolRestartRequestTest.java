@@ -3,6 +3,7 @@ package org.hyperledger.indy.sdk.ledger;
 import org.hyperledger.indy.sdk.IndyIntegrationTestWithPoolAndSingleWallet;
 import org.hyperledger.indy.sdk.did.Did;
 import org.hyperledger.indy.sdk.did.DidResults;
+import org.json.JSONObject;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -13,25 +14,35 @@ import static org.junit.Assert.assertTrue;
 public class PoolRestartRequestTest extends IndyIntegrationTestWithPoolAndSingleWallet {
     @Test
     public void testBuildPoolRestartRequestWorksForStartAction() throws Exception {
-        String expectedResult = String.format("\"identifier\":\"%s\"," +
-                "\"operation\":{\"type\":\"118\"," +
-                "\"action\":\"start\"," +
-                "\"datetime\":\"0\"}", DID);
+        JSONObject expectedResult = new JSONObject()
+                .put("identifier", DID)
+                .put("operation",
+                        new JSONObject()
+                                .put("type", "118")
+                                .put("action", "start")
+                                .put("datetime", "0")
+                );
 
         String request = Ledger.buildPoolRestartRequest(DID, "start","0").get();
-
-        assertTrue(request.contains(expectedResult));
+        assert (new JSONObject(request).toMap().entrySet()
+                .containsAll(
+                        expectedResult.toMap().entrySet()));
     }
 
     @Test
     public void testBuildPoolRestartRequestWorksForCancelAction() throws Exception {
-        String expectedResult = String.format("\"identifier\":\"%s\"," +
-                "\"operation\":{\"type\":\"118\"," +
-                "\"action\":\"cancel\"}", DID);
+        JSONObject expectedResult = new JSONObject()
+                .put("identifier", DID)
+                .put("operation",
+                        new JSONObject()
+                                .put("type", "118")
+                                .put("action", "cancel")
+                );
 
         String request = Ledger.buildPoolRestartRequest(DID, "cancel",null).get();
-
-        assertTrue(request.contains(expectedResult));
+        assert (new JSONObject(request).toMap().entrySet()
+                .containsAll(
+                        expectedResult.toMap().entrySet()));
     }
 
     @Test

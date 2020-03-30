@@ -123,7 +123,7 @@ public class AnoncredsVerifyProofAfterCredentialRevokeTest extends IndyIntegrati
 
 		// we publish the initial accum value to the ledger
 		String intialEntry = storeRevocResult.getRevRegEntryJson();
-		String revDefType = "CL_ACCUM ";
+		String revDefType = "CL_ACCUM";
 		request = Ledger.buildRevocRegEntryRequest(didTrustAnchor, revRegDefId, revDefType, intialEntry).get();
 		response = Ledger.signAndSubmitRequest(pool, wallet, didTrustAnchor, request).get();
 		System.out.println("Write initial accum to ledger response:\n" + response + "\n");

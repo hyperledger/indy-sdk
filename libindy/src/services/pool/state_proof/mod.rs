@@ -1,3 +1,4 @@
+/*
 extern crate log_derive;
 extern crate rmp_serde;
 
@@ -997,14 +998,14 @@ mod tests {
 
     #[test]
     fn state_proof_nodes_parse_and_get_works() {
-        /*
+        *//*
             '33' -> 'v1'
             '34' -> 'v2'
             '3C' -> 'v3'
             '4'  -> 'v4'
             'D'  -> 'v5asdfasdf'
             'E'  -> 'v6fdsfdfs'
-        */
+        *//*
         let str = "f8c0f7808080a0762fc4967c792ef3d22fefd3f43209e2185b25e9a97640f09bb4b61657f67cf3c62084c3827634808080808080808080808080f4808080dd808080c62084c3827631c62084c3827632808080808080808080808080c63384c3827633808080808080808080808080f851808080a0099d752f1d5a4b9f9f0034540153d2d2a7c14c11290f27e5d877b57c801848caa06267640081beb8c77f14f30c68f30688afc3e5d5a388194c6a42f699fe361b2f808080808080808080808080";
         let vec = Vec::from_hex(str).unwrap();
         let rlp = UntrustedRlp::new(vec.as_slice());
@@ -1031,14 +1032,14 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf() {
-        /*
+        *//*
             '33' -> 'v1'
             '34' -> 'v2'
             '3C' -> 'v3'
             '4'  -> 'v4'
             'D'  -> 'v5asdfasdf'
             'E'  -> 'v6fdsfdfs'
-        */
+        *//*
         let proofs = Vec::from_hex("f8c0f7808080a0762fc4967c792ef3d22fefd3f43209e2185b25e9a97640f09bb4b61657f67cf3c62084c3827634808080808080808080808080f4808080dd808080c62084c3827631c62084c3827632808080808080808080808080c63384c3827633808080808080808080808080f851808080a0099d752f1d5a4b9f9f0034540153d2d2a7c14c11290f27e5d877b57c801848caa06267640081beb8c77f14f30c68f30688afc3e5d5a388194c6a42f699fe361b2f808080808080808080808080").unwrap();
         let root_hash = Vec::from_hex("badc906111df306c6afac17b62f29792f0e523b67ba831651d6056529b6bf690").unwrap();
         assert!(_verify_proof(proofs.as_slice(), root_hash.as_slice(), "33".as_bytes(), Some("v1")));
@@ -1049,7 +1050,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1057,7 +1058,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(_verify_proof_range(
@@ -1075,7 +1076,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_empty_from() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1083,7 +1084,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(_verify_proof_range(
@@ -1097,7 +1098,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_fails_missing_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1105,7 +1106,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         // no "abcdefgh11" value in kvs
@@ -1123,7 +1124,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_fails_extra_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1131,7 +1132,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         // no "abcdefgh11" value in kvs
@@ -1151,7 +1152,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_fails_changed_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1159,7 +1160,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1177,7 +1178,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_fails_wrong_next() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1185,7 +1186,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1203,7 +1204,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1211,7 +1212,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(_verify_proof_range(
@@ -1231,7 +1232,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_missing_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1239,7 +1240,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1259,7 +1260,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_extra_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1267,7 +1268,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1288,7 +1289,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_changed_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1296,7 +1297,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1316,7 +1317,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1324,7 +1325,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(_verify_proof_range(
@@ -1343,7 +1344,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_missing_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1351,7 +1352,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1370,7 +1371,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_extra_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1378,7 +1379,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1398,7 +1399,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_changed_values() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1406,7 +1407,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1425,7 +1426,7 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_wrong_next() {
-        /*
+        *//*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
             'abcdefgh10'    -> '4970'
@@ -1433,7 +1434,7 @@ mod tests {
             'abcdefgh24'    -> '4905'
             'abcdefgh99'    -> '4522'
             'abcdefgh100'   -> '3833'
-        */
+        *//*
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
         let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF".from_base58().unwrap();
         assert!(!_verify_proof_range(
@@ -1452,13 +1453,13 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_leaf_through_extension() {
-        /*
+        *//*
             '33'  -> 'v1'
             'D'   -> 'v2'
             'E'   -> 'v3'
             '333' -> 'v4'
             '334' -> 'v5'
-        */
+        *//*
         let proofs = Vec::from_hex("f8a8e4821333a05fff9765fa0c56a26b361c81b7883478da90259d0c469896e8da7edd6ad7c756f2808080dd808080c62084c3827634c62084c382763580808080808080808080808080808080808080808080808084c3827631f84e808080a06a4096e59e980d2f2745d0ed2d1779eb135a1831fd3763f010316d99fd2adbb3dd80808080c62084c3827632c62084c38276338080808080808080808080808080808080808080808080").unwrap();
         let root_hash = Vec::from_hex("d01bd87a6105a945c5eb83e328489390e2843a9b588f03d222ab1a51db7b9fab").unwrap();
         assert!(_verify_proof(proofs.as_slice(), root_hash.as_slice(), "333".as_bytes(), Some("v4")));
@@ -1466,13 +1467,13 @@ mod tests {
 
     #[test]
     fn state_proof_verify_proof_works_for_get_value_from_full_node() {
-        /*
+        *//*
             '33'  -> 'v1'
             'D'   -> 'v2'
             'E'   -> 'v3'
             '333' -> 'v4'
             '334' -> 'v5'
-        */
+        *//*
         let proofs = Vec::from_hex("f8a8e4821333a05fff9765fa0c56a26b361c81b7883478da90259d0c469896e8da7edd6ad7c756f2808080dd808080c62084c3827634c62084c382763580808080808080808080808080808080808080808080808084c3827631f84e808080a06a4096e59e980d2f2745d0ed2d1779eb135a1831fd3763f010316d99fd2adbb3dd80808080c62084c3827632c62084c38276338080808080808080808080808080808080808080808080").unwrap();
         let root_hash = Vec::from_hex("d01bd87a6105a945c5eb83e328489390e2843a9b588f03d222ab1a51db7b9fab").unwrap();
         assert!(_verify_proof(proofs.as_slice(), root_hash.as_slice(), "33".as_bytes(), Some("v1")));
@@ -1735,3 +1736,4 @@ mod tests {
                    }));
     }
 }
+*/

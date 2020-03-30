@@ -12,12 +12,10 @@ use crate::utils::domain::anoncreds::revocation_registry::RevocationRegistryV1;
 use crate::utils::domain::anoncreds::revocation_registry_definition::RevocationRegistryDefinitionV1;
 use crate::utils::domain::anoncreds::revocation_registry_delta::RevocationRegistryDeltaV1;
 use crate::utils::domain::anoncreds::schema::SchemaV1;
-use crate::utils::domain::crypto::did::DidValue;
-use crate::utils::domain::ledger::constants;
-use crate::utils::domain::ledger::nym::NymData;
-use crate::utils::domain::ledger::request::DEFAULT_LIBIDY_DID;
 use crate::utils::Setup;
 use crate::utils::types::*;
+use indy_vdr::ledger::constants;
+use indy_vdr::common::did::{DEFAULT_LIBINDY_DID, DidValue};
 
 use self::indy::ErrorCode;
 use self::rand::distributions::Alphanumeric;
@@ -180,7 +178,7 @@ mod high_cases {
 
             let request = ledger::sign_request(setup.wallet_handle, &did, REQUEST).unwrap();
             let request: serde_json::Value = serde_json::from_str(&request).unwrap();
-            assert_eq!(request["signature"].as_str().unwrap(), "65hzs4nsdQsTUqLCLy2qisbKLfwYKZSWoyh1C6CU59p5pfG3EHQXGAsjW4Qw4QdwkrvjSgQuyv8qyABcXRBznFKW");
+            assert_eq!(request["signature"].as_str().unwrap(), "HkKtfyrGgpUfReE9LagmKUUb9qLX8UCtmxhMBqoAjn4U1tBiwgxsgiRLKozgc5yCDui8iDGC3ochb2ZHsJcjxih");
         }
 
         #[test]
@@ -189,7 +187,7 @@ mod high_cases {
 
             let request = ledger::sign_request(setup.wallet_handle, &setup.did, REQUEST).unwrap();
             let request: serde_json::Value = serde_json::from_str(&request).unwrap();
-            assert_eq!(request["signature"].as_str().unwrap(), "65hzs4nsdQsTUqLCLy2qisbKLfwYKZSWoyh1C6CU59p5pfG3EHQXGAsjW4Qw4QdwkrvjSgQuyv8qyABcXRBznFKW");
+            assert_eq!(request["signature"].as_str().unwrap(), "HkKtfyrGgpUfReE9LagmKUUb9qLX8UCtmxhMBqoAjn4U1tBiwgxsgiRLKozgc5yCDui8iDGC3ochb2ZHsJcjxih");
         }
 
         #[test]
@@ -217,8 +215,8 @@ mod high_cases {
             let msg: serde_json::Value = serde_json::from_str(&message).unwrap();
             let signatures = msg["signatures"].as_object().unwrap();
 
-            assert_eq!(signatures[DID_TRUSTEE], r#"65hzs4nsdQsTUqLCLy2qisbKLfwYKZSWoyh1C6CU59p5pfG3EHQXGAsjW4Qw4QdwkrvjSgQuyv8qyABcXRBznFKW"#);
-            assert_eq!(signatures[DID_MY1], r#"49aXkbrtTE3e522AefE76J51WzUiakw3ZbxxWzf44cv7RS21n8mMr4vJzi4TymuqDupzCz7wEtuGz6rA94Y73kKR"#);
+            assert_eq!(signatures[DID_TRUSTEE], r#"HkKtfyrGgpUfReE9LagmKUUb9qLX8UCtmxhMBqoAjn4U1tBiwgxsgiRLKozgc5yCDui8iDGC3ochb2ZHsJcjxih"#);
+            assert_eq!(signatures[DID_MY1], r#"61QZ5o84ry6YpQr8n4VTqrHNHjwdN7FFSxHjBFkoxKZJbQDf1o2T2XyNeYmq7ZgZYXbNb3awffzuoHtNqtMikQdU"#);
         }
 
         #[test]
@@ -237,8 +235,8 @@ mod high_cases {
             let msg: serde_json::Value = serde_json::from_str(&message).unwrap();
             let signatures = msg["signatures"].as_object().unwrap();
 
-            assert_eq!(signatures[DID_TRUSTEE], r#"65hzs4nsdQsTUqLCLy2qisbKLfwYKZSWoyh1C6CU59p5pfG3EHQXGAsjW4Qw4QdwkrvjSgQuyv8qyABcXRBznFKW"#);
-            assert_eq!(signatures[DID_MY1], r#"49aXkbrtTE3e522AefE76J51WzUiakw3ZbxxWzf44cv7RS21n8mMr4vJzi4TymuqDupzCz7wEtuGz6rA94Y73kKR"#);
+            assert_eq!(signatures[DID_TRUSTEE], r#"HkKtfyrGgpUfReE9LagmKUUb9qLX8UCtmxhMBqoAjn4U1tBiwgxsgiRLKozgc5yCDui8iDGC3ochb2ZHsJcjxih"#);
+            assert_eq!(signatures[DID_MY1], r#"61QZ5o84ry6YpQr8n4VTqrHNHjwdN7FFSxHjBFkoxKZJbQDf1o2T2XyNeYmq7ZgZYXbNb3awffzuoHtNqtMikQdU"#);
         }
 
         #[test]
@@ -796,7 +794,6 @@ mod high_cases {
 
             let get_validator_info_request = ledger::build_get_validator_info_request(&setup.did).unwrap();
             let get_validator_info_response = ledger::sign_and_submit_request(setup.pool_handle, setup.wallet_handle, &setup.did, &get_validator_info_request).unwrap();
-
             let get_validator_info_response: HashMap<String, String> = serde_json::from_str(&get_validator_info_response).unwrap();
             for value in get_validator_info_response.values() {
                 serde_json::from_str::<Reply<GetValidatorInfoResult>>(value).unwrap();
@@ -3133,7 +3130,7 @@ mod medium_cases {
             let signatures = msg["signatures"].as_object().unwrap();
 
             assert_eq!(1, signatures.len());
-            assert_eq!(signatures[DID_MY1], r#"49aXkbrtTE3e522AefE76J51WzUiakw3ZbxxWzf44cv7RS21n8mMr4vJzi4TymuqDupzCz7wEtuGz6rA94Y73kKR"#);
+            assert_eq!(signatures[DID_MY1], r#"61QZ5o84ry6YpQr8n4VTqrHNHjwdN7FFSxHjBFkoxKZJbQDf1o2T2XyNeYmq7ZgZYXbNb3awffzuoHtNqtMikQdU"#);
         }
     }
 
@@ -3926,7 +3923,7 @@ fn check_request_operation(request: &str, expected_operation: serde_json::Value)
 
 fn check_default_identifier(request: &str) {
     let request: serde_json::Value = serde_json::from_str(request).unwrap();
-    assert_eq!(request["identifier"].as_str().unwrap(), DEFAULT_LIBIDY_DID);
+    assert_eq!(request["identifier"].as_str().unwrap(), DEFAULT_LIBINDY_DID.0);
 }
 
 fn ensure_did_first_version(did: &str) {

@@ -1,3 +1,4 @@
+/*
 use indy_api_types::errors::prelude::*;
 use crate::services::pool::events::PoolEvent;
 
@@ -156,4 +157,4 @@ mod commander_tests {
                       msg_, msg);
     }
 
-}
+}*/

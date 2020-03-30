@@ -1,3 +1,4 @@
+/*
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -160,4 +161,4 @@ pub fn check_cons_proofs(mt: &MerkleTree, cons_proofs: &Vec<String>, target_mt_r
     }
 
     Ok(())
-}
+}*/

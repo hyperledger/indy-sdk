@@ -18,54 +18,64 @@ public class CredDefRequestsTest extends LedgerIntegrationTest {
 
 	@Test
 	public void testBuildCredDefRequestWorks() throws Exception {
-		String data = "{\n" +
-				"        \"ver\": \"1.0\",\n" +
-				"        \"id\": \"NcYxiDXkpYi6ov5FcYDi1e:3:CL:1\",\n" +
-				"        \"schemaId\": \"1\",\n" +
-				"        \"type\": \"CL\",\n" +
-				"        \"tag\": \"TAG_1\",\n" +
-				"        \"value\": {\n" +
-				"            \"primary\": {\n" +
-				"                \"n\": \"1\",\n" +
-				"                \"s\": \"2\",\n" +
-				"                \"r\": {\"name\": \"1\",\"master_secret\": \"3\"},\n" +
-				"                \"rctxt\": \"1\",\n" +
-				"                \"z\": \"1\"\n" +
-				"            }\n" +
-				"        }\n" +
-				"    }";
+		JSONObject value = new JSONObject()
+				.put("primary", new JSONObject()
+						.put("n", "1")
+						.put("s", "2")
+						.put("rctxt", "1")
+						.put("z", "1")
+						.put("r", new JSONObject()
+								.put("name", "1")
+								.put("master_secret", "3")
+						)
 
-		String expectedResult = "{\n" +
-				"            \"ref\": 1,\n" +
-				"            \"data\": {\n" +
-				"                \"primary\": {\"n\": \"1\", \"s\": \"2\", \"r\": {\"name\": \"1\",\"master_secret\": \"3\"}, \"rctxt\": \"1\", \"z\": \"1\"}\n" +
-				"            },\n" +
-				"            \"type\": \"102\",\n" +
-				"            \"signature_type\": \"CL\",\n" +
-				"            \"tag\": \"TAG_1\"\n" +
-				"        }";
+				);
 
-		String credDefRequest = Ledger.buildCredDefRequest(DID, data).get();
+		JSONObject data = new JSONObject()
+				.put("ver", "1.0")
+				.put("id", "NcYxiDXkpYi6ov5FcYDi1e:3:CL:1")
+				.put("schemaId", "1")
+				.put("type", "CL")
+				.put("tag", "TAG_1")
+				.put("value", value);
 
-		assertTrue(JsonObjectSimilar.similar(new JSONObject(credDefRequest).getJSONObject("operation"), new JSONObject(expectedResult)));
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("ref", 1)
+								.put("tag", "TAG_1")
+								.put("signature_type", "CL")
+								.put("data", value)
+								.put("type", "102")
+				);
+
+		String credDefRequest = Ledger.buildCredDefRequest(DID, data.toString()).get();
+		assert (new JSONObject(credDefRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildGetCredDefRequestWorks() throws Exception {
 		int seqNo = 1;
 		String id = DID + ":3:" + SIGNATURE_TYPE + ":" + seqNo + ":" + TAG;
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"108\"," +
-				"\"ref\":%d," +
-				"\"signature_type\":\"%s\"," +
-				"\"origin\":\"%s\"," +
-				"\"tag\":\"%s\"" +
-				"}", DID, seqNo, SIGNATURE_TYPE, DID, TAG);
+
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("ref", seqNo)
+								.put("origin", DID)
+								.put("signature_type", SIGNATURE_TYPE)
+								.put("tag", TAG)
+								.put("type", "108")
+				);
 
 		String getCredDefRequest = Ledger.buildGetCredDefRequest(DID, id).get();
-
-		assertTrue(getCredDefRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(getCredDefRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test(timeout = PoolUtils.TEST_TIMEOUT_FOR_REQUEST_ENSURE)
@@ -75,7 +85,7 @@ public class CredDefRequestsTest extends LedgerIntegrationTest {
 		String getCredDefRequest = Ledger.buildGetCredDefRequest(DID, credDefId).get();
 		String getCredDefResponse = PoolUtils.ensurePreviousRequestApplied(pool, getCredDefRequest, response -> {
 			JSONObject responseObject = new JSONObject(response);
-			return !responseObject.getJSONObject("result").isNull("seqNo");
+			return ! responseObject.getJSONObject("result").isNull("seqNo");
 		});
 
 		Ledger.parseGetCredDefResponse(getCredDefResponse).get();

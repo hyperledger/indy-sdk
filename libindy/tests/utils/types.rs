@@ -1,4 +1,5 @@
 use serde_json;
+use indy_vdr::common::did::ShortDidValue;
 
 use std::collections::{HashSet, HashMap};
 
@@ -82,4 +83,11 @@ pub struct WalletRecord {
 pub struct SearchRecords {
     pub total_count: Option<i32>,
     pub records: Option<Vec<WalletRecord>>
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+pub struct NymData {
+    pub did: ShortDidValue,
+    pub verkey: Option<String>,
+    pub role: Option<String>,
 }

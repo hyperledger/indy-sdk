@@ -12,6 +12,9 @@ extern crate serde_json;
 #[cfg(feature = "casting_errors")]
 extern crate zmq;
 
+#[cfg(feature = "casting_errors")]
+extern crate indy_vdr;
+
 pub type IndyHandle = i32;
 
 #[repr(transparent)]

@@ -1,3 +1,4 @@
+use lazy_static;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -13,11 +14,20 @@ use crate::api::payments::*;
 use indy_api_types::errors::prelude::*;
 use indy_utils::ctypes;
 
-use crate::domain::ledger::auth_rule::{Constraint, RoleConstraint, CombinationConstraint};
 use crate::domain::crypto::did::DidValue;
+use std::sync::{Arc, Mutex};
+use futures::channel::oneshot;
+use indy_vdr::ledger::requests::auth_rule::{Constraint, RoleConstraint, CombinationConstraint};
 
 pub struct PaymentsService {
     methods: RefCell<HashMap<String, PaymentsMethod>>
+}
+
+lazy_static! {
+    static ref STR_SENDERS: Arc<Mutex<HashMap<CommandHandle, oneshot::Sender<IndyResult<String>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref STR_I64_SENDERS: Arc<Mutex<HashMap<CommandHandle, oneshot::Sender<IndyResult<(String, i64)>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref BOOL_SENDERS: Arc<Mutex<HashMap<CommandHandle, oneshot::Sender<IndyResult<bool>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref ARRAY_SENDERS: Arc<Mutex<HashMap<CommandHandle, oneshot::Sender<IndyResult<Vec<u8>>>>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
 #[derive(Debug)]
@@ -93,21 +103,27 @@ impl PaymentsService {
         trace!("register_payment_method <<<");
     }
 
-    pub fn create_address(&self, cmd_handle: CommandHandle, wallet_handle: WalletHandle, method_type: &str, config: &str) -> IndyResult<()> {
+    pub async fn create_address(&self, wallet_handle: WalletHandle, method_type: &str, config: &str) -> IndyResult<String> {
         trace!("create_address >>> wallet_handle: {:?}, method_type: {:?}, config: {:?}", wallet_handle, method_type, config);
         let create_address: CreatePaymentAddressCB = self.methods.borrow().get(method_type)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", method_type)))?.create_address;
 
         let config = CString::new(config)?;
 
-        let err = create_address(cmd_handle, wallet_handle, config.as_ptr(), cbs::create_address_cb(cmd_handle, wallet_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            create_address(cmd_handle, wallet_handle, config.as_ptr(), cbs::create_address_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("create_address <<< result: {:?}", res);
         res
     }
 
-    pub fn add_request_fees(&self, cmd_handle: CommandHandle, method_type: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, req: &str, inputs: &str, outputs: &str, extra: Option<&str>) -> IndyResult<()> {
+    pub async fn add_request_fees(&self, method_type: &str,
+                                  wallet_handle: WalletHandle, submitter_did: Option<&DidValue>,
+                                  req: &str, inputs: &str, outputs: &str, extra: Option<&str>) -> IndyResult<String> {
         trace!("add_request_fees >>> method_type: {:?}, wallet_handle: {:?}, submitter_did: {:?}, req: {:?}, inputs: {:?}, outputs: {:?}, extra: {:?}",
                method_type, wallet_handle, submitter_did, req, inputs, outputs, extra);
         let add_request_fees: AddRequestFeesCB = self.methods.borrow().get(method_type)
@@ -119,69 +135,87 @@ impl PaymentsService {
         let outputs = CString::new(outputs)?;
         let extra = extra.map(ctypes::str_to_cstring);
 
-        let err = add_request_fees(cmd_handle,
-                                   wallet_handle,
-                                   submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                   req.as_ptr(),
-                                   inputs.as_ptr(),
-                                   outputs.as_ptr(),
-                                   extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                   cbs::add_request_fees_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            add_request_fees(cmd_handle,
+                             wallet_handle,
+                             submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                             req.as_ptr(),
+                             inputs.as_ptr(),
+                             outputs.as_ptr(),
+                             extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                             cbs::add_request_fees_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("add_request_fees <<< result: {:?}", res);
         res
     }
 
-    pub fn parse_response_with_fees(&self, cmd_handle: CommandHandle, type_: &str, response: &str) -> IndyResult<()> {
+    pub async fn parse_response_with_fees(&self, type_: &str, response: &str) -> IndyResult<String> {
         trace!("parse_response_with_fees >>> type_: {:?}, response: {:?}", type_, response);
         let parse_response_with_fees: ParseResponseWithFeesCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.parse_response_with_fees;
         let response = CString::new(response)?;
 
-        let err = parse_response_with_fees(cmd_handle, response.as_ptr(), cbs::parse_response_with_fees_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            parse_response_with_fees(cmd_handle, response.as_ptr(), cbs::parse_response_with_fees_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("parse_response_with_fees <<< result: {:?}", res);
         res
     }
 
-    pub fn build_get_payment_sources_request(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, address: &str, next: Option<i64>) -> IndyResult<()> {
+    pub async fn build_get_payment_sources_request(&self, type_: &str,
+                                                   wallet_handle: WalletHandle, submitter_did: Option<&DidValue>,
+                                                   address: &str, next: Option<i64>) -> IndyResult<String> {
         trace!("build_get_payment_sources_request >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}, address: {:?}", type_, wallet_handle, submitter_did, address);
         let build_get_payment_sources_request: BuildGetPaymentSourcesRequestCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_get_payment_sources_request;
 
         let submitter_did = submitter_did.map(|did| ctypes::str_to_cstring(&did.0));
         let address = CString::new(address)?;
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
         let cb = cbs::build_get_payment_sources_request_cb(cmd_handle);
 
-        let err = build_get_payment_sources_request(cmd_handle,
-                                                              wallet_handle,
-                                                              submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                                              address.as_ptr(),
-                                                              next.unwrap_or(-1),
-                                                              cb);
+        IndyResult::from(
+            build_get_payment_sources_request(cmd_handle,
+                                              wallet_handle,
+                                              submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                                              address.as_ptr(),
+                                              next.unwrap_or(-1),
+                                              cb))?;
 
-        let res = err.into();
+        let res = str_receiver.await?;
+
         trace!("build_get_payment_sources_request <<< result: {:?}", res);
         res
     }
 
-    pub fn parse_get_payment_sources_response(&self, cmd_handle: CommandHandle, type_: &str, response: &str) -> IndyResult<()> {
+    pub async fn parse_get_payment_sources_response(&self, type_: &str, response: &str) -> IndyResult<(String, i64)> {
         trace!("parse_get_payment_sources_response >>> type_: {:?}, response: {:?}", type_, response);
 
         let parse_get_payment_sources_response: ParseGetPaymentSourcesResponseCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.parse_get_payment_sources_response;
 
         let response = CString::new(response)?;
-        let err = parse_get_payment_sources_response(cmd_handle, response.as_ptr(), cbs::parse_get_payment_sources_response_cb(cmd_handle));
 
-        let res = err.into();
+        let (cmd_handle, str_i64_receiver) = cbs::create_str_i64_receiver();
+
+        IndyResult::from(
+            parse_get_payment_sources_response(cmd_handle, response.as_ptr(), cbs::parse_get_payment_sources_response_cb(cmd_handle)))?;
+
+        let res = str_i64_receiver.await?;
+
         trace!("parse_get_payment_sources_response <<< result: {:?}", res);
         res
     }
 
-    pub fn build_payment_req(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, inputs: &str, outputs: &str, extra: Option<&str>) -> IndyResult<()> {
+    pub async fn build_payment_req(&self, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, inputs: &str, outputs: &str, extra: Option<&str>) -> IndyResult<String> {
         trace!("build_payment_req >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}, inputs: {:?}, outputs: {:?}, extra: {:?}", type_, wallet_handle, submitter_did, inputs, outputs, extra);
         let build_payment_req: BuildPaymentReqCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_payment_req;
@@ -191,34 +225,42 @@ impl PaymentsService {
         let outputs = CString::new(outputs)?;
         let extra = extra.map(ctypes::str_to_cstring);
 
-        let err = build_payment_req(cmd_handle,
-                                    wallet_handle,
-                                    submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                    inputs.as_ptr(),
-                                    outputs.as_ptr(),
-                                    extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                    cbs::build_payment_req_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            build_payment_req(cmd_handle,
+                              wallet_handle,
+                              submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                              inputs.as_ptr(),
+                              outputs.as_ptr(),
+                              extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                              cbs::build_payment_req_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("build_payment_req <<< result: {:?}", res);
         res
     }
 
-    pub fn parse_payment_response(&self, cmd_handle: CommandHandle, type_: &str, response: &str) -> IndyResult<()> {
+    pub async fn parse_payment_response(&self, type_: &str, response: &str) -> IndyResult<String> {
         trace!("parse_payment_response >>> type_: {:?}, response: {:?}", type_, response);
         let parse_payment_response: ParsePaymentResponseCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.parse_payment_response;
 
         let response = CString::new(response)?;
 
-        let err = parse_payment_response(cmd_handle, response.as_ptr(), cbs::parse_payment_response_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            parse_payment_response(cmd_handle, response.as_ptr(), cbs::parse_payment_response_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("parse_payment_response <<< result: {:?}", res);
         res
     }
 
-    pub fn build_mint_req(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, outputs: &str, extra: Option<&str>) -> IndyResult<()> {
+    pub async fn build_mint_req(&self, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, outputs: &str, extra: Option<&str>) -> IndyResult<String> {
         trace!("build_mint_req >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}, outputs: {:?}, extra: {:?}", type_, wallet_handle, submitter_did, outputs, extra);
         let build_mint_req: BuildMintReqCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_mint_req;
@@ -227,19 +269,23 @@ impl PaymentsService {
         let outputs = CString::new(outputs)?;
         let extra = extra.map(ctypes::str_to_cstring);
 
-        let err = build_mint_req(cmd_handle,
-                                 wallet_handle,
-                                 submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                 outputs.as_ptr(),
-                                 extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                 cbs::build_mint_req_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            build_mint_req(cmd_handle,
+                           wallet_handle,
+                           submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                           outputs.as_ptr(),
+                           extra.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                           cbs::build_mint_req_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("build_mint_req <<< result: {:?}", res);
         res
     }
 
-    pub fn build_set_txn_fees_req(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, fees: &str) -> IndyResult<()> {
+    pub async fn build_set_txn_fees_req(&self, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, fees: &str) -> IndyResult<String> {
         trace!("build_set_txn_fees_req >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}, fees: {:?}", type_, wallet_handle, submitter_did, fees);
         let build_set_txn_fees_req: BuildSetTxnFeesReqCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_set_txn_fees_req;
@@ -247,49 +293,62 @@ impl PaymentsService {
         let submitter_did = submitter_did.map(|did| ctypes::str_to_cstring(&did.0));
         let fees = CString::new(fees)?;
 
-        let err = build_set_txn_fees_req(cmd_handle,
-                                         wallet_handle,
-                                         submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                         fees.as_ptr(),
-                                         cbs::build_set_txn_fees_req_cb(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            build_set_txn_fees_req(cmd_handle,
+                                   wallet_handle,
+                                   submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                                   fees.as_ptr(),
+                                   cbs::build_set_txn_fees_req_cb(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("build_set_txn_fees_req <<< result: {:?}", res);
         res
     }
 
-    pub fn build_get_txn_fees_req(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>) -> IndyResult<()> {
+    pub async fn build_get_txn_fees_req(&self, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>) -> IndyResult<String> {
         trace!("build_get_txn_fees_req >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}", type_, wallet_handle, submitter_did);
         let build_get_txn_fees_req: BuildGetTxnFeesReqCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_get_txn_fees_req;
 
         let submitter_did = submitter_did.map(|did| ctypes::str_to_cstring(&did.0));
 
-        let err = build_get_txn_fees_req(cmd_handle,
-                                         wallet_handle,
-                                         submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                         cbs::build_get_txn_fees_req(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            build_get_txn_fees_req(cmd_handle,
+                                   wallet_handle,
+                                   submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                                   cbs::build_get_txn_fees_req(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("build_get_txn_fees_req <<< result: {:?}", res);
         res
     }
 
-    pub fn parse_get_txn_fees_response(&self, cmd_handle: CommandHandle, type_: &str, response: &str) -> IndyResult<()> {
+    pub async fn parse_get_txn_fees_response(&self, type_: &str, response: &str) -> IndyResult<String> {
         trace!("parse_get_txn_fees_response >>> type_: {:?}, response: {:?}", type_, response);
         let parse_get_txn_fees_response: ParseGetTxnFeesResponseCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.parse_get_txn_fees_response;
 
         let response = CString::new(response)?;
 
-        let err = parse_get_txn_fees_response(cmd_handle, response.as_ptr(), cbs::parse_get_txn_fees_response(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            parse_get_txn_fees_response(cmd_handle, response.as_ptr(),
+                                        cbs::parse_get_txn_fees_response(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("parse_get_txn_fees_response <<< result: {:?}", res);
         res
     }
 
-    pub fn build_verify_payment_req(&self, cmd_handle: CommandHandle, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, receipt: &str) -> IndyResult<()> {
+    pub async fn build_verify_payment_req(&self, type_: &str, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, receipt: &str) -> IndyResult<String> {
         trace!("build_verify_payment_req >>> type_: {:?}, wallet_handle: {:?}, submitter_did: {:?}, receipt: {:?}", type_, wallet_handle, submitter_did, receipt);
         let build_verify_payment_req: BuildVerifyPaymentReqCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.build_verify_payment_req;
@@ -297,27 +356,36 @@ impl PaymentsService {
         let submitter_did = submitter_did.map(|did| ctypes::str_to_cstring(&did.0));
         let receipt = CString::new(receipt)?;
 
-        let err = build_verify_payment_req(cmd_handle,
-                                           wallet_handle,
-                                           submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
-                                           receipt.as_ptr(),
-                                           cbs::build_verify_payment_req(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            build_verify_payment_req(cmd_handle,
+                                     wallet_handle,
+                                     submitter_did.as_ref().map(|s| s.as_ptr()).unwrap_or(null()),
+                                     receipt.as_ptr(),
+                                     cbs::build_verify_payment_req(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("build_verify_payment_req <<< result: {:?}", res);
         res
     }
 
-    pub fn parse_verify_payment_response(&self, cmd_handle: CommandHandle, type_: &str, resp_json: &str) -> IndyResult<()> {
+    pub async fn parse_verify_payment_response(&self, type_: &str, resp_json: &str) -> IndyResult<String> {
         trace!("parse_verify_payment_response >>> type_: {:?}, resp_json: {:?}", type_, resp_json);
         let parse_verify_payment_response: ParseVerifyPaymentResponseCB = self.methods.borrow().get(type_)
             .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", type_)))?.parse_verify_payment_response;
 
         let resp_json = CString::new(resp_json)?;
 
-        let err = parse_verify_payment_response(cmd_handle, resp_json.as_ptr(), cbs::parse_verify_payment_response(cmd_handle));
+        let (cmd_handle, str_receiver) = cbs::create_str_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            parse_verify_payment_response(cmd_handle, resp_json.as_ptr(),
+                                          cbs::parse_verify_payment_response(cmd_handle)))?;
+
+        let res = str_receiver.await?;
+
         trace!("parse_verify_payment_response <<< result: {:?}", res);
         res
     }
@@ -574,30 +642,44 @@ impl PaymentsService {
         Ok(req_info)
     }
 
-    pub fn sign_with_address(&self, cmd_handle: CommandHandle, method: &str, wallet_handle: WalletHandle, address: &str, message: &[u8]) -> IndyResult<()> {
+    pub async fn sign_with_address(&self, method: &str, wallet_handle: WalletHandle, address: &str, message: &[u8]) -> IndyResult<Vec<u8>> {
         trace!("sign_with_address >>> wallet_handle: {:?}, address: {:?}, message: {:?}", wallet_handle, address, hex::encode(message));
         let sign_with_address: SignWithAddressCB = self.methods.borrow().get(method)
                     .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", method)))?.sign_with_address;
 
         let address = CString::new(address)?;
 
-        let err = sign_with_address(cmd_handle, wallet_handle, address.as_ptr(), message.as_ptr() as *const u8, message.len() as u32, cbs::sign_with_address_cb(cmd_handle));
+        let (cmd_handle, array_receiver) = cbs::create_array_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            sign_with_address(cmd_handle, wallet_handle, address.as_ptr(), message.as_ptr() as *const u8, message.len() as u32, cbs::sign_with_address_cb(cmd_handle)))?;
+
+        let res = array_receiver.await?;
+
         trace!("sign_with_address <<< result: {:?}", res);
         res
     }
 
-    pub fn verify_with_address(&self, cmd_handle: CommandHandle, method: &str, address: &str, message: &[u8], signature: &[u8]) -> IndyResult<()> {
+    pub async fn verify_with_address(&self, method: &str, address: &str, message: &[u8], signature: &[u8]) -> IndyResult<bool> {
         trace!("verify_with_address >>> address: {:?}, message: {:?}, signature: {:?}", address, hex::encode(message), hex::encode(signature));
         let verify_with_address: VerifyWithAddressCB = self.methods.borrow().get(method)
                     .ok_or_else(|| err_msg(IndyErrorKind::UnknownPaymentMethodType, format!("Unknown payment method {}", method)))?.verify_with_address;
 
         let address = CString::new(address)?;
 
-        let err = verify_with_address(cmd_handle, address.as_ptr(), message.as_ptr() as *const u8, message.len() as u32, signature.as_ptr() as *const u8, signature.len() as u32, cbs::verify_with_address_cb(cmd_handle));
+        let (cmd_handle, bool_receiver) = cbs::create_bool_receiver();
 
-        let res = err.into();
+        IndyResult::from(
+            verify_with_address(cmd_handle,
+                                address.as_ptr(),
+                                message.as_ptr() as *const u8,
+                                message.len() as u32,
+                                signature.as_ptr() as *const u8,
+                                signature.len() as u32,
+                                cbs::verify_with_address_cb(cmd_handle)))?;
+
+        let res = bool_receiver.await?;
+
         trace!("verify_with_address <<< result: {:?}", res);
         res
     }
@@ -614,115 +696,114 @@ mod cbs {
     use std::ffi::CStr;
     use std::sync::Mutex;
 
-    use crate::commands::{Command, CommandExecutor};
-    use crate::commands::payments::PaymentsCommand;
-
     use super::*;
 
     use libc::c_char;
+    use indy_utils::next_command_handle;
 
-    pub fn create_address_cb(cmd_handle: CommandHandle, wallet_handle: WalletHandle) -> Option<extern fn(command_handle_: CommandHandle,
+    pub fn create_address_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                                                err: ErrorCode,
                                                                                                c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(move |cmd_handle, result| PaymentsCommand::CreateAddressAck(cmd_handle, wallet_handle, result)))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn add_request_fees_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                     err: ErrorCode,
                                                                     req_with_fees_json: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::AddRequestFeesAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn parse_response_with_fees_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                             err: ErrorCode,
                                                                             c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::ParseResponseWithFeesAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn build_get_payment_sources_request_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                                      err: ErrorCode,
                                                                                      c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::BuildGetPaymentSourcesRequestAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn parse_get_payment_sources_response_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                                       err: ErrorCode,
                                                                                       c_str: *const c_char,
                                                                                       num: i64) -> ErrorCode> {
-        send_ack_str_i64(cmd_handle, Box::new(PaymentsCommand::ParseGetPaymentSourcesResponseAck))
+        send_ack_str_i64_async(cmd_handle)
     }
 
     pub fn build_payment_req_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                      err: ErrorCode,
                                                                      c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new( PaymentsCommand::BuildPaymentReqAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn parse_payment_response_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                           err: ErrorCode,
                                                                           c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::ParsePaymentResponseAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn build_mint_req_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                   err: ErrorCode,
                                                                   c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::BuildMintReqAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn build_set_txn_fees_req_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                           err: ErrorCode,
                                                                           c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::BuildSetTxnFeesReqAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn build_get_txn_fees_req(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                        err: ErrorCode,
                                                                        c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::BuildGetTxnFeesReqAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn parse_get_txn_fees_response(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                             err: ErrorCode,
                                                                             c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::ParseGetTxnFeesResponseAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn build_verify_payment_req(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                          err: ErrorCode,
                                                                          c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::BuildVerifyPaymentReqAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn parse_verify_payment_response(cmd_handle: CommandHandle) -> Option<extern fn(command_handle_: CommandHandle,
                                                                               err: ErrorCode,
                                                                               c_str: *const c_char) -> ErrorCode> {
-        send_ack_str(cmd_handle, Box::new(PaymentsCommand::ParseVerifyPaymentResponseAck))
+        send_ack_str_async(cmd_handle)
     }
 
     pub fn sign_with_address_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle, err: ErrorCode, raw: *const u8, raw_len: u32) -> ErrorCode> {
-        send_array_ack(cmd_handle, Box::new(PaymentsCommand::SignWithAddressAck))
+        send_array_ack_async(cmd_handle)
     }
 
     pub fn verify_with_address_cb(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle, err: ErrorCode, res: u8) -> ErrorCode> {
-        send_bool_ack(cmd_handle, Box::new(PaymentsCommand::VerifyWithAddressAck))
+        send_bool_ack_async(cmd_handle)
     }
 
-    fn send_ack_str(cmd_handle: CommandHandle, builder: Box<dyn Fn(CommandHandle, IndyResult<String>) -> PaymentsCommand + Send>) -> Option<extern fn(command_handle: CommandHandle,
-                                                                                                                              err: ErrorCode,
-                                                                                                                              c_str: *const c_char) -> ErrorCode> {
+    fn send_ack_str_async(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle,
+                                                                                                                                                      err: ErrorCode,
+                                                                                                                                                      c_str: *const c_char) -> ErrorCode> {
+
         cbs::_closure_to_cb_str(cmd_handle, Box::new(move |err, mint_req_json| -> ErrorCode {
             let result = if err == ErrorCode::Success {
                 Ok(mint_req_json)
             } else {
                 Err(err.into())
             };
-            CommandExecutor::instance().send(Command::Payments(
-                builder(cmd_handle, result))).into()
+            STR_SENDERS.lock().unwrap().remove(&cmd_handle).unwrap().send(result).unwrap();
+            ErrorCode::Success
         }))
     }
 
-    fn send_ack_str_i64(cmd_handle: CommandHandle, builder: Box<dyn Fn(CommandHandle, IndyResult<(String, i64)>) -> PaymentsCommand + Send>) -> Option<extern fn(command_handle: CommandHandle,
+    fn send_ack_str_i64_async(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle,
                                                                                                                                          err: ErrorCode,
                                                                                                                                          c_str: *const c_char,
                                                                                                                                          num: i64) -> ErrorCode> {
@@ -732,12 +813,12 @@ mod cbs {
             } else {
                 Err(err.into())
             };
-            CommandExecutor::instance().send(Command::Payments(
-                builder(cmd_handle, result))).into()
+            STR_I64_SENDERS.lock().unwrap().remove(&cmd_handle).unwrap().send(result).unwrap();
+            ErrorCode::Success
         }))
     }
 
-    fn send_array_ack(cmd_handle: CommandHandle, builder: Box<dyn Fn(CommandHandle, IndyResult<Vec<u8>>) -> PaymentsCommand + Send>) -> Option<extern fn(command_handle: CommandHandle,
+    fn send_array_ack_async(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle,
                                                                                                                                  err: ErrorCode,
                                                                                                                                  raw: *const u8,
                                                                                                                                  raw_len: u32) -> ErrorCode> {
@@ -747,11 +828,12 @@ mod cbs {
                 } else {
                     Err(err.into())
                 };
-                CommandExecutor::instance().send(Command::Payments(builder(cmd_handle, result))).into()
+                ARRAY_SENDERS.lock().unwrap().remove(&cmd_handle).unwrap().send(result).unwrap();
+                ErrorCode::Success
             }))
     }
 
-    fn send_bool_ack(cmd_handle: CommandHandle, builder: Box<dyn Fn(CommandHandle, IndyResult<bool>) -> PaymentsCommand + Send>) -> Option<extern fn(command_handle: CommandHandle,
+    fn send_bool_ack_async(cmd_handle: CommandHandle) -> Option<extern fn(command_handle: CommandHandle,
                                                                                                                            err: ErrorCode,
                                                                                                                            result: u8)-> ErrorCode> {
         cbs::_closure_to_cb_bool(cmd_handle, Box::new(move |err, v| -> ErrorCode {
@@ -760,7 +842,8 @@ mod cbs {
             } else {
                 Err(err.into())
             };
-            CommandExecutor::instance().send(Command::Payments(builder(cmd_handle, result))).into()
+            BOOL_SENDERS.lock().unwrap().remove(&cmd_handle).unwrap().send(result).unwrap();
+            ErrorCode::Success
         }))
     }
 
@@ -843,6 +926,34 @@ mod cbs {
         callbacks.insert(command_handle, closure);
 
         Some(_callback)
+    }
+
+    pub(super) fn create_str_receiver() -> (CommandHandle, oneshot::Receiver<IndyResult<String>>) {
+        let cmd_handle = next_command_handle();
+        let (str_sender, str_receiver) = oneshot::channel();
+        STR_SENDERS.lock().unwrap().insert(cmd_handle, str_sender);
+        (cmd_handle, str_receiver)
+    }
+
+    pub(super) fn create_str_i64_receiver() -> (CommandHandle, oneshot::Receiver<IndyResult<(String, i64)>>) {
+        let cmd_handle = next_command_handle();
+        let (str_sender, str_receiver) = oneshot::channel();
+        STR_I64_SENDERS.lock().unwrap().insert(cmd_handle, str_sender);
+        (cmd_handle, str_receiver)
+    }
+
+    pub(super) fn create_bool_receiver() -> (CommandHandle, oneshot::Receiver<IndyResult<bool>>) {
+        let cmd_handle = next_command_handle();
+        let (str_sender, str_receiver) = oneshot::channel();
+        BOOL_SENDERS.lock().unwrap().insert(cmd_handle, str_sender);
+        (cmd_handle, str_receiver)
+    }
+
+    pub(super) fn create_array_receiver() -> (CommandHandle, oneshot::Receiver<IndyResult<Vec<u8>>>) {
+        let cmd_handle = next_command_handle();
+        let (str_sender, str_receiver) = oneshot::channel();
+        ARRAY_SENDERS.lock().unwrap().insert(cmd_handle, str_sender);
+        (cmd_handle, str_receiver)
     }
 }
 

@@ -4,7 +4,7 @@ extern crate indy_sys;
 use indy::{IndyError, ErrorCode};
 use indy::ledger;
 use indy_utils::crypto::hash::hash;
-use self::futures::Future;
+use crate::indy::future::Future;
 use self::indy_sys::ledger::{CustomTransactionParser, CustomFree, indy_register_transaction_parser_for_sp};
 
 use crate::utils::{timeout, anoncreds, blob_storage, did, wallet, pool, callback};

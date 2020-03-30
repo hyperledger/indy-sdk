@@ -1,11 +1,8 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::string::ToString;
 
-use indy_api_types::{CommandHandle, PoolHandle, WalletHandle};
+use indy_api_types::{PoolHandle, WalletHandle};
 use indy_api_types::errors::prelude::*;
-use indy_utils::next_command_handle;
 use rust_base58::ToBase58;
 use serde_json;
 use serde_json::Value;
@@ -13,25 +10,29 @@ use serde_json::Value;
 use indy_wallet::{RecordOptions, WalletService};
 
 use crate::api::ledger::{CustomFree, CustomTransactionParser};
-use crate::commands::{BoxedCallbackStringStringSend, Command, CommandExecutor};
-use crate::domain::anoncreds::credential_definition::{CredentialDefinition, CredentialDefinitionId, CredentialDefinitionV1};
-use crate::domain::anoncreds::revocation_registry_definition::{RevocationRegistryDefinition, RevocationRegistryDefinitionV1, RevocationRegistryId};
-use crate::domain::anoncreds::revocation_registry_delta::{RevocationRegistryDelta, RevocationRegistryDeltaV1};
-use crate::domain::anoncreds::schema::{Schema, SchemaId, SchemaV1};
-use crate::domain::crypto::did::{Did, DidValue};
-use crate::domain::crypto::key::Key;
-use crate::domain::ledger::auth_rule::{AuthRules, Constraint};
-use crate::domain::ledger::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
-use crate::domain::ledger::node::NodeOperationData;
-use crate::domain::ledger::pool::Schedule;
-use crate::domain::ledger::request::Request;
+use crate::commands::BoxedCallbackStringStringSend;
 use crate::services::crypto::CryptoService;
 use crate::services::ledger::LedgerService;
 use crate::services::pool::{
     parse_response_metadata,
-    PoolService
+    PoolService,
 };
 use crate::utils::crypto::signature_serializer::serialize_signature;
+
+use crate::domain::crypto::did::Did;
+use crate::domain::crypto::key::Key;
+use indy_vdr::ledger::requests::cred_def::CredentialDefinition;
+use indy_vdr::ledger::requests::rev_reg_def::RevocationRegistryDefinition;
+use indy_vdr::ledger::requests::schema::Schema;
+use indy_vdr::ledger::requests::rev_reg::RevocationRegistryDelta;
+use indy_vdr::ledger::requests::node::NodeOperationData;
+use indy_vdr::ledger::requests::auth_rule::{Constraint, AuthRules};
+use indy_vdr::ledger::requests::author_agreement::{GetTxnAuthorAgreementData, AcceptanceMechanisms};
+use indy_vdr::ledger::requests::pool::Schedule;
+use indy_vdr::ledger::identifiers::schema::SchemaId;
+use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
+use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
+use indy_vdr::common::did::DidValue;
 
 pub enum LedgerCommand {
     SignAndSubmitRequest(
@@ -44,10 +45,6 @@ pub enum LedgerCommand {
         PoolHandle, // pool handle
         String, // request json
         Box<dyn Fn(IndyResult<String>) + Send>),
-    SubmitAck(
-        CommandHandle,
-        IndyResult<String>, // result json or error
-    ),
     SubmitAction(
         PoolHandle, // pool handle
         String, // request json
@@ -217,34 +214,12 @@ pub enum LedgerCommand {
         Option<String>, // old value
         Option<String>, // new value
         Box<dyn Fn(IndyResult<String>) + Send>),
-    GetSchema(
-        PoolHandle,
-        Option<DidValue>,
-        SchemaId,
-        BoxedCallbackStringStringSend,
-    ),
-    GetSchemaContinue(
-        SchemaId,
-        IndyResult<String>,
-        CommandHandle,
-    ),
-    GetCredDef(
-        PoolHandle,
-        Option<DidValue>,
-        CredentialDefinitionId,
-        BoxedCallbackStringStringSend,
-    ),
-    GetCredDefContinue(
-        CredentialDefinitionId,
-        IndyResult<String>,
-        CommandHandle,
-    ),
     BuildTxnAuthorAgreementRequest(
         DidValue, // submitter did
         Option<String>, // text
         String, // version
-        Option<u64>,   // ratification date
-        Option<u64>,   // retirement date
+        Option<u64>, // ratification date
+        Option<u64>, // retirement date
         Box<dyn Fn(IndyResult<String>) + Send>),
     BuildDisableAllTxnAuthorAgreementsRequest(
         DidValue, // submitter did
@@ -284,8 +259,6 @@ pub struct LedgerCommandExecutor {
     wallet_service: Rc<WalletService>,
     ledger_service: Rc<LedgerService>,
 
-    send_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<String>)>>>,
-    pending_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<(String, String)>)>>>,
 }
 
 impl LedgerCommandExecutor {
@@ -298,34 +271,22 @@ impl LedgerCommandExecutor {
             crypto_service,
             wallet_service,
             ledger_service,
-            send_callbacks: RefCell::new(HashMap::new()),
-            pending_callbacks: RefCell::new(HashMap::new()),
         }
     }
 
-    pub fn execute(&self, command: LedgerCommand) {
+    pub async fn execute(&self, command: LedgerCommand) {
         match command {
             LedgerCommand::SignAndSubmitRequest(pool_handle, wallet_handle, submitter_did, request_json, cb) => {
                 debug!(target: "ledger_command_executor", "SignAndSubmitRequest command received");
-                self.sign_and_submit_request(pool_handle, wallet_handle, &submitter_did, &request_json, cb);
+                cb(self.sign_and_submit_request(pool_handle, wallet_handle, &submitter_did, &request_json).await);
             }
             LedgerCommand::SubmitRequest(handle, request_json, cb) => {
                 debug!(target: "ledger_command_executor", "SubmitRequest command received");
-                self.submit_request(handle, &request_json, cb);
-            }
-            LedgerCommand::SubmitAck(handle, result) => {
-                debug!(target: "ledger_command_executor", "SubmitAck command received");
-                match self.send_callbacks.borrow_mut().remove(&handle) {
-                    Some(cb) => cb(result.map_err(IndyError::from)),
-                    None => {
-                        error!("Can't process LedgerCommand::SubmitAck for handle {:?} with result {:?} - appropriate callback not found!",
-                               handle, result);
-                    }
-                }
+                cb(self.submit_request(handle, &request_json).await);
             }
             LedgerCommand::SubmitAction(handle, request_json, nodes, timeout, cb) => {
                 debug!(target: "ledger_command_executor", "SubmitRequest command received");
-                self.submit_action(handle, &request_json, nodes.as_ref().map(String::as_str), timeout, cb);
+                cb(self.submit_action(handle, &request_json, nodes.as_ref().map(String::as_str), timeout).await);
             }
             LedgerCommand::RegisterSPParser(txn_type, parser, free, cb) => {
                 debug!(target: "ledger_command_executor", "RegisterSPParser command received");
@@ -374,7 +335,7 @@ impl LedgerCommandExecutor {
             }
             LedgerCommand::BuildSchemaRequest(submitter_did, data, cb) => {
                 debug!(target: "ledger_command_executor", "BuildSchemaRequest command received");
-                cb(self.build_schema_request(&submitter_did, SchemaV1::from(data)));
+                cb(self.build_schema_request(&submitter_did, data));
             }
             LedgerCommand::BuildGetSchemaRequest(submitter_did, id, cb) => {
                 debug!(target: "ledger_command_executor", "BuildGetSchemaRequest command received");
@@ -386,7 +347,7 @@ impl LedgerCommandExecutor {
             }
             LedgerCommand::BuildCredDefRequest(submitter_did, data, cb) => {
                 debug!(target: "ledger_command_executor", "BuildCredDefRequest command received");
-                cb(self.build_cred_def_request(&submitter_did, CredentialDefinitionV1::from(data)));
+                cb(self.build_cred_def_request(&submitter_did, data));
             }
             LedgerCommand::BuildGetCredDefRequest(submitter_did, id, cb) => {
                 debug!(target: "ledger_command_executor", "BuildGetCredDefRequest command received");
@@ -425,7 +386,7 @@ impl LedgerCommandExecutor {
             }
             LedgerCommand::BuildRevocRegDefRequest(submitter_did, data, cb) => {
                 debug!(target: "ledger_command_executor", "BuildRevocRegDefRequest command received");
-                cb(self.build_revoc_reg_def_request(&submitter_did, RevocationRegistryDefinitionV1::from(data)));
+                cb(self.build_revoc_reg_def_request(&submitter_did, data));
             }
             LedgerCommand::BuildGetRevocRegDefRequest(submitter_did, id, cb) => {
                 debug!(target: "ledger_command_executor", "BuildGetRevocRegDefRequest command received");
@@ -437,7 +398,7 @@ impl LedgerCommandExecutor {
             }
             LedgerCommand::BuildRevocRegEntryRequest(submitter_did, revoc_reg_def_id, rev_def_type, value, cb) => {
                 debug!(target: "ledger_command_executor", "BuildRevocRegEntryRequest command received");
-                cb(self.build_revoc_reg_entry_request(&submitter_did, &revoc_reg_def_id, &rev_def_type, RevocationRegistryDeltaV1::from(value)));
+                cb(self.build_revoc_reg_entry_request(&submitter_did, &revoc_reg_def_id, &rev_def_type, value));
             }
             LedgerCommand::BuildGetRevocRegRequest(submitter_did, revoc_reg_def_id, timestamp, cb) => {
                 debug!(target: "ledger_command_executor", "BuildGetRevocRegRequest command received");
@@ -475,22 +436,6 @@ impl LedgerCommandExecutor {
                                                     field.as_ref().map(String::as_str),
                                                     old_value.as_ref().map(String::as_str),
                                                     new_value.as_ref().map(String::as_str)));
-            }
-            LedgerCommand::GetSchema(pool_handle, submitter_did, id, cb) => {
-                debug!(target: "ledger_command_executor", "GetSchema command received");
-                self.get_schema(pool_handle, submitter_did.as_ref(), &id, cb);
-            }
-            LedgerCommand::GetSchemaContinue(id, pool_response, cb_id) => {
-                debug!(target: "ledger_command_executor", "GetSchemaContinue command received");
-                self._get_schema_continue(id, pool_response, cb_id);
-            }
-            LedgerCommand::GetCredDef(pool_handle, submitter_did, id, cb) => {
-                debug!(target: "ledger_command_executor", "GetCredDef command received");
-                self.get_cred_def(pool_handle, submitter_did.as_ref(), &id, cb);
-            }
-            LedgerCommand::GetCredDefContinue(id, pool_response, cb_id) => {
-                debug!(target: "ledger_command_executor", "GetCredDefContinue command received");
-                self._get_cred_def_continue(id, pool_response, cb_id);
             }
             LedgerCommand::BuildTxnAuthorAgreementRequest(submitter_did, text, version, ratification_ts, retirement_ts, cb) => {
                 debug!(target: "ledger_command_executor", "BuildTxnAuthorAgreementRequest command received");
@@ -540,19 +485,17 @@ impl LedgerCommandExecutor {
             .map_err(IndyError::from)
     }
 
-    fn sign_and_submit_request(&self,
-                               pool_handle: PoolHandle,
-                               wallet_handle: WalletHandle,
-                               submitter_did: &DidValue,
-                               request_json: &str,
-                               cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    async fn sign_and_submit_request<'a>(&'a self,
+                                         pool_handle: PoolHandle,
+                                         wallet_handle: WalletHandle,
+                                         submitter_did: &'a DidValue,
+                                         request_json: &'a str) -> IndyResult<String> {
         debug!("sign_and_submit_request >>> pool_handle: {:?}, wallet_handle: {:?}, submitter_did: {:?}, request_json: {:?}",
                pool_handle, wallet_handle, submitter_did, request_json);
 
-        match self._sign_request(wallet_handle, submitter_did, request_json, SignatureType::Single) {
-            Ok(signed_request) => self.submit_request(pool_handle, signed_request.as_str(), cb),
-            Err(err) => cb(Err(err))
-        }
+        let signed_request = self._sign_request(wallet_handle, submitter_did, request_json, SignatureType::Single)?;
+
+        self.submit_request(pool_handle, signed_request.as_str()).await
     }
 
     fn _sign_request(&self,
@@ -573,7 +516,7 @@ impl LedgerCommandExecutor {
             return Err(err_msg(IndyErrorKind::InvalidStructure, "Message isn't json object"));
         }
 
-        let serialized_request = serialize_signature(request.clone())?;
+        let serialized_request = serialize_signature(&request)?;
         let signature = self.crypto_service.sign(&my_key, &serialized_request.as_bytes().to_vec())?;
         let did = my_did.did.to_short();
 
@@ -603,40 +546,32 @@ impl LedgerCommandExecutor {
         Ok(res)
     }
 
-    fn submit_request(&self,
-                      handle: PoolHandle,
-                      request_json: &str,
-                      cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    async fn submit_request<'a>(&'a self,
+                                handle: PoolHandle,
+                                request_json: &'a str) -> IndyResult<String> {
         debug!("submit_request >>> handle: {:?}, request_json: {:?}", handle, request_json);
 
-        if let Err(err) = serde_json::from_str::<Request<serde_json::Value>>(&request_json) {
-            return cb(Err(IndyError::from_msg(IndyErrorKind::InvalidStructure, format!("Request is invalid json: {:?}", err))));
-        }
-
-        let x: IndyResult<CommandHandle> = self.pool_service.send_tx(handle, request_json);
-        match x {
-            Ok(cmd_id) => { self.send_callbacks.borrow_mut().insert(cmd_id, cb); }
-            Err(err) => { cb(Err(err)); }
-        };
+        self.pool_service.send_tx(handle, request_json).await
     }
 
-    fn submit_action(&self,
-                     handle: PoolHandle,
-                     request_json: &str,
-                     nodes: Option<&str>,
-                     timeout: Option<i32>,
-                     cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    async fn submit_action<'a>(&'a self,
+                               handle: PoolHandle,
+                               request_json: &'a str,
+                               nodes: Option<&'a str>,
+                               timeout: Option<i32>) -> IndyResult<String> {
         debug!("submit_action >>> handle: {:?}, request_json: {:?}, nodes: {:?}, timeout: {:?}", handle, request_json, nodes, timeout);
 
-        if let Err(err) = self.ledger_service.validate_action(request_json) {
-            return cb(Err(err));
-        }
+        self.ledger_service.validate_action(request_json)?;
 
-        let x: IndyResult<CommandHandle> = self.pool_service.send_action(handle, request_json, nodes, timeout);
-        match x {
-            Ok(cmd_id) => { self.send_callbacks.borrow_mut().insert(cmd_id, cb); }
-            Err(err) => { cb(Err(err)); }
+        let nodes: Option<Vec<String>> = match nodes {
+            Some(nodes_) => Some(serde_json::from_str(nodes_)
+                .map_err(|err| IndyError::from_msg(IndyErrorKind::InvalidStructure, format!("Can not deserialize the list of nodes: {}", err)))?),
+            None => None
         };
+
+        let timeout = timeout.map(|timeout| timeout as i64);
+
+        self.pool_service.send_action(handle, request_json, nodes, timeout).await
     }
 
     fn sign_request(&self,
@@ -765,7 +700,7 @@ impl LedgerCommandExecutor {
     }
 
     fn parse_get_nym_response(&self,
-                             get_nym_response: &str) -> IndyResult<String> {
+                              get_nym_response: &str) -> IndyResult<String> {
         debug!("parse_get_nym_response >>> get_nym_response: {:?}", get_nym_response);
 
         let res = self.ledger_service.parse_get_nym_response(get_nym_response)?;
@@ -777,7 +712,7 @@ impl LedgerCommandExecutor {
 
     fn build_schema_request(&self,
                             submitter_did: &DidValue,
-                            schema: SchemaV1) -> IndyResult<String> {
+                            schema: Schema) -> IndyResult<String> {
         debug!("build_schema_request >>> submitter_did: {:?}, schema: {:?}", submitter_did, schema);
 
         self.crypto_service.validate_did(submitter_did)?;
@@ -816,7 +751,7 @@ impl LedgerCommandExecutor {
 
     fn build_cred_def_request(&self,
                               submitter_did: &DidValue,
-                              cred_def: CredentialDefinitionV1) -> IndyResult<String> {
+                              cred_def: CredentialDefinition) -> IndyResult<String> {
         debug!("build_cred_def_request >>> submitter_did: {:?}, cred_def: {:?}",
                submitter_did, cred_def);
 
@@ -919,7 +854,7 @@ impl LedgerCommandExecutor {
                                   datetime: Option<&str>) -> IndyResult<String> {
         debug!("build_pool_restart_request >>> submitter_did: {:?}, action: {:?}, datetime: {:?}", submitter_did, action, datetime);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        self.crypto_service.validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_pool_restart(&submitter_did, action, datetime)?;
 
@@ -944,7 +879,7 @@ impl LedgerCommandExecutor {
          timeout: {:?}, schedule: {:?}, justification: {:?}, reinstall: {:?}, force: {:?}, package: {:?}",
                submitter_did, name, version, action, sha256, timeout, schedule, justification, reinstall, force, package);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        self.crypto_service.validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_pool_upgrade(&submitter_did, name, version, action, sha256,
                                                          timeout, schedule, justification, reinstall, force, package)?;
@@ -956,10 +891,10 @@ impl LedgerCommandExecutor {
 
     fn build_revoc_reg_def_request(&self,
                                    submitter_did: &DidValue,
-                                   data: RevocationRegistryDefinitionV1) -> IndyResult<String> {
+                                   data: RevocationRegistryDefinition) -> IndyResult<String> {
         debug!("build_revoc_reg_def_request >>> submitter_did: {:?}, data: {:?}", submitter_did, data);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        self.crypto_service.validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_revoc_reg_def_request(&submitter_did, data)?;
 
@@ -997,11 +932,11 @@ impl LedgerCommandExecutor {
                                      submitter_did: &DidValue,
                                      revoc_reg_def_id: &RevocationRegistryId,
                                      revoc_def_type: &str,
-                                     value: RevocationRegistryDeltaV1) -> IndyResult<String> {
+                                     value: RevocationRegistryDelta) -> IndyResult<String> {
         debug!("build_revoc_reg_entry_request >>> submitter_did: {:?}, revoc_reg_def_id: {:?}, revoc_def_type: {:?}, value: {:?}",
                submitter_did, revoc_reg_def_id, revoc_def_type, value);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        self.crypto_service.validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_revoc_reg_entry_request(&submitter_did, revoc_reg_def_id, revoc_def_type, value)?;
 
@@ -1088,7 +1023,7 @@ impl LedgerCommandExecutor {
         debug!("build_auth_rule_request >>> submitter_did: {:?}, txn_type: {:?}, action: {:?}, field: {:?}, \
             old_value: {:?}, new_value: {:?}, constraint: {:?}", submitter_did, txn_type, action, field, old_value, new_value, constraint);
 
-        self.crypto_service.validate_did(&submitter_did)?;
+        self.crypto_service.validate_did(submitter_did)?;
 
         let res = self.ledger_service.build_auth_rule_request(&submitter_did, txn_type, action, field, old_value, new_value, constraint)?;
 
@@ -1256,61 +1191,9 @@ impl LedgerCommandExecutor {
             None => Ok(())
         }
     }
-
-    fn get_schema(&self, pool_handle: i32, submitter_did: Option<&DidValue>, id: &SchemaId, cb: BoxedCallbackStringStringSend) {
-        let request_json = try_cb!(self.build_get_schema_request(submitter_did, id), cb);
-
-        let cb_id = next_command_handle();
-        self.pending_callbacks.borrow_mut().insert(cb_id, cb);
-        let id = id.clone();
-
-        self.submit_request(pool_handle, &request_json, Box::new(move |response| {
-            CommandExecutor::instance().send(
-                Command::Ledger(
-                    LedgerCommand::GetSchemaContinue(
-                        id.clone(),
-                        response,
-                        cb_id
-                    )
-                )
-            ).unwrap();
-        }));
-    }
-
-    fn _get_schema_continue(&self, id: SchemaId, pool_response: IndyResult<String>, cb_id: CommandHandle) {
-        let cb = self.pending_callbacks.borrow_mut().remove(&cb_id).expect("FIXME INVALID STATE");
-        let pool_response = try_cb!(pool_response, cb);
-        cb(self.ledger_service.parse_get_schema_response(&pool_response, id.get_method().as_ref().map(String::as_str)))
-    }
-
-    fn get_cred_def(&self, pool_handle: i32, submitter_did: Option<&DidValue>, id: &CredentialDefinitionId, cb: BoxedCallbackStringStringSend) {
-        let request_json = try_cb!(self.build_get_cred_def_request(submitter_did, id), cb);
-
-        let cb_id = next_command_handle();
-        self.pending_callbacks.borrow_mut().insert(cb_id, cb);
-        let id = id.clone();
-
-        self.submit_request(pool_handle, &request_json, Box::new(move |response| {
-            CommandExecutor::instance().send(
-                Command::Ledger(
-                    LedgerCommand::GetCredDefContinue(
-                        id.clone(),
-                        response,
-                        cb_id
-                    )
-                )
-            ).unwrap();
-        }));
-    }
-
-    fn _get_cred_def_continue(&self, id: CredentialDefinitionId, pool_response: IndyResult<String>, cb_id: CommandHandle) {
-        let cb = self.pending_callbacks.borrow_mut().remove(&cb_id).expect("FIXME INVALID STATE");
-        let pool_response = try_cb!(pool_response, cb);
-        cb(self.ledger_service.parse_get_cred_def_response(&pool_response, id.get_method().as_ref().map(String::as_str)))
-    }
 }
 
 enum SignatureType {
     Single,
-    Multi
+    Multi,
 }

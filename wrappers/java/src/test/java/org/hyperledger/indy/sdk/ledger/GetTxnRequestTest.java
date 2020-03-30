@@ -14,29 +14,39 @@ public class GetTxnRequestTest extends IndyIntegrationTestWithPoolAndSingleWalle
 	@Test
 	public void testBuildGetTxnRequestWorks() throws Exception {
 		int seq_no = 1;
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"3\"," +
-				"\"data\":%s," +
-				"\"ledgerId\":1" +
-				"}", DID, seq_no);
+
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "3")
+								.put("ledgerId", 1)
+								.put("data", seq_no)
+				);
 
 		String getTxnRequest = Ledger.buildGetTxnRequest(DID, null, seq_no).get();
-		assertTrue(getTxnRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(getTxnRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildGetTxnRequestWorksForLedgerType() throws Exception {
 		int seq_no = 1;
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"3\"," +
-				"\"data\":%s," +
-				"\"ledgerId\":0" +
-				"}", DID, seq_no);
+
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID)
+				.put("operation",
+						new JSONObject()
+								.put("type", "3")
+								.put("ledgerId", 0)
+								.put("data", seq_no)
+				);
 
 		String getTxnRequest = Ledger.buildGetTxnRequest(DID, "POOL", seq_no).get();
-		assertTrue(getTxnRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(getTxnRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test(timeout = PoolUtils.TEST_TIMEOUT_FOR_REQUEST_ENSURE)

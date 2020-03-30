@@ -22,44 +22,53 @@ public class AttribRequestsTest extends IndyIntegrationTestWithPoolAndSingleWall
 
 	@Test
 	public void testBuildAttribRequestWorksForRawValue() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"100\"," +
-				"\"dest\":\"%s\"," +
-				"\"raw\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, endpoint);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("raw", endpoint)
+								.put("type", "100")
+				);
 
 		String attribRequest = Ledger.buildAttribRequest(DID_TRUSTEE, DID_TRUSTEE, null, endpoint, null).get();
-
-		assertTrue(attribRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(attribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildAttribRequestWorksForHashValue() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"100\"," +
-				"\"dest\":\"%s\"," +
-				"\"hash\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, hash);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("hash", hash)
+								.put("type", "100")
+				);
 
 		String attribRequest = Ledger.buildAttribRequest(DID_TRUSTEE, DID_TRUSTEE, hash, null, null).get();
-
-		assertTrue(attribRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(attribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildAttribRequestWorksForEncValue() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"100\"," +
-				"\"dest\":\"%s\"," +
-				"\"enc\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, enc);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("enc", enc)
+								.put("type", "100")
+				);
 
 		String attribRequest = Ledger.buildAttribRequest(DID_TRUSTEE, DID_TRUSTEE, null, null, enc).get();
-
-		assertTrue(attribRequest.replace("\\", "").contains(expectedResult));
+		assert (new JSONObject(attribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
@@ -74,44 +83,53 @@ public class AttribRequestsTest extends IndyIntegrationTestWithPoolAndSingleWall
 	public void testBuildGetAttribRequestWorksForRawValue() throws Exception {
 		String raw = "endpoint";
 
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"104\"," +
-				"\"dest\":\"%s\"," +
-				"\"raw\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, raw);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("raw", raw)
+								.put("type", "104")
+				);
 
 		String getAttribRequest = Ledger.buildGetAttribRequest(DID_TRUSTEE, DID_TRUSTEE, raw, null, null).get();
-
-		assertTrue(getAttribRequest.contains(expectedResult));
+		assert (new JSONObject(getAttribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildGetAttribRequestWorksForHashValue() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"104\"," +
-				"\"dest\":\"%s\"," +
-				"\"hash\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, hash);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("hash", hash)
+								.put("type", "104")
+				);
 
 		String getAttribRequest = Ledger.buildGetAttribRequest(DID_TRUSTEE, DID_TRUSTEE, null, hash, null).get();
-
-		assertTrue(getAttribRequest.contains(expectedResult));
+		assert (new JSONObject(getAttribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
 	public void testBuildGetAttribRequestWorksForEncValue() throws Exception {
-		String expectedResult = String.format("\"identifier\":\"%s\"," +
-				"\"operation\":{" +
-				"\"type\":\"104\"," +
-				"\"dest\":\"%s\"," +
-				"\"enc\":\"%s\"" +
-				"}", DID_TRUSTEE, DID_TRUSTEE, enc);
+		JSONObject expectedResult = new JSONObject()
+				.put("identifier", DID_TRUSTEE)
+				.put("operation",
+						new JSONObject()
+								.put("dest", DID_TRUSTEE)
+								.put("enc", enc)
+								.put("type", "104")
+				);
 
 		String getAttribRequest = Ledger.buildGetAttribRequest(DID_TRUSTEE, DID_TRUSTEE, null, null, enc).get();
-
-		assertTrue(getAttribRequest.contains(expectedResult));
+		assert (new JSONObject(getAttribRequest).toMap().entrySet()
+				.containsAll(
+						expectedResult.toMap().entrySet()));
 	}
 
 	@Test
