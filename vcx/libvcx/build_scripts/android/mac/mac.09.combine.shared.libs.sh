@@ -36,9 +36,9 @@ do
     if [ "$ndk_arch" == "x86_64" ]; then
         LIB_FOLDER="lib64"
     fi
-    LIB_GNUSTL=$NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/libgnustl_shared.so
+    LIB_STL=$NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/libc++_shared.so
     if [ "$ndk_arch" == "arm" ]; then
-        LIB_GNUSTL=$NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/armv7-a/libgnustl_shared.so
+        LIB_STL=$NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/armv7-a/libc++_shared.so
     fi
 
     cd $VCX_SDK/vcx/wrappers/java/vcx/src/main/jniLibs/${target_arch}
@@ -49,7 +49,7 @@ do
     libsodium.a \
     libssl.a \
     libcrypto.a \
-    ${LIB_GNUSTL} \
+    ${LIB_STL} \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/libz.so \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/libm.a \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/liblog.so \

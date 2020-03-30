@@ -1,6 +1,17 @@
-libvcx (0.6.2) unstable; urgency=medium
+libvcx (0.7.1) unstable; urgency=medium
 
 [ Hyperledger ]
+
+## 0.7.1
+* Bugfixes
+* Fixed compatibility between proprietary (`protocol_version`: `2.0`) and aries protocols (`protocol_version`: `3.0`).
+
+## 0.7.0
+* Removed `connection_handle` from functions to get protocol messages.
+* Added ability to accept a duplicate connection by redirecting to the already existing one instead of forming a duplicate connection.
+* Added a new function `vcx_disclosed_proof_decline_presentation_request` to explicitly reject a presentation request.
+* Added a new function `vcx_connection_info` to get information about connection.
+* Bugfixes
 
 ## 0.6.2
 * Implemented Basic Message RFC (IS-1189)

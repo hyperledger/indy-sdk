@@ -20,7 +20,7 @@ public class TokenApi extends VcxJava.API {
     private static Callback vcxTokenCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String tokenInfo) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], tokenInfo = [" + tokenInfo + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], tokenInfo = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
 
@@ -43,7 +43,7 @@ public class TokenApi extends VcxJava.API {
     private static Callback vcxSendTokensCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int error, String receipt) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], error = [" + error + "], receipt = [" + receipt + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], error = [" + error + "], receipt = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, error)) {
                 return;
@@ -57,7 +57,7 @@ public class TokenApi extends VcxJava.API {
             String tokens,
             String recipient
     ) throws VcxException {
-        logger.debug("sendTokens() called with: paymentHandle = [" + paymentHandle + "], tokens = [" + tokens + "], recipient = [" + recipient + "]");
+        logger.debug("sendTokens() called with: paymentHandle = [" + paymentHandle + "], tokens = [" + tokens + "], recipient = [****]");
         CompletableFuture<String> future = new CompletableFuture<String>();
         int commandHandle = addFuture(future);
         int result = LibVcx.api.vcx_wallet_send_tokens(commandHandle, paymentHandle, tokens, recipient, vcxSendTokensCB);
@@ -69,7 +69,7 @@ public class TokenApi extends VcxJava.API {
     private static Callback vcxCreatePaymentAddressCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int error, String address) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], error = [" + error + "], address = [" + address + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], error = [" + error + "], address = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, error)) {
                 return;
@@ -81,7 +81,7 @@ public class TokenApi extends VcxJava.API {
     public static CompletableFuture<String> createPaymentAddress(
             String seed
     ) throws VcxException {
-        logger.debug("createPaymentAddress() called with: seed = [" + seed + "]");
+        logger.debug("createPaymentAddress() called with: seed = [****]");
         CompletableFuture<String> future = new CompletableFuture<String>();
         int commandHandle = addFuture(future);
         int result = LibVcx.api.vcx_wallet_create_payment_address(commandHandle, seed, vcxCreatePaymentAddressCB);

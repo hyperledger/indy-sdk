@@ -44,7 +44,7 @@ public class VcxApi extends VcxJava.API {
 
     public static CompletableFuture<Integer> vcxInitWithConfig(String configJson) throws VcxException {
         ParamGuard.notNullOrWhiteSpace(configJson, "config");
-        logger.debug("vcxInitWithConfig() called with: configJson = [" + configJson + "]");
+        logger.debug("vcxInitWithConfig() called with: configJson = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 

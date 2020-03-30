@@ -93,6 +93,13 @@ impl GetMessagesBuilder {
         }
     }
 
+    #[cfg(test)]
+    pub fn create_v1() -> GetMessagesBuilder {
+        let mut builder = GetMessagesBuilder::create();
+        builder.version = settings::ProtocolTypes::V1;
+        builder
+    }
+
     pub fn uid(&mut self, uids: Option<Vec<String>>) -> VcxResult<&mut Self> {
         //Todo: validate msg_uid??
         self.uids = uids;
@@ -177,7 +184,8 @@ impl GetMessagesBuilder {
                                            self.status_codes.clone(),
                                            self.pairwise_dids.clone()))
                 ),
-            settings::ProtocolTypes::V2 =>
+            settings::ProtocolTypes::V2 |
+            settings::ProtocolTypes::V3 =>
                 A2AMessage::Version2(
                     A2AMessageV2::GetMessages(
                         GetMessages::build(A2AMessageKinds::GetMessagesByConnections,
@@ -185,7 +193,8 @@ impl GetMessagesBuilder {
                                            self.uids.clone(),
                                            self.status_codes.clone(),
                                            self.pairwise_dids.clone()))
-                )
+                ),
+
         };
 
         let agency_did = settings::get_config_value(settings::CONFIG_REMOTE_TO_SDK_DID)?;
@@ -197,6 +206,7 @@ impl GetMessagesBuilder {
         trace!("parse_download_messages_response >>>");
         let mut response = parse_response_from_agency(&response, &self.version)?;
 
+        trace!("parse_download_messages_response: parsed response {:?}", response);
         let msgs = match response.remove(0) {
             A2AMessage::Version1(A2AMessageV1::GetMessagesByConnectionsResponse(res)) => res.msgs,
             A2AMessage::Version2(A2AMessageV2::GetMessagesByConnectionsResponse(res)) => res.msgs,
@@ -236,7 +246,8 @@ impl GeneralMessage for GetMessagesBuilder {
                                            self.status_codes.clone(),
                                            self.pairwise_dids.clone()))
                 ),
-            settings::ProtocolTypes::V2 =>
+            settings::ProtocolTypes::V2 |
+            settings::ProtocolTypes::V3 =>
                 A2AMessage::Version2(
                     A2AMessageV2::GetMessages(
                         GetMessages::build(A2AMessageKinds::GetMessages,
@@ -244,7 +255,7 @@ impl GeneralMessage for GetMessagesBuilder {
                                            self.uids.clone(),
                                            self.status_codes.clone(),
                                            self.pairwise_dids.clone()))
-                )
+                ),
         };
 
         prepare_message_for_agent(vec![message], &self.to_vk, &self.agent_did, &self.agent_vk, &self.version)
@@ -334,7 +345,7 @@ impl Message {
             A2AMessage::CredentialOffer(offer) => {
                 let cred_offer: CredentialOffer = offer.try_into()?;
 
-                (PayloadKinds::CredOffer, json!(&cred_offer).to_string())
+                (PayloadKinds::CredOffer, json!(vec![cred_offer]).to_string())
             }
             A2AMessage::Credential(credential) => {
                 let credential: CredentialMessage = credential.try_into()?;
@@ -427,6 +438,7 @@ pub fn download_messages(pairwise_dids: Option<Vec<String>>, status_codes: Optio
             .uid(uids)?
             .status_codes(status_codes)?
             .pairwise_dids(pairwise_dids)?
+            .version(&Some(::settings::get_protocol_type()))?
             .download_messages()?;
 
     trace!("message returned: {:?}", response);
@@ -468,7 +480,7 @@ mod tests {
     fn test_parse_get_messages_response() {
         let _setup = SetupMocks::init();
 
-        let result = GetMessagesBuilder::create().parse_response(GET_MESSAGES_RESPONSE.to_vec()).unwrap();
+        let result = GetMessagesBuilder::create_v1().parse_response(GET_MESSAGES_RESPONSE.to_vec()).unwrap();
         assert_eq!(result.len(), 3)
     }
 

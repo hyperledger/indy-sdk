@@ -18,7 +18,7 @@ ENV SODIUM_INCLUDE_DIR /home/vcx_user/${sodium_dir}/include
 ENV LIBZMQ_LIB_DIR /home/vcx_user/${libzmq_dir}/lib
 ENV LIBZMQ_INCLUDE_DIR /home/vcx_user/${libzmq_dir}/include
 ENV LIBINDY_DIR /home/vcx_user/${libindy_dir}
-ENV ANDROID_NDK_ROOT /home/vcx_user/android-ndk-r16b
+ENV ANDROID_NDK_ROOT /home/vcx_user/android-ndk-r20
 ENV TOOLCHAIN_DIR /home/vcx_user/${target_arch}
 ENV PATH ${TOOLCHAIN_DIR}/bin:${PATH}
 ENV PKG_CONFIG_ALLOW_CROSS=1
@@ -37,8 +37,8 @@ RUN chmod 0440 /etc/sudoers.d/vcx_user
 USER vcx_user
 WORKDIR /home/vcx_user
 
-COPY android-ndk-r16b-linux-x86_64.zip /home/vcx_user/
-RUN unzip -qq /home/vcx_user/android-ndk-r16b-linux-x86_64.zip -d /home/vcx_user/
+COPY android-ndk-r20-linux-x86_64.zip /home/vcx_user/
+RUN unzip -qq /home/vcx_user/android-ndk-r20-linux-x86_64.zip -d /home/vcx_user/
 COPY --chown=vcx_user:vcx_user sdk/ /home/vcx_user/sdk/
 COPY --chown=vcx_user:vcx_user ${openssl_dir}/ ${OPENSSL_DIR}/
 COPY --chown=vcx_user:vcx_user ${sodium_dir}/ /home/vcx_user/${sodium_dir}/

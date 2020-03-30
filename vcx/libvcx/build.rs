@@ -88,6 +88,8 @@ fn main() {
 
     }else if target.contains("darwin"){
         //OSX specific logic
+        println!("cargo:rustc-link-lib=sodium");
+        println!("cargo:rustc-link-lib=zmq");
         println!("cargo:rustc-link-lib=indy");
         //OSX does not allow 3rd party libs to be installed in /usr/lib. Instead install it in /usr/local/lib
         println!("cargo:rustc-link-search=native=/usr/local/lib");

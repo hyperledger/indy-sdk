@@ -12,12 +12,17 @@ VCX_SDK=$START_DIR/../../../../..
 VCX_SDK=$(abspath "$VCX_SDK")
 
 COMBINED_LIB=$1
+IOS_ARCHS=$2
+VCX_VERSION=$3
 
-DATETIME=$(date +"%Y%m%d.%H%M")
+if [ -z ${IOS_ARCHS} ]; then
+    echo "please provide the arch e.g arm, arm64, armv7, x86, or x86_64"
+    exit 1
+fi
 
-IOS_ARCHS="arm64,armv7,armv7s,i386,x86_64"
-if [ ! -z "$2" ]; then
-    IOS_ARCHS=$2
+if [ -z ${VCX_VERSION} ]; then
+    echo "Please provide a vcx version"
+    exit 1
 fi
 
 bkpIFS="$IFS"
@@ -26,6 +31,8 @@ echo "Building vcx.${COMBINED_LIB} wrapper for architectures: ${archs[@]}"    ##
 IFS="$bkpIFS"
 cd $VCX_SDK/vcx/wrappers/ios/vcx
 #mv lib/libvcx.a lib/libvcx.a.original
+
+tar -czf ~/IOSBuilds/${COMBINED_LIB}/libvcx.a.${COMBINED_LIB}_${VCX_VERSION}_universal.tar.gz $VCX_SDK/vcx/wrappers/ios/vcx/lib/${COMBINED_LIB}.a
 cp -v lib/${COMBINED_LIB}.a lib/libvcx.a
 xcodebuild -project vcx.xcodeproj -scheme vcx -configuration Debug CONFIGURATION_BUILD_DIR=. clean
 
@@ -51,6 +58,28 @@ do
     cp -rp vcx.framework vcx.framework.previousbuild
 done
 
+#export GEM_HOME=${HOME}/.gem
+#export PATH=${GEM_HOME}/bin:$PATH
+# Test the libvcx.a file if the ${IOS_ARCHS} contains i386 or x86_64
+if [[ "${IOS_ARCHS}" == *"i386"* ]] || [[ "${IOS_ARCHS}" == *"x86_64"* ]]; then
+    #xcodebuild -project vcx.xcodeproj -scheme vcx-demo -sdk iphonesimulator build-for-testing
+    xcodebuild -project vcx.xcodeproj -scheme vcx-demo -destination 'platform=iOS Simulator,name=iPhone 5s' test
+    ## Need to do:
+    ## a) gem install cocoapods -- sudo may be needed
+    #if [ -z "$(which pod)" ]; then
+    #    gem install cocoapods
+    #fi
+    ## b) pod setup
+    if [ ! -d "${HOME}/.cocoapods/repos/master" ]; then
+        pod setup
+    fi
+    ## c) brew install xctool
+    #if [ -z "$(which xctool)" ]; then
+    #    brew install xctool
+    #fi
+    #xctool -project vcx.xcodeproj -scheme vcx-demo run-tests -sdk iphonesimulator
+fi
+
 #mv lib/libvcx.a.original lib/libvcx.a
 rm lib/libvcx.a
 rm -rf vcx.framework.previousbuild
@@ -61,6 +90,9 @@ mkdir -p vcx.framework/lib
 
 mkdir -p vcx.framework/Headers
 cp -v ConnectMeVcx.h vcx.framework/Headers
+cp -v utils/VcxLogger.h vcx.framework/Headers
+cp -v utils/IndySdk.h vcx.framework/Headers
+cp -v utils/IndyTypes.h vcx.framework/Headers
 cp -v include/libvcx.h vcx.framework/Headers
 cp -v vcx/vcx.h vcx.framework/Headers
 if [ -d $VCX_SDK/vcx/wrappers/ios/vcx/tmp ]; then
@@ -72,10 +104,6 @@ cd $VCX_SDK/vcx/wrappers/ios/vcx/tmp
 cp $WORK_DIR/evernym.vcx-sdk.git.commit.log $VCX_SDK/vcx/wrappers/ios/vcx/tmp/vcx/ || true
 cp $WORK_DIR/hyperledger.indy-sdk.git.commit.log $VCX_SDK/vcx/wrappers/ios/vcx/tmp/vcx/ || true
 
-zip -r vcx.${COMBINED_LIB}_${DATETIME}_universal.zip vcx
+zip -r vcx.${COMBINED_LIB}_${VCX_VERSION}_universal.zip vcx
 mkdir -p ~/IOSBuilds/${COMBINED_LIB}
-cp $VCX_SDK/vcx/wrappers/ios/vcx/tmp/vcx.${COMBINED_LIB}_${DATETIME}_universal.zip ~/IOSBuilds/${COMBINED_LIB}
-
-#curl --insecure -u normjarvis -X POST -F file=@./vcx.${COMBINED_LIB}_${DATETIME}_universal.zip https://kraken.corp.evernym.com/repo/ios/upload
-# Download the file at https://repo.corp.evernym.com/filely/ios/vcx.${COMBINED_LIB}_${DATETIME}_universal.zip
-#hyperledger.indy-sdk.git.commit.logsudo cp ./vcx.${COMBINED_LIB}_${DATETIME}_universal.zip  /usr/local/var/www/download/ios
+cp -v $VCX_SDK/vcx/wrappers/ios/vcx/tmp/vcx.${COMBINED_LIB}_${VCX_VERSION}_universal.zip ~/IOSBuilds/${COMBINED_LIB}

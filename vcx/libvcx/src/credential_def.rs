@@ -364,6 +364,7 @@ pub mod tests {
 
     pub fn prepare_create_cred_def_data(revoc: bool) -> (u32, String, String, serde_json::Value) {
         let schema_handle = ::schema::tests::create_schema_real();
+        sleep(Duration::from_secs(2));
         let schema_id = ::schema::get_schema_id(schema_handle).unwrap();
         let did = settings::get_config_value(settings::CONFIG_INSTITUTION_DID).unwrap();
         let revocation_details = revocation_details(revoc);
@@ -414,6 +415,20 @@ pub mod tests {
 
         let payment = &get_cred_def_payment_txn(handle).unwrap();
         assert!(payment.amount > 0);
+    }
+
+    #[cfg(feature = "pool_tests")]
+    #[test]
+    fn test_get_credential_def() {
+        let _setup = SetupLibraryWalletPoolZeroFees::init();
+        let (_, _, cred_def_id, cred_def_json, _, _) = ::utils::libindy::anoncreds::tests::create_and_store_credential_def(::utils::constants::DEFAULT_SCHEMA_ATTRS, false);
+
+        let (id, r_cred_def_json) = ::utils::libindy::anoncreds::get_cred_def_json(&cred_def_id).unwrap();
+
+        assert_eq!(id, cred_def_id);
+        let def1: serde_json::Value = serde_json::from_str(&cred_def_json).unwrap();
+        let def2: serde_json::Value = serde_json::from_str(&r_cred_def_json).unwrap();
+        assert_eq!(def1, def2);
     }
 
     #[cfg(feature = "pool_tests")]

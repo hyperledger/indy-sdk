@@ -1,6 +1,15 @@
-libindy (1.14.2) unstable; urgency=medium
+libindy (1.14.4) unstable; urgency=medium
 
 [ Hyperledger ]
+
+## 1.14.4
+* Correction for `Fix proof verification in case of credential attribute encoded value contains leading zeros` (IS-1491).
+  Indy 1.14.3 changes "0" to "" which leads to proof rejection.
+  
+## 1.14.3
+* Bugfixes
+    * Fix proof verification in case of credential attribute encoded value contains leading zeros (IS-1491).
+    * others minor bugfixes
 
 ## 1.14.2
 * Bugfixes

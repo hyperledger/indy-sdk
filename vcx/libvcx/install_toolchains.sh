@@ -10,18 +10,18 @@ cd /tmp/NDK
 
 if [ "$(uname)" == "Darwin" ]; then
     echo "Downloading NDK for OSX"
-    wget https://dl.google.com/android/repository/android-ndk-r16b-darwin-x86_64.zip
-    unzip android-ndk-r16b-darwin-x86_64.zip
+    wget https://dl.google.com/android/repository/android-ndk-r20-darwin-x86_64.zip
+    unzip android-ndk-r20-darwin-x86_64.zip
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     echo "Downloading NDK for Linux"
-    wget https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip
-    unzip android-ndk-r16b-linux-x86_64.zip
+    wget https://dl.google.com/android/repository/android-ndk-r20-linux-x86_64.zip
+    unzip android-ndk-r20-linux-x86_64.zip
 fi
 
 echo "installing toolchains in directory ${NDK_TOOLCHAIN_DIR}"
-android-ndk-r16b/build/tools/make_standalone_toolchain.py  --api 21 --arch arm64 --install-dir ${NDK_TOOLCHAIN_DIR}/arm64
-android-ndk-r16b/build/tools/make_standalone_toolchain.py  --api 14 --arch arm --install-dir ${NDK_TOOLCHAIN_DIR}/arm
-android-ndk-r16b/build/tools/make_standalone_toolchain.py  --api 14 --arch x86 --install-dir ${NDK_TOOLCHAIN_DIR}/x86
+android-ndk-r20/build/tools/make_standalone_toolchain.py  --api 21 --arch arm64 --install-dir ${NDK_TOOLCHAIN_DIR}/arm64
+android-ndk-r20/build/tools/make_standalone_toolchain.py  --api 14 --arch arm --install-dir ${NDK_TOOLCHAIN_DIR}/arm
+android-ndk-r20/build/tools/make_standalone_toolchain.py  --api 14 --arch x86 --install-dir ${NDK_TOOLCHAIN_DIR}/x86
 
 echo "setting up the cargo config file"
 cat <<EOF > ~/.cargo/config

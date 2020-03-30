@@ -11,7 +11,7 @@ ENV TARGET_API ${target_api}
 ENV CROSS_COMPILE ${cross_compile}
 ENV ZMQ_HAVE_ANDROID 1
 ENV SODIUM_LIB_DIR /home/zeromq_user/${sodium_lib_dir}
-ENV ANDROID_NDK_ROOT /home/zeromq_user/android-ndk-r16b
+ENV ANDROID_NDK_ROOT /home/zeromq_user/android-ndk-r20
 ENV TOOLCHAIN_DIR /home/zeromq_user/${target_arch}
 ENV PATH ${TOOLCHAIN_DIR}/bin:${PATH}
 
@@ -25,10 +25,10 @@ RUN usermod -aG sudo zeromq_user
 USER zeromq_user
 WORKDIR /home/zeromq_user
 
-COPY android-ndk-r16b-linux-x86_64.zip /home/zeromq_user/
+COPY android-ndk-r20-linux-x86_64.zip /home/zeromq_user/
 COPY zeromq-4.2.5.tar.gz /home/zeromq_user/
 COPY ${sodium_lib_dir}/ ${SODIUM_LIB_DIR}/
-RUN unzip -qq /home/zeromq_user/android-ndk-r16b-linux-x86_64.zip -d /home/zeromq_user/
+RUN unzip -qq /home/zeromq_user/android-ndk-r20-linux-x86_64.zip -d /home/zeromq_user/
 RUN tar xf /home/zeromq_user/zeromq-4.2.5.tar.gz -C /home/zeromq_user/
 RUN python3 ${ANDROID_NDK_ROOT}/build/tools/make_standalone_toolchain.py --arch ${target_arch} --api ${target_api} --install-dir ${TOOLCHAIN_DIR}
 

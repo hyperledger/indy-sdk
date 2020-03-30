@@ -60,43 +60,63 @@ impl<'de> Deserialize<'de> for Query
 
                 parse_query(map).map_err(|err| de::Error::custom(err))
             }
-            _ => Err(de::Error::missing_field("Restiction must be either object or array"))
+            _ => Err(de::Error::missing_field("Restriction must be either object or array"))
         }
     }
 }
 
-
 impl Query {
-    fn optimise(self) -> Query {
+    pub fn optimise(self) -> Option<Query> {
         match self {
             Query::Not(boxed_operator) => if let Query::Not(nested_operator) = *boxed_operator {
-                *nested_operator
+                Some(*nested_operator)
             } else {
-                Query::Not(boxed_operator)
+                Some(Query::Not(boxed_operator))
             },
-            Query::And(mut suboperators) => if suboperators.len() == 1 {
-                suboperators.remove(0)
-            } else {
-                Query::And(suboperators)
-            },
-            Query::Or(mut suboperators) => if suboperators.len() == 1 {
-                suboperators.remove(0)
-            } else {
-                Query::Or(suboperators)
-            },
-            Query::In(key, mut targets) => if targets.len() == 1 {
-                Query::Eq(key, targets.remove(0))
-            } else {
-                Query::In(key, targets)
-            },
-            _ => self
-        }
-    }
+            Query::And(suboperators)  if suboperators.len() == 0 => {
+                None
+            }
+            Query::And(mut suboperators) if suboperators.len() == 1 => {
+                suboperators.remove(0).optimise()
+            }
+            Query::And(suboperators) => {
+                let mut suboperators: Vec<Query> =
+                    suboperators
+                        .into_iter()
+                        .flat_map(|operator| operator.optimise())
+                        .collect();
 
-    pub fn clean(&self) -> Option<&Query> { // TODO: improve it to handle nested
-        match self {
-            Query::And(suboperators) if suboperators.is_empty() => None,
-            Query::Or(suboperators) if suboperators.is_empty() => None,
+                match suboperators.len() {
+                    0 => None,
+                    1 => Some(suboperators.remove(0)),
+                    _ => Some(Query::And(suboperators)),
+                }
+            }
+            Query::Or(suboperators) if suboperators.len() == 0 => {
+                None
+            }
+            Query::Or(mut suboperators) if suboperators.len() == 1 => {
+                suboperators.remove(0).optimise()
+            }
+            Query::Or(suboperators) => {
+                let mut suboperators: Vec<Query> =
+                    suboperators
+                        .into_iter()
+                        .flat_map(|operator| operator.optimise())
+                        .collect();
+
+                match suboperators.len() {
+                    0 => None,
+                    1 => Some(suboperators.remove(0)),
+                    _ => Some(Query::Or(suboperators)),
+                }
+            }
+            Query::In(key, mut targets) if targets.len() == 1 => {
+                Some(Query::Eq(key, targets.remove(0)))
+            }
+            Query::In(key, targets) => {
+                Some(Query::In(key, targets))
+            }
             _ => Some(self)
         }
     }
@@ -134,6 +154,12 @@ impl Query {
     }
 }
 
+impl Default for Query {
+    fn default() -> Self {
+        Query::And(Vec::new())
+    }
+}
+
 impl string::ToString for Query {
     fn to_string(&self) -> String {
         self.to_value().to_string()
@@ -141,39 +167,50 @@ impl string::ToString for Query {
 }
 
 fn parse_query(map: serde_json::Map<String, serde_json::Value>) -> Result<Query, &'static str> {
-    let operators: Vec<Query> = map
-        .into_iter()
-        .map(|(key, value)| parse_operator(key, value))
-        .collect::<Result<Vec<Query>, &'static str>>()?;
+    let mut operators: Vec<Query> = Vec::new();
 
-    let top_operator = Query::And(operators);
-    Ok(top_operator.optimise())
+    for (key, value) in map {
+        if let Some(operator_) = parse_operator(key, value)? {
+            operators.push(operator_);
+        }
+    }
+
+    let query = if operators.len() == 1 {
+        operators.remove(0)
+    } else {
+        Query::And(operators)
+    };
+
+    Ok(query)
 }
 
-fn parse_operator(key: String, value: serde_json::Value) -> Result<Query, &'static str> {
+fn parse_operator(key: String, value: serde_json::Value) -> Result<Option<Query>, &'static str> {
     match (key.as_str(), value) {
+        ("$and", serde_json::Value::Array(values)) if values.is_empty() => Ok(None),
         ("$and", serde_json::Value::Array(values)) => {
             let operators: Vec<Query> = parse_list_operators(values)?;
-            Ok(Query::And(operators))
+            Ok(Some(Query::And(operators)))
         }
         ("$and", _) => Err("$and must be array of JSON objects"),
+        ("$or", serde_json::Value::Array(values)) if values.is_empty() => Ok(None),
         ("$or", serde_json::Value::Array(values)) => {
             let operators: Vec<Query> = parse_list_operators(values)?;
-            Ok(Query::Or(operators))
+            Ok(Some(Query::Or(operators)))
         }
         ("$or", _) => Err("$or must be array of JSON objects"),
         ("$not", serde_json::Value::Object(map)) => {
             let operator = parse_query(map)?;
-            Ok(Query::Not(Box::new(operator)))
+            Ok(Some(Query::Not(Box::new(operator))))
         }
         ("$not", _) => Err("$not must be JSON object"),
         (_, serde_json::Value::String(value)) => {
-            Ok(Query::Eq(key, value))
+            Ok(Some(Query::Eq(key, value)))
         }
         (_, serde_json::Value::Object(map)) => {
             if map.len() == 1 {
                 let (operator_name, value) = map.into_iter().next().unwrap();
                 parse_single_operator(operator_name, key, value)
+                    .map(|operator| Some(operator))
             } else {
                 Err("value must be JSON object of length 1")
             }
@@ -268,7 +305,7 @@ mod tests {
 
         let query: Query = ::serde_json::from_str(json).unwrap();
 
-        let expected = Query::Or(vec![]);
+        let expected = Query::And(vec![]);
 
         assert_eq!(query, expected);
     }
@@ -3027,7 +3064,7 @@ mod tests {
 
         let query: Query = ::serde_json::from_str(&json).unwrap();
 
-        let expected = Query::Or(vec![]);
+        let expected = Query::And(vec![]);
 
         assert_eq!(query, expected);
     }
@@ -3038,7 +3075,7 @@ mod tests {
         let name2 = _random_string(10);
         let value1 = _random_string(10);
 
-        let json = json!(vec![json!({name1.clone(): value1.clone()}), json!({name2.clone(): serde_json::Value::Null})]).to_string();
+        let json = json!(vec ! [json ! ({name1.clone(): value1.clone()}), json ! ({name2.clone(): serde_json::Value::Null})]).to_string();
 
         let query: Query = ::serde_json::from_str(&json).unwrap();
 
@@ -3047,6 +3084,90 @@ mod tests {
         ]);
 
         assert_eq!(query, expected);
+    }
+
+    #[test]
+    fn test_optimise_and() {
+        let json = r#"{}"#;
+
+        let query: Query = ::serde_json::from_str(json).unwrap();
+
+        assert_eq!(query.optimise(), None);
+    }
+
+    #[test]
+    fn test_optimise_or() {
+        let json = r#"[]"#;
+
+        let query: Query = ::serde_json::from_str(&json).unwrap();
+
+        assert_eq!(query.optimise(), None);
+    }
+
+    #[test]
+    fn test_optimise_single_nested_and() {
+        let json = json!({
+            "$and": [
+                {
+                    "$and": []
+                }
+            ]
+        }).to_string();
+
+        let query: Query = ::serde_json::from_str(&json).unwrap();
+
+        assert_eq!(query.optimise(), None);
+    }
+
+    #[test]
+    fn test_optimise_several_nested_and() {
+        let json = json!({
+            "$and": [
+                {
+                    "$and": []
+                },
+                {
+                    "$and": []
+                }
+            ]
+        }).to_string();
+
+        let query: Query = ::serde_json::from_str(&json).unwrap();
+
+        assert_eq!(query.optimise(), None);
+    }
+
+    #[test]
+    fn test_optimise_single_nested_or() {
+        let json = json!({
+            "$and": [
+                {
+                    "$or": []
+                }
+            ]
+        }).to_string();
+
+        let query: Query = ::serde_json::from_str(&json).unwrap();
+
+        assert_eq!(query.optimise(), None);
+    }
+
+    #[test]
+    fn test_optimise_several_nested_or() {
+        let json = json!({
+            "$and": [
+                {
+                    "$or": []
+                },
+                {
+                    "$or": []
+                }
+            ]
+        }).to_string();
+
+        let query: Query = ::serde_json::from_str(&json).unwrap();
+
+        assert_eq!(query.optimise(), None);
     }
 }
 

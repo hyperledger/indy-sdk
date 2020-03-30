@@ -3,11 +3,13 @@ use v3::messages::proof_presentation::presentation_ack::PresentationAck;
 use v3::messages::proof_presentation::presentation_proposal::PresentationPreview;
 use v3::messages::error::ProblemReport;
 use v3::messages::a2a::A2AMessage;
+use v3::messages::proof_presentation::presentation::Presentation;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum ProverMessages {
     PresentationRequestReceived(PresentationRequestData),
     RejectPresentationRequest((u32, String)),
+    SetPresentation(Presentation),
     PreparePresentation((String, String)),
     SendPresentation(u32),
     PresentationAckReceived(PresentationAck),

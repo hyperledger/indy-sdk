@@ -1,0 +1,23 @@
+{
+  "name": "libindy",
+  "version": "1.14.4",
+  "summary": "Summary TODO.",
+  "description": "Description TODO.",
+  "homepage": "TODO",
+  "license": {
+    "type": "Apache License 2.0",
+    "file": "LICENSE"
+  },
+  "authors": {
+    "Daniel Hardman": "daniel.hardman@evernym.com"
+  },
+  "platforms": {
+    "ios": "10.0"
+  },
+  "source": {
+    "http": "https://repo.sovrin.org/ios/libindy/stable/libindy-core/1.14.4/libindy.tar.gz"
+  },
+  "source_files": "*.h",
+  "vendored_libraries": "*.a",
+  "requires_arc": false
+}

@@ -114,21 +114,20 @@ impl HolderSM {
         let state = match state {
             HolderState::OfferReceived(state_data) => match cim {
                 CredentialIssuanceMessage::CredentialRequestSend(connection_handle) => {
-                    let conn_handle = connection_handle;
-                    let request = _make_credential_request(conn_handle, &state_data.offer);
+                    let request = _make_credential_request(connection_handle, &state_data.offer);
                     match request {
                         Ok((cred_request, req_meta, cred_def_json)) => {
                             let cred_request = cred_request
                                 .set_thread_id(&thread_id);
-                            connection::remove_pending_message(conn_handle, &state_data.offer.id)?;
-                            connection::send_message(conn_handle, cred_request.to_a2a_message())?;
+                            connection::remove_pending_message(connection_handle, &state_data.offer.id)?;
+                            connection::send_message(connection_handle, cred_request.to_a2a_message())?;
                             HolderState::RequestSent((state_data, req_meta, cred_def_json, connection_handle).into())
                         }
                         Err(err) => {
                             let problem_report = ProblemReport::create()
                                 .set_comment(err.to_string())
                                 .set_thread_id(&thread_id);
-                            connection::send_message(conn_handle, problem_report.to_a2a_message())?;
+                            connection::send_message(connection_handle, problem_report.to_a2a_message())?;
                             HolderState::Finished((state_data, problem_report).into())
                         }
                     }

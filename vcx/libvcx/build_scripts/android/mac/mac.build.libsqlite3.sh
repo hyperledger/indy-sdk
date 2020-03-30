@@ -39,7 +39,7 @@ export PATH=$ANDROID_NDK_HOME:$PATH
 
 sed -i .bak 's/3160100/3240000/' Makefile
 sed -i .bak 's/2017/2018/' Makefile
-sed -i .bak 's/stlport_shared/gnustl_shared/' jni/Application.mk
+sed -i .bak 's/stlport_shared/c++_shared/' jni/Application.mk
 
 sed -i .bak 's/armeabi/armeabi-v7a/' jni/Application.mk
 make clean

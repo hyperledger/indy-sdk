@@ -9,7 +9,7 @@ use crate::domain::anoncreds::schema::{SchemaV1, SchemaId};
 use indy_api_types::errors::prelude::*;
 use crate::services::anoncreds::helpers::*;
 
-
+use ursa::bn::BigNumber;
 use ursa::cl::{CredentialPublicKey, new_nonce, Nonce};
 use ursa::cl::verifier::Verifier as CryptoVerifier;
 use crate::utils::wql::Query;
@@ -359,8 +359,7 @@ impl Verifier {
     fn _verify_revealed_attribute_value(attr_name: &str,
                                         proof: &Proof,
                                         attr_info: &RevealedAttributeInfo) -> IndyResult<()> {
-        let reveal_attr_encoded = attr_info.encoded.to_string();
-        let reveal_attr_encoded = Regex::new("^0*").unwrap().replace_all(&reveal_attr_encoded, "").to_owned();
+        let reveal_attr_encoded = &attr_info.encoded;
         let sub_proof_index = attr_info.sub_proof_index as usize;
 
         let crypto_proof_encoded = proof.proof.proofs
@@ -372,7 +371,7 @@ impl Verifier {
             .map(|(_, val)| val.to_string())
             .ok_or(IndyError::from_msg(IndyErrorKind::ProofRejected, format!("Attribute with name \"{}\" not found in CryptoProof", attr_name)))?;
 
-        if reveal_attr_encoded != crypto_proof_encoded {
+        if BigNumber::from_dec(reveal_attr_encoded)? != BigNumber::from_dec(&crypto_proof_encoded)? {
             return Err(IndyError::from_msg(IndyErrorKind::ProofRejected,
                                            format!("Encoded Values for \"{}\" are different in RequestedProof \"{}\" and CryptoProof \"{}\"", attr_name, reveal_attr_encoded, crypto_proof_encoded)));
         }

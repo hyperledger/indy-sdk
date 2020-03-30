@@ -14,6 +14,7 @@ use connection;
 use messages::proofs::proof_message::ProofMessage;
 
 use std::sync::Mutex;
+use v3::messages::proof_presentation::presentation::Presentation;
 
 lazy_static! {
     pub static ref PENDING_PRESENTATION_REQUESTS: Mutex<HashMap<MessageId, String>> = Default::default();
@@ -57,6 +58,11 @@ impl Prover {
 
         ::serde_json::to_string(&proof)
             .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot serialize ProofMessage: {:?}", err)))
+    }
+
+    pub fn set_presentation(&mut self, presentation: Presentation) -> VcxResult<()> {
+        trace!("Prover::set_presentation >>>");
+        self.step(ProverMessages::SetPresentation(presentation))
     }
 
     pub fn send_presentation(&mut self, connection_handle: u32) -> VcxResult<()> {

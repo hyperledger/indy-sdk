@@ -9,7 +9,6 @@ RUN apt-get update -y && apt-get install -y \
     libsodium-dev \
     libssl-dev \
     libgmp3-dev \
-    build-essential \
     libsqlite3-dev \
     libsqlite0 \
     cmake \
@@ -20,10 +19,9 @@ RUN apt-get update -y && apt-get install -y \
     wget \
     git \
     curl \
-	libffi-dev \
+    libffi-dev \
     ruby \
-    ruby-dev \ 
-	sudo \
+    ruby-dev \
     rubygems \
     libzmq5 \
     python3 \
@@ -34,21 +32,23 @@ RUN apt-get update -y && apt-get install -y \
     libzmq3-dev \
     zip \
     unzip \
-    vim
+    sudo
 
-# Install Nodejs 
+# Install Nodejs
 RUN curl -sL https://deb.nodesource.com/setup_8.x | bash - \
     && apt-get install -y nodejs
 
 # Install Rust
-ARG RUST_VER="1.39.0"
-ENV RUST_ARCHIVE=rust-${RUST_VER}-x86_64-unknown-linux-gnu.tar.gz
-ENV RUST_DOWNLOAD_URL=https://static.rust-lang.org/dist/$RUST_ARCHIVE
+ARG RUST_VER
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_VER
+ENV PATH /root/.cargo/bin:$PATH
+RUN cargo install cargo-deb --color=never --version=1.21.1 #TEMPORARY - REMOVE WHEN 1.22 COMPILES
 
 # Install Gradle
-RUN wget https://services.gradle.org/distributions/gradle-3.4.1-bin.zip
-RUN mkdir /opt/gradle
-RUN unzip -d /opt/gradle gradle-3.4.1-bin.zip
+RUN wget -q https://services.gradle.org/distributions/gradle-3.4.1-bin.zip &&\
+    mkdir /opt/gradle &&\
+    unzip -q -d /opt/gradle gradle-3.4.1-bin.zip &&\
+    rm gradle-3.4.1-bin.zip
 
 # fpm for deb packaging of npm
 RUN gem install fpm
@@ -66,9 +66,12 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CE7709D068DB5E88 &&
     add-apt-repository 'deb https://repo.corp.evernym.com/deb evernym-agency-dev-ubuntu main' && \
     curl https://repo.corp.evernym.com/repo.corp.evenym.com-sig.key | apt-key add -
 
-ARG LIBINDY_VER="1.7.0"
-ARG LIBNULL_VER="1.7.0"
+# these are default values if they are not passed into the environment with
+# the --build-arg flag from 'docker build' command.
+ARG LIBINDY_VER
+ARG LIBNULL_VER
+ARG LIBSOVTOKEN_VER
 
 RUN apt-get update && apt-get install -y \
     libindy=${LIBINDY_VER} \
-    libnullpay=${LIBNULL_VER}
+    libsovtoken=${LIBSOVTOKEN_VER}

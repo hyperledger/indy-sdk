@@ -169,6 +169,17 @@ export class IssuerCredential extends VCXBaseWithState<IIssuerCredentialData> {
     }
   }
 
+  static getParams (credentialData: ISerializedData<IIssuerCredentialData>): IIssuerCredentialParams {
+    const { data: { credential_name, price, credential_attributes, cred_def_handle }} = credentialData
+    const attr: IIssuerCredentialVCXAttributes = JSON.parse(credential_attributes)
+    return {
+      attr,
+      credDefHandle: cred_def_handle,
+      credentialName: credential_name,
+      price
+    }
+  }
+
   /**
    * Builds an Issuer credential object with defined attributes.
    *
@@ -180,22 +191,25 @@ export class IssuerCredential extends VCXBaseWithState<IIssuerCredentialData> {
    * issuerCredential2 = await IssuerCredential.deserialize(data1)
    * ```
    */
-  public static async deserialize (credentialData: ISerializedData<IIssuerCredentialData>) {
+  public static async deserialize (credentialData: ISerializedData<IIssuerCredentialData>): Promise<IssuerCredential> {
     try {
-      const { data: { credential_name, price, credential_attributes, cred_def_handle } } = credentialData
-      const attr: IIssuerCredentialVCXAttributes = JSON.parse(credential_attributes)
-      const params: IIssuerCredentialParams = {
-        attr,
-        credDefHandle: cred_def_handle,
-        credentialName: credential_name,
-        price
-      }
-      const credential = await super._deserialize<IssuerCredential, IIssuerCredentialParams>(
+      const params: IIssuerCredentialParams = (function () {
+        switch (credentialData.version) {
+          case "1.0":
+            return IssuerCredential.getParams(credentialData)
+          case "2.0":
+            return { attr: {}, credDefHandle: -1, credentialName: "", price: "0" }
+          case "3.0":
+            return IssuerCredential.getParams(credentialData)
+          default:
+            throw Error(`Unsupported version provided in serialized credential data: ${JSON.stringify(credentialData.version)}`)
+        }
+      })()
+     return await super._deserialize<IssuerCredential, IIssuerCredentialParams>(
         IssuerCredential,
         credentialData,
         params
       )
-      return credential
     } catch (err) {
       throw new VCXInternalError(err)
     }

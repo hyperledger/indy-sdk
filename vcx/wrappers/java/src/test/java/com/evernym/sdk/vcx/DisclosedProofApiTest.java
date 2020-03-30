@@ -79,6 +79,7 @@ public class DisclosedProofApiTest {
             TestHelper.getResultFromFuture(DisclosedProofApi.proofDeclineRequest(proofHandle, 0, null, null));
         });
     }
+
     @Test
     @DisplayName("get reject message")
     void getRejectMessage() throws VcxException, ExecutionException, InterruptedException {

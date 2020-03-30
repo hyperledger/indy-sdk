@@ -272,27 +272,18 @@ pub extern fn vcx_credential_create_with_msgid(command_handle: CommandHandle,
            command_handle, source_id, connection_handle, msg_id);
 
     spawn(move || {
-        match credential::get_credential_offer_msg(connection_handle, &msg_id) {
-            Ok(offer) => {
-                match credential::credential_create_with_offer(&source_id, &offer) {
-                    Ok(handle) => {
-                        let offer_string = match credential::get_credential_offer(handle) {
-                            Ok(x) => x,
-                            Err(_) => offer,
-                        };
-                        let c_offer = CStringUtils::string_to_cstring(offer_string);
-                        trace!("vcx_credential_create_with_offer_cb(command_handle: {}, source_id: {}, rc: {}, handle: {}) source_id: {}",
-                               command_handle, source_id, error::SUCCESS.message, handle, source_id);
-                        cb(command_handle, error::SUCCESS.code_num, handle, c_offer.as_ptr())
-                    }
-                    Err(e) => {
-                        warn!("vcx_credential_create_with_offer_cb(command_handle: {}, source_id: {}, rc: {}, handle: {}) source_id: {}",
-                              command_handle, source_id, e, 0, source_id);
-                        cb(command_handle, e.into(), 0, ptr::null_mut());
-                    }
-                };
+        match credential::credential_create_with_msgid(&source_id, connection_handle, &msg_id) {
+            Ok((handle, offer_string)) => {
+                let c_offer = CStringUtils::string_to_cstring(offer_string);
+                trace!("vcx_credential_create_with_offer_cb(command_handle: {}, source_id: {}, rc: {}, handle: {}) source_id: {}",
+                       command_handle, source_id, error::SUCCESS.message, handle, source_id);
+                cb(command_handle, error::SUCCESS.code_num, handle, c_offer.as_ptr())
             }
-            Err(e) => cb(command_handle, e.into(), 0, ptr::null_mut()),
+            Err(e) => {
+                warn!("vcx_credential_create_with_offer_cb(command_handle: {}, source_id: {}, rc: {}, handle: {}) source_id: {}",
+                      command_handle, source_id, e, 0, source_id);
+                cb(command_handle, e.into(), 0, ptr::null_mut());
+            }
         };
 
         Ok(())
@@ -822,7 +813,7 @@ mod tests {
     use api::VcxStateType;
     use api::return_types_u32;
     use serde_json::Value;
-    use utils::constants::{DEFAULT_SERIALIZED_CREDENTIAL, DEFAULT_SERIALIZE_VERSION, FULL_CREDENTIAL_SERIALIZED};
+    use utils::constants::{DEFAULT_SERIALIZED_CREDENTIAL, FULL_CREDENTIAL_SERIALIZED, PENDING_OBJECT_SERIALIZE_VERSION};
     use utils::devsetup::*;
     use utils::httpclient::AgencyMock;
     use utils::timeout::TimeoutUtils;
@@ -874,7 +865,7 @@ mod tests {
         let credential_json = cb.receive(TimeoutUtils::some_short()).unwrap().unwrap();
 
         let object: Value = serde_json::from_str(&credential_json).unwrap();
-        assert_eq!(object["version"], DEFAULT_SERIALIZE_VERSION);
+        assert_eq!(object["version"], PENDING_OBJECT_SERIALIZE_VERSION);
 
         let cb = return_types_u32::Return_U32_U32::new().unwrap();
         assert_eq!(vcx_credential_deserialize(cb.command_handle,

@@ -8,9 +8,15 @@ do
     arch_folder=${arch}
     if [ "${arch}" = "armv7" ]; then
         arch_folder="armeabi-v7a"
+    elif [ "${arch}" = "arm64" ]; then
+        arch_folder="arm64-v8a"
     fi
     mkdir -p ${ANDROID_JNI_LIB}/${arch_folder}
     cp -v runtime_android_build/libvcx_${arch}/libvcx.so ${ANDROID_JNI_LIB}/${arch_folder}/libvcx.so
+    cp -v runtime_android_build/libvcx_${arch}/libz.so ${ANDROID_JNI_LIB}/${arch_folder}/libz.so
+    cp -v runtime_android_build/libvcx_${arch}/liblog.so ${ANDROID_JNI_LIB}/${arch_folder}/liblog.so
+    cp -v runtime_android_build/libvcx_${arch}/libc++_shared.so ${ANDROID_JNI_LIB}/${arch_folder}/libc++_shared.so
+    # cp -v runtime_android_build/libvcx_${arch}/libstdc++.so ${ANDROID_JNI_LIB}/${arch_folder}/libstdc++.so
 done
 
 pushd vcx/wrappers/java/android

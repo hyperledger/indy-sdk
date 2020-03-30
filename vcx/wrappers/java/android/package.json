@@ -1,0 +1,8 @@
+{
+  "name": "vcx-aar",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react-native": "0.59.9"
+  }
+}

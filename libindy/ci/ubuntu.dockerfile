@@ -65,8 +65,7 @@ USER indy
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.39.0
 ENV PATH /home/indy/.cargo/bin:$PATH
 
-# Install clippy to the Rust toolchain
-RUN rustup component add clippy
+RUN cargo install cargo-deb
 
 EXPOSE 8080
 

@@ -7,19 +7,19 @@ CROSS_COMPILE=$3
 if [ -z "${TARGET_ARCH}" ]; then
     echo STDERR "Missing TARGET_ARCH argument"
     echo STDERR "e.g. x86 or arm"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${TARGET_API}" ]; then
     echo STDERR "Missing TARGET_API argument"
     echo STDERR "e.g. 21"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${CROSS_COMPILE}" ]; then
     echo STDERR "Missing CROSS_COMPILE argument"
     echo STDERR "e.g. i686-linux-android"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${SODIUM_LIB_DIR}" ]; then
@@ -32,14 +32,14 @@ if [ -z "${SODIUM_LIB_DIR}" ]; then
         exit 1
     else
         SODIUM_LIB_DIR=$4
-    fi    
+    fi
 fi
 
-if [ ! -f "android-ndk-r16b-linux-x86_64.zip" ] ; then
-    echo "Downloading android-ndk-r16b-linux-x86_64.zip"
-    wget -q https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip 
+if [ ! -f "android-ndk-r20-linux-x86_64.zip" ] ; then
+    echo "Downloading android-ndk-r20-linux-x86_64.zip"
+    wget -q https://dl.google.com/android/repository/android-ndk-r20-linux-x86_64.zip
 else
-    echo "Skipping download android-ndk-r16b-linux-x86_64.zip"
+    echo "Skipping download android-ndk-r20-linux-x86_64.zip"
 fi
 
 if [ ! -f "zeromq-4.2.5.tar.gz" ] ; then

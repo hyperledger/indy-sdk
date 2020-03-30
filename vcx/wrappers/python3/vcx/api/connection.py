@@ -199,6 +199,34 @@ class Connection(VcxStateful):
                                         c_params)
 
     @staticmethod
+    async def create_test_connection(label: str, did: str, verkey: str, endpoint: str):
+        """
+        Create a connection object in completed state based on provided remote details.
+        Once object is created it's already ready for message exchange and no addition connection steps are required.
+        This method can be used for testing purposes to skip connection protocol steps.
+        Note: It's not recommended to use this method for real connection establishment.
+        Note: This method can be used for `aries` communication method only.
+            For other communication method it returns ActionNotSupported error.
+        :param label: Institution's unique ID for the connection
+        :param did: DID of remote side
+        :param verkey: Recipient Verkey of remote side
+        :param endpoint: Endpoint of remote side
+        :return: no value
+        """
+        constructor_params = ("test",)
+
+        c_did = c_char_p(did.encode('utf-8'))
+        c_verkey = c_char_p(verkey.encode('utf-8'))
+        c_label = c_char_p(label.encode('utf-8'))
+        c_endpoint = c_char_p(endpoint.encode('utf-8'))
+
+        c_params = (c_label, c_did, c_verkey, c_endpoint,)
+
+        return await Connection._create("vcx_connection_create_test_connection",
+                                        constructor_params,
+                                        c_params)
+
+    @staticmethod
     async def deserialize(data: dict):
         """
         Takes a json string representing a connection object and recreates an object matching the json.
@@ -271,7 +299,7 @@ class Connection(VcxStateful):
                                Connection.get_redirect_details.cb)
 
         self.logger.debug("vcx_connection_get_redirect_details completed")
-        return result
+        return json.loads(result.decode())
 
     async def send_message(self, msg: str, msg_type: str, msg_title: str, ref_msg_id: str = None) -> str:
         """

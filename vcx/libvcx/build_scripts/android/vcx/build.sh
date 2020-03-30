@@ -8,19 +8,19 @@ GIT_INSTALL=${4:-master}
 if [ -z "${TARGET_ARCH}" ]; then
     echo STDERR "Missing TARGET_ARCH argument"
     echo STDERR "e.g. x86 or arm"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${TARGET_API}" ]; then
     echo STDERR "Missing TARGET_API argument"
     echo STDERR "e.g. 21"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${CROSS_COMPILE}" ]; then
     echo STDERR "Missing CROSS_COMPILE argument"
     echo STDERR "e.g. i686-linux-android"
-    exit 1 
+    exit 1
 fi
 
 if [ -z "${GIT_INSTALL}" ] ; then
@@ -81,11 +81,11 @@ if [ -z "${LIBINDY_DIR}" ] ; then
     fi
 fi
 
-if [ ! -f "android-ndk-r16b-linux-x86_64.zip" ] ; then
-    echo "Downloading android-ndk-r16b-linux-x86_64.zip"
-    wget -q https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip 
+if [ ! -f "android-ndk-r20-linux-x86_64.zip" ] ; then
+    echo "Downloading android-ndk-r20-linux-x86_64.zip"
+    wget -q https://dl.google.com/android/repository/android-ndk-r20-linux-x86_64.zip
 else
-    echo "Skipping download android-ndk-r16b-linux-x86_64.zip"
+    echo "Skipping download android-ndk-r20-linux-x86_64.zip"
 fi
 
 _SDK_REPO="git@github.com:evernym/sdk.git"

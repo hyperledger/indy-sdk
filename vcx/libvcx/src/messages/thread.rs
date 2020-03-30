@@ -9,6 +9,7 @@ pub struct Thread {
     #[serde(default)]
     pub sender_order: u32,
     #[serde(default)]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub received_orders: HashMap<String, u32>,
 }
 

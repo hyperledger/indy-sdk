@@ -1,6 +1,12 @@
-indy-cli (1.14.2) unstable; urgency=medium
+indy-cli (1.14.4) unstable; urgency=medium
 
 [ Hyperledger ]
+
+## 1.14.4
+* Bugfixes
+
+## 1.14.3
+* Bugfixes
 
 ## 1.14.2
 * Added new command `pool set-protocol-version` to set a protocol version that will be used for ledger requests (IS-1391).

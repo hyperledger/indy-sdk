@@ -47,7 +47,7 @@ impl AgentInfo {
             Create User Pairwise Agent in old way.
             Send Messages corresponding to V2 Protocol to avoid code changes on Agency side.
         */
-        let (agent_did, agent_vk) = create_agent_keys("", &pw_did, &pw_vk, ProtocolTypes::V2)?;
+        let (agent_did, agent_vk) = create_agent_keys("", &pw_did, &pw_vk)?;
 
         Ok(AgentInfo { pw_did, pw_vk, agent_did, agent_vk })
     }

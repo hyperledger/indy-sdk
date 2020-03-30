@@ -99,7 +99,7 @@ public class ProofApi extends VcxJava.API {
 
     private static Callback vcxGetProofCB = new Callback() {
         public void callback(int commandHandle, int err, int proofState, String responseData){
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofState = [" + proofState + "], responseData = [" + responseData + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofState = [" + proofState + "], responseData = [****]");
             CompletableFuture<GetProofResult> future = (CompletableFuture<GetProofResult>) removeFuture(commandHandle);
             if(!checkCallback(future,err)) return;
             GetProofResult result = new GetProofResult(proofState,responseData);
@@ -145,7 +145,7 @@ public class ProofApi extends VcxJava.API {
     ) throws VcxException {
         ParamGuard.notNull(proofHandle, "proofHandle");
         ParamGuard.notNull(responseData, "responseData");
-        logger.debug("proofAccepted() called with: proofHandle = [" + proofHandle + "], responseData = [" + responseData + "]");
+        logger.debug("proofAccepted() called with: proofHandle = [" + proofHandle + "], responseData = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
 
         int result = LibVcx.api.vcx_proof_accepted(proofHandle, responseData);
@@ -254,7 +254,7 @@ public class ProofApi extends VcxJava.API {
             String serializedProof
     ) throws VcxException {
         ParamGuard.notNull(serializedProof, "serializedProof");
-        logger.debug("proofDeserialize() called with: serializedProof = [" + serializedProof + "]");
+        logger.debug("proofDeserialize() called with: serializedProof = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
 

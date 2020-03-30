@@ -150,6 +150,11 @@ public abstract class LibVcx {
         public int vcx_connection_invite_details(int command_handle, int connection_handle, int abbreviated, Callback cb);
 
         /**
+         * Get the information about the connection state.
+         */
+        public int vcx_connection_info(int command_handle, int connection_handle, Callback cb);
+
+        /**
          * Creates a connection from the invite details.
          */
         public int vcx_connection_create_with_invite(int command_handle, String source_id, String invite_details, Callback cb);
@@ -184,6 +189,72 @@ public abstract class LibVcx {
 
         /** Get their pairwise did from connection */
         public int vcx_connection_get_their_pw_did(int command_handle, int connection_handle, Callback cb);
+
+        /** Send a message to the specified connection
+         ///
+         /// #params
+         ///
+         /// command_handle: command handle to map callback to user context.
+         ///
+         /// connection_handle: connection to receive the message
+         ///
+         /// msg: actual message to send
+         ///
+         /// send_message_options: config options json string that contains following options
+         ///     {
+         ///         msg_type: String, // type of message to send
+         ///         msg_title: String, // message title (user notification)
+         ///         ref_msg_id: Option<String>, // If responding to a message, id of the message
+         ///     }
+         ///
+         /// cb: Callback that provides array of matching messages retrieved
+         ///
+         /// #Returns
+         /// Error code as a u32
+         */
+        public int vcx_connection_send_message(int command_handle, int connection_handle, String msg, String send_message_options, Callback cb);
+
+        /** Generate a signature for the specified data
+         ///
+         /// #params
+         ///
+         /// command_handle: command handle to map callback to user context.
+         ///
+         /// connection_handle: connection to receive the message
+         ///
+         /// data_raw: raw data buffer for signature
+         ///
+         /// data:len: length of data buffer
+         ///
+         /// cb: Callback that provides the generated signature
+         ///
+         /// #Returns
+         /// Error code as a u32
+         */
+        public int vcx_connection_sign_data(int command_handle, int connection_handle, byte[] data_raw, int data_len, Callback cb);
+
+        /** Verify the signature is valid for the specified data
+         ///
+         /// #params
+         ///
+         /// command_handle: command handle to map callback to user context.
+         ///
+         /// connection_handle: connection to receive the message
+         ///
+         /// data_raw: raw data buffer for signature
+         ///
+         /// data_len: length of data buffer
+         ///
+         /// signature_raw: raw data buffer for signature
+         ///
+         /// signature_len: length of data buffer
+         ///
+         /// cb: Callback that specifies whether the signature was valid or not
+         ///
+         /// #Returns
+         /// Error code as a u32
+         */
+        public int vcx_connection_verify_signature(int command_handle, int connection_handle, byte[] data_raw, int data_len, byte[] signature_raw, int signature_len, Callback cb);
 
         /**
          * credential issuer object
@@ -572,6 +643,7 @@ public abstract class LibVcx {
         } catch (UnsatisfiedLinkError ex) {
             // Library could not be found in standard OS locations.
             // Call init(File file) explicitly with absolute library path.
+            ex.printStackTrace();
         }
     }
 
@@ -625,6 +697,29 @@ public abstract class LibVcx {
         return api != null;
     }
 
+    public static void logMessage(String loggerName, int level, String message) {
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(loggerName);
+        switch (level) {
+            case 1:
+                logger.error(message);
+                break;
+            case 2:
+                logger.warn(message);
+                break;
+            case 3:
+                logger.info(message);
+                break;
+            case 4:
+                logger.debug(message);
+                break;
+            case 5:
+                logger.trace(message);
+                break;
+            default:
+                break;
+        }
+    }
+
     private static class Logger {
         private static Callback enabled = null;
 
@@ -632,31 +727,20 @@ public abstract class LibVcx {
 
             @SuppressWarnings({"unused", "unchecked"})
             public void callback(Pointer context, int level, String target, String message, String module_path, String file, int line) {
+
                 detach(false);
 
-                org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(String.format("%s.native.%s", LibVcx.class.getName(), target.replace("::", ".")));
-
-                String logMessage = String.format("%s:%d | %s", file, line, message);
-
-                switch (level) {
-                    case 1:
-                        logger.error(logMessage);
-                        break;
-                    case 2:
-                        logger.warn(logMessage);
-                        break;
-                    case 3:
-                        logger.info(logMessage);
-                        break;
-                    case 4:
-                        logger.debug(logMessage);
-                        break;
-                    case 5:
-                        logger.trace(logMessage);
-                        break;
-                    default:
-                        break;
+                // NOTE: We must restrict the size of the message because the message could be the whole
+                // contents of a file, like a 10 MB log file and we do not want all of that content logged
+                // into the log file itself... This is what the log statement would look like
+                // 2019-02-19 04:34:12.813-0700 ConnectMe[9216:8454774] Debug indy::commands::crypto | src/commands/crypto.rs:286 | anonymous_encrypt <<< res:
+                if (message.length() > 102400) {
+                    // if message is more than 100K then log only 10K of the message
+                    message = message.substring(0, 10240);
                 }
+                String loggerName = String.format("%s.native.%s", LibVcx.class.getName(), target.replace("::", "."));
+                String msg = String.format("%s:%d | %s", file, line, message);
+                logMessage(loggerName, level, msg);
             }
         };
 

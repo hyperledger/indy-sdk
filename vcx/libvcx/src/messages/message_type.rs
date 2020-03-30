@@ -36,7 +36,8 @@ impl MessageTypes {
     pub fn build(kind: A2AMessageKinds) -> MessageTypes {
         match settings::get_protocol_type() {
             settings::ProtocolTypes::V1 => MessageTypes::MessageTypeV1(MessageTypes::build_v1(kind)),
-            settings::ProtocolTypes::V2 => MessageTypes::MessageTypeV2(MessageTypes::build_v2(kind))
+            settings::ProtocolTypes::V2 |
+            settings::ProtocolTypes::V3 => MessageTypes::MessageTypeV2(MessageTypes::build_v2(kind))
         }
     }
 

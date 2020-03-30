@@ -351,7 +351,8 @@ impl SendInviteBuilder {
         if settings::agency_mocks_enabled() {
             match self.version {
                 settings::ProtocolTypes::V1 => AgencyMock::set_next_response(SEND_INVITE_RESPONSE.to_vec()),
-                settings::ProtocolTypes::V2 => AgencyMock::set_next_response(SEND_INVITE_V2_RESPONSE.to_vec()),
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => AgencyMock::set_next_response(SEND_INVITE_V2_RESPONSE.to_vec()),
             }
         }
 
@@ -370,7 +371,8 @@ impl SendInviteBuilder {
         let index = match self.version {
             // TODO: THINK better
             settings::ProtocolTypes::V1 => 1,
-            settings::ProtocolTypes::V2 => 0
+            settings::ProtocolTypes::V2 |
+            settings::ProtocolTypes::V3 => 0
         };
 
         match response.remove(index) {
@@ -470,7 +472,8 @@ impl AcceptInviteBuilder {
         if settings::agency_mocks_enabled() {
             match self.version {
                 settings::ProtocolTypes::V1 => AgencyMock::set_next_response(ACCEPT_INVITE_RESPONSE.to_vec()),
-                settings::ProtocolTypes::V2 => AgencyMock::set_next_response(ACCEPT_INVITE_V2_RESPONSE.to_vec()),
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => AgencyMock::set_next_response(ACCEPT_INVITE_V2_RESPONSE.to_vec()),
             }
         }
 
@@ -586,7 +589,8 @@ impl RedirectConnectionBuilder {
         if settings::agency_mocks_enabled() {
             match self.version {
                 settings::ProtocolTypes::V1 => AgencyMock::set_next_response(ACCEPT_INVITE_RESPONSE.to_vec()),
-                settings::ProtocolTypes::V2 => AgencyMock::set_next_response(ACCEPT_INVITE_V2_RESPONSE.to_vec()),
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => AgencyMock::set_next_response(ACCEPT_INVITE_V2_RESPONSE.to_vec()),
             }
         }
 
@@ -646,7 +650,8 @@ impl GeneralMessage for SendInviteBuilder {
                     vec![A2AMessage::Version1(A2AMessageV1::CreateMessage(create_msg)),
                          A2AMessage::Version1(A2AMessageV1::MessageDetail(MessageDetail::ConnectionRequest(details)))]
                 }
-                settings::ProtocolTypes::V2 => {
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => {
                     let msg = ConnectionRequest {
                         msg_type: MessageTypes::build_v2(A2AMessageKinds::ConnectionRequest),
                         send_msg: true,
@@ -700,7 +705,8 @@ impl GeneralMessage for AcceptInviteBuilder {
                     vec![A2AMessage::Version1(A2AMessageV1::CreateMessage(msg_created)),
                          A2AMessage::Version1(A2AMessageV1::MessageDetail(MessageDetail::ConnectionRequestAnswer(self.payload.clone())))]
                 }
-                settings::ProtocolTypes::V2 => {
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => {
                     let msg = ConnectionRequestAnswer {
                         msg_type: MessageTypes::build_v2(A2AMessageKinds::ConnectionRequestAnswer),
                         send_msg: true,
@@ -754,7 +760,8 @@ impl GeneralMessage for RedirectConnectionBuilder {
                     vec![A2AMessage::Version1(A2AMessageV1::CreateMessage(msg_created)),
                          A2AMessage::Version1(A2AMessageV1::MessageDetail(MessageDetail::ConnectionRequestRedirect(self.payload.clone())))]
                 }
-                settings::ProtocolTypes::V2 => {
+                settings::ProtocolTypes::V2 |
+                settings::ProtocolTypes::V3 => {
                     let msg = ConnectionRequestRedirect {
                         msg_type: MessageTypes::build_v2(A2AMessageKinds::ConnectionRequestRedirect),
                         send_msg: true,

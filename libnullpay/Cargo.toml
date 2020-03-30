@@ -1,7 +1,10 @@
 [package]
 name = "null-payment-method"
-version = "1.14.2"
+version = "1.14.4"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
+license = "MIT/Apache-2.0"
+description = """\
+This is a simple plugin that can be used for development of applications that use Payments API of Indy SDK."""
 build = "build.rs"
 
 [lib]
@@ -26,7 +29,25 @@ serde_derive = "1.0.97"
 
 [dev-dependencies]
 dirs = "1.0.4"
-indy = { version="1.14.2", path="../wrappers/rust" }
+indy = { version="1.14.4", path="../wrappers/rust" }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.5"
+
+[package.metadata.deb]
+depends = "libindy (= 1.14.4)"
+section = "devel"
+priority = "optional"
+assets = [
+    ["target/release/libnullpay.so", "usr/lib/", "644"]
+]
+maintainer-scripts = "./debian"
+changelog = "./debian/changelog"
+
+[package.metadata.deb.variants.libnullpay-xenial]
+name = "libnullpay"
+provides = "libnullpay (= 1.14.4)"
+
+[package.metadata.deb.variants.libnullpay-bionic]
+name = "libnullpay"
+provides = "libnullpay (= 1.14.4)"

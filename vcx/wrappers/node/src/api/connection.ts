@@ -155,6 +155,27 @@ export interface IConnectionCreateData {
 export type IConnectionInvite = string
 
 /**
+ * @description A string representing a connection info json object.
+ *      {
+ *         "current": {
+ *             "did": <str>
+ *             "recipientKeys": array<str>
+ *             "routingKeys": array<str>
+ *             "serviceEndpoint": <str>,
+ *             "protocols": array<str> -  The set of protocol supported by current side.
+ *         },
+ *         "remote: { <Option> - details about remote connection side
+ *             "did": <str> - DID of remote side
+ *             "recipientKeys": array<str> - Recipient keys
+ *             "routingKeys": array<str> - Routing keys
+ *             "serviceEndpoint": <str> - Endpoint
+ *             "protocols": array<str> - The set of protocol supported by side. Is filled after DiscoveryFeatures process was completed.
+ *          }
+ *    }
+ */
+export type IConnectionInfo = string
+
+/**
  * @description Interface that represents the parameters for `Connection.createWithInvite` function.
  * @interface
  */

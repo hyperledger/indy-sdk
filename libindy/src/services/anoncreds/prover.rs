@@ -454,13 +454,13 @@ impl Prover {
             return Err(IndyError::from_msg(IndyErrorKind::InvalidStructure, r#"Proof Request attribute restriction should contain "name" or "names" param"#));
         };
 
-        if let Some(restrictions_) = restrictions.as_ref().and_then(|r| r.clean()) {
+        if let Some(restrictions_) = restrictions.clone() {
             match version {
                 ProofRequestsVersion::V1 => {
-                    queries.push(self.double_restrictions(restrictions_.clone())?)
+                    queries.push(self.double_restrictions(restrictions_)?)
                 }
                 ProofRequestsVersion::V2 => {
-                    queries.push(restrictions_.clone())
+                    queries.push(restrictions_)
                 }
             };
         }

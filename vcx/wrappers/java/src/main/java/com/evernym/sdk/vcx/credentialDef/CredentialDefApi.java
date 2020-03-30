@@ -38,7 +38,7 @@ public class CredentialDefApi extends VcxJava.API {
         ParamGuard.notNullOrWhiteSpace(sourceId, "sourceId");
         ParamGuard.notNullOrWhiteSpace(credentialName, "credentialName");
         ParamGuard.notNullOrWhiteSpace(schemaId, "schemaId");
-        logger.debug("credentialDefCreate() called with: sourceId = [" + sourceId + "], credentialName = [" + credentialName + "], schemaId = [" + schemaId + "], issuerId = [" + issuerId + "], tag = [" + tag + "], config = [" + config + "], paymentHandle = [" + paymentHandle + "]");
+        logger.debug("credentialDefCreate() called with: sourceId = [" + sourceId + "], credentialName = [" + credentialName + "], schemaId = [" + schemaId + "], issuerId = [****], tag = [" + tag + "], config = [" + config + "], paymentHandle = [" + paymentHandle + "]");
         //TODO: Check for more mandatory params in vcx to add in PamaGuard
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
@@ -61,7 +61,7 @@ public class CredentialDefApi extends VcxJava.API {
     private static Callback credentialDefSerializeCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String serializedData) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], serializedData = [" + serializedData + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], serializedData = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             // TODO complete with exception if we find error
@@ -109,7 +109,7 @@ public class CredentialDefApi extends VcxJava.API {
 
     public static CompletableFuture<Integer> credentialDefDeserialize(String credentialDefData) throws VcxException {
         ParamGuard.notNull(credentialDefData, "credentialDefData");
-        logger.debug("credentialDefSerialize() called with: credentialDefData = [" + credentialDefData + "]");
+        logger.debug("credentialDefSerialize() called with: credentialDefData = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
 

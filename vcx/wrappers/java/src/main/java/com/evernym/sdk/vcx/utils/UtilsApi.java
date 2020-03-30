@@ -32,7 +32,7 @@ public class UtilsApi extends VcxJava.API {
 
     public static String vcxProvisionAgent(String config) {
         ParamGuard.notNullOrWhiteSpace(config, "config");
-        logger.debug("vcxProvisionAgent() called with: config = [" + config + "]");
+        logger.debug("vcxProvisionAgent() called with: config = [****]");
         String result = LibVcx.api.vcx_provision_agent(config);
 
         return result;
@@ -41,7 +41,7 @@ public class UtilsApi extends VcxJava.API {
 
     public static CompletableFuture<String> vcxAgentProvisionAsync(String conf) throws VcxException {
         CompletableFuture<String> future = new CompletableFuture<String>();
-        logger.debug("vcxAgentProvisionAsync() called with: conf = [" + conf + "]");
+        logger.debug("vcxAgentProvisionAsync() called with: conf = [****]");
         int commandHandle = addFuture(future);
 
         int result = LibVcx.api.vcx_agent_provision_async(
@@ -64,7 +64,7 @@ public class UtilsApi extends VcxJava.API {
 
     public static CompletableFuture<Integer> vcxUpdateAgentInfo(String config) throws VcxException {
         ParamGuard.notNullOrWhiteSpace(config, "config");
-        logger.debug("vcxUpdateAgentInfo() called with: config = [" + config + "]");
+        logger.debug("vcxUpdateAgentInfo() called with: config = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 
@@ -80,7 +80,7 @@ public class UtilsApi extends VcxJava.API {
     private static Callback vcxGetMessagesCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String messages) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], messages = [" + messages + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], messages = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             String result = messages;
@@ -90,7 +90,7 @@ public class UtilsApi extends VcxJava.API {
 
     public static CompletableFuture<String> vcxGetMessages(String messageStatus, String uids, String pwdids) throws VcxException {
         ParamGuard.notNullOrWhiteSpace(messageStatus, "messageStatus");
-        logger.debug("vcxGetMessages() called with: messageStatus = [" + messageStatus + "], uids = [" + uids + "], pwdids = [" + pwdids + "]");
+        logger.debug("vcxGetMessages() called with: messageStatus = [" + messageStatus + "], uids = [" + uids + "], pwdids = [****]");
         CompletableFuture<String> future = new CompletableFuture<String>();
         int commandHandle = addFuture(future);
 
@@ -135,7 +135,7 @@ public class UtilsApi extends VcxJava.API {
     public static CompletableFuture<Integer> vcxUpdateMessages(String messageStatus, String msgJson) throws VcxException {
         ParamGuard.notNullOrWhiteSpace(messageStatus, "messageStatus");
         ParamGuard.notNull(msgJson, "msgJson");
-        logger.debug("vcxUpdateMessages() called with: messageStatus = [" + messageStatus + "], msgJson = [" + msgJson + "]");
+        logger.debug("vcxUpdateMessages() called with: messageStatus = [" + messageStatus + "], msgJson = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 

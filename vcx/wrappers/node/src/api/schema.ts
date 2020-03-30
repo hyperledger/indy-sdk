@@ -148,14 +148,16 @@ export class Schema extends VCXBase<ISchemaSerializedData> {
    * schema1 = await Schema.prepareForEndorser(data)
    * ```
    */
-  public static async prepareForEndorser ({ endorser, data, sourceId }: ISchemaPrepareForEndorserData): Promise<Schema> {
+  public static async prepareForEndorser ({ endorser, data, sourceId }: ISchemaPrepareForEndorserData):
+    Promise<Schema> {
     try {
       const schema = new Schema(sourceId, { name: data.name, schemaId: '', schemaAttrs: data })
 
       const schemaForEndorser = await
       createFFICallbackPromise<{ transaction: string, handle: number }>(
           (resolve, reject, cb) => {
-            const rc = rustAPI().vcx_schema_prepare_for_endorser(0, sourceId, schema._name, data.version, JSON.stringify(data.attrNames), endorser, cb)
+            const rc = rustAPI().vcx_schema_prepare_for_endorser(0, sourceId, schema._name, data.version,
+              JSON.stringify(data.attrNames), endorser, cb)
             if (rc) {
               reject(rc)
             }

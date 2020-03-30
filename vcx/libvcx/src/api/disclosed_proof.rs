@@ -152,24 +152,16 @@ pub extern fn vcx_disclosed_proof_create_with_msgid(command_handle: CommandHandl
            command_handle, source_id, connection_handle, msg_id);
 
     spawn(move || {
-        match disclosed_proof::get_proof_request(connection_handle, &msg_id) {
-            Ok(request) => {
-                match disclosed_proof::create_proof(&source_id, &request) {
-                    Ok(handle) => {
-                        trace!("vcx_disclosed_proof_create_with_msgid_cb(command_handle: {}, rc: {}, handle: {}, proof_req: {}) source_id: {}",
-                               command_handle, error::SUCCESS.message, handle, request, source_id);
-                        let msg = CStringUtils::string_to_cstring(request);
-                        cb(command_handle, error::SUCCESS.code_num, handle, msg.as_ptr())
-                    }
-                    Err(e) => {
-                        warn!("vcx_disclosed_proof_create_with_msgid_cb(command_handle: {}, rc: {}, handle: {}, proof_req: {}) source_id: {}",
-                              command_handle, e, 0, request, source_id);
-                        let msg = CStringUtils::string_to_cstring(request);
-                        cb(command_handle, e.into(), 0, msg.as_ptr());
-                    }
-                };
+        match disclosed_proof::create_proof_with_msgid(&source_id, connection_handle, &msg_id) {
+            Ok((handle, request)) => {
+                trace!("vcx_disclosed_proof_create_with_msgid_cb(command_handle: {}, rc: {}, handle: {}, proof_req: {}) source_id: {}",
+                       command_handle, error::SUCCESS.message, handle, request, source_id);
+                let msg = CStringUtils::string_to_cstring(request);
+                cb(command_handle, error::SUCCESS.code_num, handle, msg.as_ptr())
             }
-            Err(e) => cb(command_handle, e.into(), 0, ptr::null()),
+            Err(e) => {
+                cb(command_handle, e.into(), 0,  ptr::null());
+            }
         };
 
         Ok(())
@@ -940,7 +932,7 @@ mod tests {
     use std::ffi::CString;
     use connection;
     use api::VcxStateType;
-    use utils::constants::DEFAULT_SERIALIZE_VERSION;
+    use utils::constants::PENDING_OBJECT_SERIALIZE_VERSION;
     use api::return_types_u32;
     use serde_json::Value;
     use utils::devsetup::*;
@@ -952,9 +944,9 @@ mod tests {
     fn _vcx_disclosed_proof_create_with_request_c_closure(proof_request: &str) -> Result<u32, u32> {
         let cb = return_types_u32::Return_U32_U32::new().unwrap();
         let rc = vcx_disclosed_proof_create_with_request(cb.command_handle,
-                                                CString::new("test_create").unwrap().into_raw(),
-                                                CString::new(proof_request).unwrap().into_raw(),
-                                                Some(cb.get_callback()));
+                                                         CString::new("test_create").unwrap().into_raw(),
+                                                         CString::new(proof_request).unwrap().into_raw(),
+                                                         Some(cb.get_callback()));
         if rc != error::SUCCESS.code_num {
             return Err(rc);
         }
@@ -1018,7 +1010,7 @@ mod tests {
         let s = cb.receive(TimeoutUtils::some_short()).unwrap().unwrap();
 
         let j: Value = serde_json::from_str(&s).unwrap();
-        assert_eq!(j["version"], DEFAULT_SERIALIZE_VERSION);
+        assert_eq!(j["version"], PENDING_OBJECT_SERIALIZE_VERSION);
 
         let cb = return_types_u32::Return_U32_U32::new().unwrap();
         assert_eq!(vcx_disclosed_proof_deserialize(cb.command_handle,

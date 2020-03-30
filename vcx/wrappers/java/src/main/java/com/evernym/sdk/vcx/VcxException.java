@@ -106,6 +106,7 @@ public class VcxException extends Exception {
             this.sdkBacktrace = errorDetails.optString("backtrace");
         } catch(Exception e) {
            // TODO
+           e.printStackTrace();
         }
     }
 

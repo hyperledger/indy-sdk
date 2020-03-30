@@ -12,6 +12,7 @@ INDY_SDK=$WORK_DIR/vcx-indy-sdk
 VCX_SDK=$START_DIR/../../../../..
 VCX_SDK=$(abspath "$VCX_SDK")
 
+export IOS_TARGETS=$3
 source ./mac.05.libvcx.env.sh
 cd ../../..
 DEBUG_SYMBOLS="debuginfo"
@@ -24,31 +25,26 @@ if [ "$DEBUG_SYMBOLS" = "nodebug" ]; then
     sed -i .bak 's/debug = true/debug = false/' Cargo.toml
 fi
 
-IOS_TARGETS="aarch64-apple-ios,armv7-apple-ios,armv7s-apple-ios,i386-apple-ios,x86_64-apple-ios"
-if [ ! -z "$2" ]; then
-    IOS_TARGETS=$2
+if [ -z "${IOS_TARGETS}" ]; then
+    echo "please provide the targets e.g aarch64-apple-ios,armv7-apple-ios,i386-apple-ios,x86_64-apple-ios"
+    exit 1
 fi
 
 CLEAN_BUILD="cleanbuild"
-if [ ! -z "$3" ]; then
-    CLEAN_BUILD=$3
+if [ ! -z "$2" ]; then
+    CLEAN_BUILD=$2
 fi
 
-if [ "$CLEAN_BUILD" = "cleanbuild" ]; then
+if [ "${CLEAN_BUILD}" = "cleanbuild" ]; then
+    echo "cleanbuild"
     cargo clean
     rm -rf ${BUILD_CACHE}/target
     rm -rf ${BUILD_CACHE}/arch_libs
-    # cargo update
-# else
-#     if [ -d ${BUILD_CACHE}/target ]; then
-#         echo "Optimizing iOS build using folder: $(abspath ${BUILD_CACHE}/target)"
-#         cp -rfp ${BUILD_CACHE}/target .
-#     fi
 fi
 
 git log -1 > $WORK_DIR/evernym.vcx-sdk.git.commit.log
 
-export OPENSSL_LIB_DIR_DARWIN=$OPENSSL_LIB_DIR
+export OPENSSL_LIB_DIR_DARWIN=${OPENSSL_LIB_DIR}
 
 bkpIFS="$IFS"
 IFS=',()][' read -r -a targets <<<"${IOS_TARGETS}"

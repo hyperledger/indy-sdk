@@ -320,6 +320,25 @@ impl DidExchangeSM {
         }
     }
 
+    pub fn new_completed(did: String, verkey: String, label: String, endpoint: String) -> VcxResult<Self> {
+        let mut did_doc: DidDoc = DidDoc::default();
+        did_doc.set_id(did);
+        did_doc.set_service_endpoint(endpoint);
+        did_doc.set_keys(vec![verkey], vec![]);
+
+        let connection_sm = DidExchangeSM {
+            source_id: label,
+            state: ActorDidExchangeState::Inviter(DidExchangeState::Completed(CompleteState {
+                did_doc,
+                pending_messages: Default::default(),
+                protocols: None,
+            })),
+            agent_info: AgentInfo::default().create_agent()?,
+        };
+
+        Ok(connection_sm)
+    }
+
     pub fn from(source_id: String, agent_info: AgentInfo, state: ActorDidExchangeState) -> Self {
         DidExchangeSM {
             source_id,

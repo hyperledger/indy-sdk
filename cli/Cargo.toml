@@ -1,7 +1,12 @@
 [package]
 name = "indy-cli"
-version = "1.14.2"
+version = "1.14.4"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
+license = "MIT/Apache-2.0"
+description = """\
+This is the official command line interface for Indy SDK,\
+which provides a distributed-ledger-based foundation for self-sovereign\
+identity."""
 edition = "2018"
 
 [features]
@@ -29,4 +34,22 @@ serde_json = "1.0.40"
 serde_derive = "1.0.97"
 term = "0.4.6"
 rpassword = "1.0.0"
-indy = { version = "1.14.2", path = "../wrappers/rust/" }
+indy = { version = "1.14.4", path = "../wrappers/rust/" }
+
+[package.metadata.deb]
+depends = "libindy (= 1.14.4), libncursesw5-dev"
+section = "devel"
+priority = "optional"
+assets = [
+    ["target/release/indy-cli", "usr/bin/", "755"]
+]
+maintainer-scripts = "./debian"
+changelog = "./debian/changelog"
+
+[package.metadata.deb.variants.indy-cli-xenial]
+name = "indy-cli"
+provides = "indy-cli (= 1.14.4)"
+
+[package.metadata.deb.variants.indy-cli-bionic]
+name = "indy-cli"
+provides = "indy-cli (= 1.14.4)"

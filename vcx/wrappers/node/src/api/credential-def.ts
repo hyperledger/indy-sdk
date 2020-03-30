@@ -62,8 +62,9 @@ export interface ICredentialDefDataObj {
 }
 
 export interface ICredentialDefParams {
-  schemaId: string,
-  name: string,
+  schemaId?: string,
+  name?: string,
+  credDefId?: string,
   tailsFile?: string
 }
 
@@ -192,7 +193,8 @@ export class CredentialDef extends VCXBase<ICredentialDefData> {
           (resolve, reject) => ffi.Callback(
             'void',
             ['uint32', 'uint32', 'uint32', 'string', 'string', 'string'],
-            (handle: number, err: number, _handle: number, _credDefTxn: string, _revocRegDefTxn: string, _revocRegEntryTxn: string) => {
+            (handle: number, err: number, _handle: number, _credDefTxn: string, _revocRegDefTxn: string,
+             _revocRegEntryTxn: string) => {
               if (err) {
                 reject(err)
                 return
@@ -201,7 +203,8 @@ export class CredentialDef extends VCXBase<ICredentialDefData> {
                 reject('no credential definition transaction')
                 return
               }
-              resolve({ credDefTxn: _credDefTxn, revocRegDefTxn: _revocRegDefTxn, revocRegEntryTxn: _revocRegEntryTxn, handle: _handle })
+              resolve({ credDefTxn: _credDefTxn, handle: _handle, revocRegDefTxn: _revocRegDefTxn,
+                revocRegEntryTxn: _revocRegEntryTxn })
             })
       )
       credentialDef._setHandle(credDefForEndorser.handle)
@@ -245,19 +248,19 @@ export class CredentialDef extends VCXBase<ICredentialDefData> {
   protected _releaseFn = rustAPI().vcx_credentialdef_release
   protected _serializeFn = rustAPI().vcx_credentialdef_serialize
   protected _deserializeFn = rustAPI().vcx_credentialdef_deserialize
-  private _name: string
-  private _schemaId: string
-  private _credDefId: string | null
+  private _name: string | undefined
+  private _schemaId: string | undefined
+  private _credDefId: string | undefined
   private _tailsFile: string | undefined
   private _credDefTransaction: string | null
   private _revocRegDefTransaction: string | null
   private _revocRegEntryTransaction: string | null
 
-  constructor (sourceId: string, { name, schemaId, tailsFile }: ICredentialDefParams) {
+  constructor (sourceId: string, { name, schemaId, credDefId, tailsFile }: ICredentialDefParams) {
     super(sourceId)
     this._name = name
     this._schemaId = schemaId
-    this._credDefId = null
+    this._credDefId = credDefId
     this._tailsFile = tailsFile
     this._credDefTransaction = null
     this._revocRegDefTransaction = null

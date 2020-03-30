@@ -1,9 +1,9 @@
 #!/bin/sh
-
 #1) Install Rust and rustup (https://www.rust-lang.org/install.html).
 #To get into the if statement below execute the following command...
 # mv /Users/norm/.cargo/bin/rustup /Users/norm/.cargo/bin/rustup.bak
 RUSTUP_VERSION=`rustup --version`
+DEFAULT_RUST_VERSION=$1
 if [ "$?" != "0" ]; then
     if [ -f $HOME/.cargo/bin/rustup ]; then
         echo "You need to add $HOME/.cargo/bin to your PATH environment variable or simply restart your terminal"
@@ -47,7 +47,6 @@ if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
     rustup default 1.39.0
     rustup component add rls-preview rust-analysis rust-src
     echo "Using rustc version $(rustc --version)"
-    rustup target remove aarch64-linux-android armv7-linux-androideabi arm-linux-androideabi i686-linux-android x86_64-linux-android
     rustup target add aarch64-apple-ios armv7-apple-ios armv7s-apple-ios x86_64-apple-ios i386-apple-ios
 
     RUST_TARGETS=$(rustc --print target-list|grep -i ios)
@@ -63,8 +62,8 @@ if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
         exit 1
     fi
 
-    cargo install cargo-lipo
-    cargo install cargo-xcode
+    cargo install --force cargo-lipo
+    cargo install --force cargo-xcode
 
     BREW_VERSION=`brew --version`
     if ! [[ $BREW_VERSION =~ ^'Homebrew ' ]]; then
@@ -74,14 +73,16 @@ if [[ $RUSTUP_VERSION =~ ^'rustup ' ]]; then
     fi
 
     #2) Install required native libraries and utilities (libsodium is added with URL to homebrew since version<1.0.15 is required)
-    brew install pkg-config
-    brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/65effd2b617bade68a8a2c5b39e1c3089cc0e945/Formula/libsodium.rb
-    brew install automake
-    brew install autoconf
-    brew install cmake
-    brew install openssl
-    brew install zmq
-    brew install wget
-    brew install truncate
-    brew install libzip
+    INSTALL_LIBSODIUM=https://raw.githubusercontent.com/Homebrew/homebrew-core/65effd2b617bade68a8a2c5b39e1c3089cc0e945/Formula/libsodium.rb
+    brew list pkg-config &>/dev/null || brew install pkg-config
+    brew list libsodium &>/dev/null || brew install ${INSTALL_LIBSODIUM}
+    brew list automake &>/dev/null || brew install automake
+    brew list autoconf &>/dev/null || brew install autoconf
+    brew list cmake &>/dev/null || brew install cmake
+    brew list openssl &>/dev/null || brew install openssl
+    brew list zmq &>/dev/null || brew install zmq
+    brew list wget &>/dev/null || brew install wget
+    brew list truncate &>/dev/null || brew install truncate
+    brew list libzip &>/dev/null || brew install libzip
+    brew list python3 &>/dev/null || brew install python3
 fi

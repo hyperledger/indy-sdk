@@ -138,6 +138,28 @@ public class VcxJava {
 			}
 		}
 
+
+		/**
+		 * Sets the provided future with an exception if the error code provided does not indicate success.
+		 *
+		 * @param future The future.
+		 * @param err    The error value to check.
+		 * @return true if the error code indicated Success, otherwise false.
+		 */
+		protected static boolean checkResult(CompletableFuture<?> future, int err) {
+
+			ErrorCode errorCode = ErrorCode.valueOf(err);
+			if (! ErrorCode.SUCCESS.equals(errorCode)) {
+
+				VcxException vcxException = VcxException.fromSdkError(err);
+				future.completeExceptionally(vcxException);
+
+				return false;
+			}
+
+			return true;
+		}
+
 		/*
 		 * OBJECT METHODS
 		 */

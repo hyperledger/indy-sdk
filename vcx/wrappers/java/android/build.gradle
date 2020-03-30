@@ -28,6 +28,10 @@ repositories {
     maven {
         url "https://jitpack.io"
     }
+    maven {
+        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+        url "./node_modules/react-native/android"
+    }
 }
 
 allprojects {
@@ -76,7 +80,8 @@ tasks.withType(JavaCompile) {
 }
 
 android {
-    compileSdkVersion 23
+    compileSdkVersion 28
+    buildToolsVersion "28.0.3"
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -90,13 +95,25 @@ android {
         }
     }
 
+    // IMPORTANT: This is required to fix this issue: https://github.com/android-ndk/ndk/issues/700
+    packagingOptions{
+        doNotStrip '*/mips/*.so'
+        doNotStrip '*/mips64/*.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/arm/libc++_shared.so'
+        pickFirst 'lib/armeabi/libc++_shared.so'
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+    }
 
     defaultConfig {
         minSdkVersion 23
-        targetSdkVersion 23
+        targetSdkVersion 28
         versionCode 1
         versionName "${fullVersionName()}"
 
+        testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
     }
@@ -148,6 +165,14 @@ dependencies {
     testImplementation group: 'org.json', name: 'json', version:'20160810'
     testImplementation 'net.java.dev.jna:jna:4.5.0'
     testImplementation 'org.awaitility:awaitility-scala:3.1.2'
+    androidTestImplementation 'com.getkeepsafe.relinker:relinker:1.3.1'
+    androidTestImplementation('com.facebook.react:react-native:0.59.9') { force = true }
+    androidTestImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support:support-annotations:26.1.0'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test:rules:1.0.1'
+    // Set this dependency if you want to use the Hamcrest matcher library
+    androidTestImplementation 'org.hamcrest:hamcrest-library:1.3'
 
 }
 

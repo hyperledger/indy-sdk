@@ -1,6 +1,6 @@
 {
   "name": "indy-sdk",
-  "version": "1.14.2",
+  "version": "1.14.4",
   "description": "Native bindings for hyperledger indy",
   "author": "hyperledger",
   "license": "Apache-2.0",

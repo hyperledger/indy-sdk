@@ -40,7 +40,7 @@ mkdir $NDK_DIR
 
 create_ndk() {
     echo "($1)..."
-    "$MAKER" --stl=gnustl --api "$2" --arch "$1" --install-dir "$NDK_DIR/$1"
+    "$MAKER" --stl=c++ --api "$2" --arch "$1" --install-dir "$NDK_DIR/$1"
 }
 
 create_ndk arm64 21

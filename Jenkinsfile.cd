@@ -1040,6 +1040,7 @@ def linuxPublishing(file, env_name, build_wrappers) {
                 testEnv = buildTestEnv(file, env_name)
 
                 libindyDebPublishing(testEnv, libindyVersion, env_name)
+                libindyDevDebPublishing(testEnv, libindyVersion, env_name)
                 libnullpayDebPublishing(testEnv, env_name)
                 libvcxDebPublishing(testEnv, env_name)
                 libindyCliDebPublishing(testEnv, libindyVersion, env_name) // Note that last deb publishing should pass resetCache = true inside
@@ -1283,10 +1284,18 @@ def libindyDebPublishing(testEnv, version, env_name) {
     debPublishing(testEnv, "libindy", "libindy", version, "LibindyBuildResult${env_name}", "libindyDebs${env_name}", env_name)
 }
 
+def libindyDevDebPublishing(testEnv, version, env_name) {
+    echo 'Publish Libindy Dev deb files to Apt'
+
+    setLibindyDependencyVersion("libindy/Cargo.toml")
+
+    debPublishing(testEnv, "libindy", "libindy-dev", version, "LibindyBuildResult${env_name}", "libindyDevDebs${env_name}", env_name)
+}
+
 def libindyCliDebPublishing(testEnv, version, env_name) {
     echo 'Publish Indy Cli deb files to Apt'
 
-    setLibindyDependencyVersion("cli/debian/control")
+    setLibindyDependencyVersion("cli/Cargo.toml")
 
     debPublishing(testEnv, "cli", "indy-cli", version, "IndyCliBuildResult${env_name}", "libindyCliDebs${env_name}", env_name, true)
 }
@@ -1296,7 +1305,7 @@ def libnullpayDebPublishing(testEnv, env_name) {
 
     def libnullpayVersion = getSrcVersion("libnullpay")
 
-    setLibindyDependencyVersion("libnullpay/debian/control")
+    setLibindyDependencyVersion("libnullpay/Cargo.toml")
 
     debPublishing(testEnv, "libnullpay", "libnullpay", libnullpayVersion, "LibnullpayBuildResult${env_name}", "libnullpayDebs${env_name}", env_name)
 }
@@ -1306,7 +1315,7 @@ def libvcxDebPublishing(testEnv, env_name) {
 
     def libvcxVersion = getSrcVersion("vcx/libvcx")
 
-    setLibindyDependencyVersion("vcx/libvcx/debian/control")
+    setLibindyDependencyVersion("vcx/libvcx/Cargo.toml")
 
     debPublishing(testEnv, "vcx/libvcx", "libvcx", libvcxVersion, "LibvcxBuildResult${env_name}", "libvcxDebs${env_name}", env_name)
 }
@@ -1315,7 +1324,7 @@ def setLibindyDependencyVersion(file) {
     def libindyVersion = getSrcVersion("libindy")
     def replaceVersion = "$libindyVersion~$env.BUILD_NUMBER"
 
-    sh "sed -i -e \"s/^\\(Depends: .*libindy\\)\\(\\s*[,]\\{,1\\}.*\\)/\\1 (= $replaceVersion)\\2/\" $file"
+    sh "sed -i -E -e \"s/depends = \\\"libindy \\(= [0-9,.]+\\)/depends = \\\"libindy \\(= $replaceVersion\\)/g\" $file"
 }
 
 def debPublishing(testEnv, directory, packageName, version, inStashName, outStashName, env_name, resetCache = false) {
@@ -1326,7 +1335,7 @@ def debPublishing(testEnv, directory, packageName, version, inStashName, outStas
     testEnv.inside {
         sh "cp ci/deb-build-and-upload.sh $directory && chmod -R 755 $directory/*.sh"
 
-        def suffix = "~$env.BUILD_NUMBER"
+        def package_version = "$version~$env.BUILD_NUMBER"
         def package_type = ubuntuPakageTypes[env_name]
 
         unstash name: inStashName
@@ -1334,12 +1343,14 @@ def debPublishing(testEnv, directory, packageName, version, inStashName, outStas
         def extraFlags = resetCache ? "" : "--no-reset-cache"
 
         withCredentials([file(credentialsId: 'SovrinRepoSSHKey', variable: 'sovrin_key')]) {
-            sh "cd $directory && ./deb-build-and-upload.sh $packageName $version $env.BRANCH_NAME $suffix $SOVRIN_SDK_REPO_NAME $SOVRIN_REPO_HOST $sovrin_key $package_type $extraFlags"
+            sh "cd $directory && ./deb-build-and-upload.sh $packageName $package_version $env.BRANCH_NAME $SOVRIN_SDK_REPO_NAME $SOVRIN_REPO_HOST $sovrin_key $package_type $extraFlags"
 
             if (env.BRANCH_NAME == 'rc') {
-                stash includes: "$directory/debs/*", name: outStashName
+                stash includes: "$directory/target/release/*", name: outStashName
             }
         }
+        sh "rm -rf $directory/debs/"
+        sh "rm -rf $directory/target/"
     }
 }
 
@@ -1464,6 +1475,7 @@ def publishingRCtoStable() {
 
                 echo "Moving ${env_name} RC artifacts to Stable: libindy"
                 publishLibindyDebRCtoStable(testEnv, libindyVersion, env_name)
+                publishLibindyDevDebRCtoStable(testEnv, libindyVersion, env_name)
 
                 echo 'Moving Ubuntu RC artifacts to Stable: python wrapper'
                 pythonWrapperPublishing(testEnv, true, 'wrappers/python', 'libindy')
@@ -1687,48 +1699,46 @@ def copyFilesFromRcToStable(src, target) {
 }
 
 def publishLibindyDebRCtoStable(testEnv, version, env_name) {
-    publishDebRCtoStable(testEnv, "libindy", "libindy", version, "libindyDebs", true, env_name)
+    publishDebRCtoStable(testEnv, "libindy", "libindy", version, "libindyDebs", env_name)
+}
+
+def publishLibindyDevDebRCtoStable(testEnv, version, env_name) {
+    publishDebRCtoStable(testEnv, "libindy-dev", "libindy", version, "libindyDevDebs", env_name)
 }
 
 def publishLibindyCliDebRCtoStable(testEnv, version, env_name) {
-    publishDebRCtoStable(testEnv, "indy-cli", "cli", version, "libindyCliDebs", false, env_name)
+    publishDebRCtoStable(testEnv, "indy-cli", "cli", version, "libindyCliDebs", env_name)
 }
 
 def publishLibnullpayDebRCtoStable(testEnv, env_name) {
     def libnullpayVersion = getSrcVersion("libnullpay")
-    publishDebRCtoStable(testEnv, "libnullpay", "libnullpay", libnullpayVersion, "libnullpayDebs", false, env_name)
+    publishDebRCtoStable(testEnv, "libnullpay", "libnullpay", libnullpayVersion, "libnullpayDebs", env_name)
 }
 
 def publishLibvcxDebRCtoStable(testEnv, env_name) {
     def libvcxVersion = getSrcVersion("vcx/libvcx")
-    publishDebRCtoStable(testEnv, "libvcx", "vcx/libvcx", libvcxVersion, "libvcxDebs", false, env_name, true)
+    publishDebRCtoStable(testEnv, "libvcx", "vcx/libvcx", libvcxVersion, "libvcxDebs", env_name, true)
 }
 
-def publishDebRCtoStable(testEnv, packageName, folder, version, stashName, moveDevArtifacts, env_name, resetCache = false) {
+def publishDebRCtoStable(testEnv, packageName, directory, version, stashName, env_name, resetCache = false) {
     testEnv.inside {
+        sh "mkdir -p $directory/sovrin-packaging/"
+        sh "cp sovrin-packaging/*.py $directory/sovrin-packaging"
+        sh "cp ci/deb-build-and-upload.sh $directory && chmod -R 755 $directory/*.sh"
+
         def rcFullVersion = "${version}~${env.BUILD_NUMBER}"
         def package_type = ubuntuPakageTypes[env_name]
 
         unstash name: "${stashName}${env_name}"
 
-        if (packageName != "libindy") {
-            def libindyVersion = getSrcVersion("libindy")
-            sh "fpm -s deb -t deb --version $rcFullVersion --no-auto-depends --depends 'libindy = $libindyVersion' -f -p $folder/debs $folder/debs/\"$packageName\"_\"$rcFullVersion\"_amd64.deb"
-        }
-
-        sh "fakeroot deb-reversion -v $version $folder/debs/\"$packageName\"_\"$rcFullVersion\"_amd64.deb"
-
-        if (moveDevArtifacts) {
-            sh "fakeroot deb-reversion -v $version $folder/debs/\"$packageName\"-dev_\"$rcFullVersion\"_amd64.deb"
-        }
-
         def extraFlags = resetCache ? "" : "--no-reset-cache"
 
         withCredentials([file(credentialsId: 'SovrinRepoSSHKey', variable: 'sovrin_key')]) {
-            path = sh(returnStdout: true, script: 'pwd').trim()
-
-            sh "./sovrin-packaging/upload_debs.py $path $SOVRIN_SDK_REPO_NAME stable --distro=${package_type} --host $SOVRIN_REPO_HOST --ssh-key $sovrin_key $extraFlags"
+            sh "cd $directory && ./deb-build-and-upload.sh $packageName $version stable $SOVRIN_SDK_REPO_NAME $SOVRIN_REPO_HOST $sovrin_key $package_type $extraFlags"
         }
+
+        sh "rm -rf $directory/debs/"
+        sh "rm -rf $directory/target/"
     }
 }
 

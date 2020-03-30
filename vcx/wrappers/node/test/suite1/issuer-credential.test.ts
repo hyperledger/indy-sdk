@@ -108,13 +108,15 @@ describe('IssuerCredential:', () => {
     })
 
     it('throws: incomplete data', async () => {
-      const error = await shouldThrow(async () => IssuerCredential.deserialize({ data: {
-        cred_def_id: 'Invalid',
-        credential_attributes: '{}',
-        credential_name: 'Invalid',
-        price: 'Invalid',
-        source_id: 'Invalid'
-      } } as any))
+      const error = await shouldThrow(async () => IssuerCredential.deserialize({
+        version: '1.0',
+        data: {
+          cred_def_id: 'Invalid',
+          credential_attributes: '{}',
+          credential_name: 'Invalid',
+          price: 'Invalid',
+          source_id: 'Invalid'
+        } } as any))
       assert.equal(error.vcxCode, VCXCode.INVALID_JSON)
     })
   })

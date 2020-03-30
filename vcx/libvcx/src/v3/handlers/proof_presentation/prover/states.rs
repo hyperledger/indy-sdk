@@ -226,6 +226,10 @@ impl ProverSM {
         let state = match state {
             ProverState::Initiated(state) => {
                 match message {
+                    ProverMessages::SetPresentation(presentation) => {
+                        let presentation = presentation.set_thread_id(&thread_id);
+                        ProverState::PresentationPrepared((state, presentation).into())
+                    }
                     ProverMessages::PreparePresentation((credentials, self_attested_attrs)) => {
                         match state.build_presentation(&credentials, &self_attested_attrs) {
                             Ok(presentation) => {
@@ -360,16 +364,16 @@ impl ProverSM {
 
     pub fn state(&self) -> u32 {
         match self.state {
-            ProverState::Initiated(_) => VcxStateType::VcxStateInitialized as u32,
-            ProverState::PresentationPrepared(_) => VcxStateType::VcxStateInitialized as u32,
-            ProverState::PresentationPreparationFailed(_) => VcxStateType::VcxStateInitialized as u32,
+            ProverState::Initiated(_) => VcxStateType::VcxStateRequestReceived as u32,
+            ProverState::PresentationPrepared(_) => VcxStateType::VcxStateRequestReceived as u32,
+            ProverState::PresentationPreparationFailed(_) => VcxStateType::VcxStateRequestReceived as u32,
             ProverState::PresentationSent(_) => VcxStateType::VcxStateOfferSent as u32, // TODO: maybe VcxStateType::VcxStateAccepted
             ProverState::Finished(ref status) => {
                 match status.status {
                     Status::Success => VcxStateType::VcxStateAccepted as u32,
                     _ => VcxStateType::VcxStateNone as u32,
                 }
-            },
+            }
         }
     }
 
@@ -460,13 +464,13 @@ pub mod test {
     fn _credentials() -> String {
         json!({
             "attrs":{
-                "attribute_0":{
-                    "credential":{
-                        "cred_info":{
-                            "attrs":{"name":"alice"},
-                            "cred_def_id":"V4SGRU86Z58d6TV7PBUe6f:3:CL:419:tag",
-                            "referent":"a1991de8-8317-43fd-98b3-63bac40b9e8b",
-                            "schema_id":"V4SGRU86Z58d6TV7PBUe6f:2:QcimrRShWQniqlHUtIDddYP0n:1.0"
+            "attribute_0":{
+                "credential":{
+                    "cred_info":{
+                        "attrs":{"name": "alice"},
+                        "cred_def_id": "V4SGRU86Z58d6TV7PBUe6f:3:CL:419:tag",
+                        "referent": "a1991de8-8317-43fd-98b3-63bac40b9e8b",
+                        "schema_id": "V4SGRU86Z58d6TV7PBUe6f:2:QcimrRShWQniqlHUtIDddYP0n:1.0"
                         }
                     }
                 }
@@ -831,8 +835,8 @@ pub mod test {
         fn test_get_state() {
             let _setup = SetupAriesMocks::init();
 
-            assert_eq!(VcxStateType::VcxStateInitialized as u32, _prover_sm().state());
-            assert_eq!(VcxStateType::VcxStateInitialized as u32, _prover_sm().to_presentation_prepared_state().state());
+            assert_eq!(VcxStateType::VcxStateRequestReceived as u32, _prover_sm().state());
+            assert_eq!(VcxStateType::VcxStateRequestReceived as u32, _prover_sm().to_presentation_prepared_state().state());
             assert_eq!(VcxStateType::VcxStateOfferSent as u32, _prover_sm().to_presentation_sent_state().state());
             assert_eq!(VcxStateType::VcxStateAccepted as u32, _prover_sm().to_finished_state().state());
         }

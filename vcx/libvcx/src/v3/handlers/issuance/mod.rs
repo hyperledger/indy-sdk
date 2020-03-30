@@ -16,7 +16,7 @@ use connection;
 
 // Issuer
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Issuer {
     issuer_sm: IssuerSM
 }
@@ -76,7 +76,7 @@ impl Issuer {
 
 // Holder
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Holder {
     holder_sm: HolderSM
 }

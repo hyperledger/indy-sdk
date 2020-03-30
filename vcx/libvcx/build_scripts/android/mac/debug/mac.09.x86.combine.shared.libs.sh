@@ -35,7 +35,7 @@ do
     libsodium.a \
     libssl.a \
     libzmq.a \
-    $NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/libgnustl_shared.so \
+    $NDK_DIR/${ndk_arch}/${cross_compile}/${LIB_FOLDER}/libc++_shared.so \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/libz.so \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/libm.a \
     $NDK_DIR/${ndk_arch}/sysroot/usr/${LIB_FOLDER}/liblog.so \

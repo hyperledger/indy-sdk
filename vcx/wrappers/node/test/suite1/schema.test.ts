@@ -6,11 +6,11 @@ import {
   dataSchemaCreate,
   dataSchemaLookup,
   schemaCreate,
-  schemaPrepareForEndorser,
-  schemaLookup
+  schemaLookup,
+  schemaPrepareForEndorser
 } from 'helpers/entities'
 import { initVcxTestMode, shouldThrow } from 'helpers/utils'
-import { Schema, SchemaPaymentManager, VCXCode, SchemaState } from 'src'
+import { Schema, SchemaPaymentManager, SchemaState, VCXCode } from 'src'
 
 describe('Schema:', () => {
   before(() => initVcxTestMode())

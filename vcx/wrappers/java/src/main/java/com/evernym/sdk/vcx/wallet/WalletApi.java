@@ -35,7 +35,7 @@ public class WalletApi extends VcxJava.API {
     ) throws VcxException {
         ParamGuard.notNull(exportPath, "exportPath");
         ParamGuard.notNull(encryptionKey, "encryptionKey");
-        logger.debug("exportWallet() called with: exportPath = [" + exportPath + "], encryptionKey = [" + encryptionKey + "]");
+        logger.debug("exportWallet() called with: exportPath = [" + exportPath + "], encryptionKey = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
 
@@ -60,7 +60,7 @@ public class WalletApi extends VcxJava.API {
             String config
     ) throws VcxException {
         ParamGuard.notNull(config, "config");
-        logger.debug("importWallet() called with: config = [" + config + "]");
+        logger.debug("importWallet() called with: config = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
 
@@ -188,7 +188,7 @@ public class WalletApi extends VcxJava.API {
         ParamGuard.notNull(recordType, "recordType");
         ParamGuard.notNull(recordId, "recordId");
         ParamGuard.notNull(recordValue, "recordValue");
-        logger.debug("addRecordWallet() called with: recordType = [" + recordType + "], recordId = [" + recordId + "], recordValue = [" + recordValue + "]");
+        logger.debug("addRecordWallet() called with: recordType = [" + recordType + "], recordId = [" + recordId + "], recordValue = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
         String recordTag = "{}";
@@ -229,7 +229,7 @@ public class WalletApi extends VcxJava.API {
     private static Callback vcxGetRecordWalletCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String recordValue) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], recordValue = [" + recordValue + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], recordValue = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             // if nonzero errorcode, ignore walletHandle (null)
@@ -276,7 +276,7 @@ public class WalletApi extends VcxJava.API {
         ParamGuard.notNull(recordType, "recordType");
         ParamGuard.notNull(recordId, "recordId");
         ParamGuard.notNull(recordValue, "recordValue");
-        logger.debug("updateRecordWallet() called with: recordType = [" + recordType + "], recordId = [" + recordId + "], recordValue = [" + recordValue + "]");
+        logger.debug("updateRecordWallet() called with: recordType = [" + recordType + "], recordId = [" + recordId + "], recordValue = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 

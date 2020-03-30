@@ -11,7 +11,7 @@ use utils::constants::{SUBMIT_SCHEMA_RESPONSE, CREATE_TRANSFER_ACTION};
 use settings;
 use error::prelude::*;
 
-static DEFAULT_FEES: &str = r#"{"0":0, "1":0, "101":2, "10001":0, "102":42, "103":0, "104":0, "105":0, "107":0, "108":0, "109":0, "110":0, "111":0, "112":0, "113":2, "114":2, "115":0, "116":0, "117":0, "118":0, "119":0}"#;
+static DEFAULT_FEES: &str = r#"{"0":0, "1":0, "3":0, "100":0, "101":2, "102":42, "103":0, "104":0, "105":0, "107":0, "108":0, "109":0, "110":0, "111":0, "112":0, "113":2, "114":2, "115":0, "116":0, "117":0, "118":0, "119":0, "10001":0}"#;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WalletInfo {
@@ -35,10 +35,12 @@ pub struct AddressInfo {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct UTXO {
+    #[serde(skip_serializing_if = "Option::is_none")]
     source: Option<String>,
     #[serde(rename = "paymentAddress")]
     recipient: String,
     amount: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     extra: Option<String>,
 }
 
@@ -312,12 +314,7 @@ pub fn pay_a_payee(price: u64, address: &str) -> VcxResult<(PaymentTxn, String)>
     if settings::indy_mocks_enabled() {
         let inputs = vec![build_test_address("9UFgyjuJxi1i1HD")];
 
-        let outputs = vec![Output {
-            source: None,
-            recipient: build_test_address("xkIsxem0YNtHrRO"),
-            amount: 1,
-            extra: None,
-        }];
+        let outputs = vec![Output { source: None, recipient: build_test_address("xkIsxem0YNtHrRO"), amount: 1, extra: None}];
         return Ok((PaymentTxn::from_parts(inputs, outputs, 1, false), SUBMIT_SCHEMA_RESPONSE.to_string()));
     }
 
@@ -891,7 +888,7 @@ pub mod tests {
         let (_, schema_json) = ::utils::libindy::anoncreds::tests::create_schema(::utils::constants::DEFAULT_SCHEMA_ATTRS);
         let req = ::utils::libindy::anoncreds::tests::create_schema_req(&schema_json);
 
-        let cost = 45;
+        let cost = get_action_price(::utils::constants::CREATE_SCHEMA_ACTION, None).unwrap();
         let start_wallet = get_wallet_token_info().unwrap();
         let remaining_balance = start_wallet.balance - cost;
         let (remainder, inputs, refund_address) = inputs(cost).unwrap();

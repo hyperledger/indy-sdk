@@ -15,7 +15,7 @@
 # try to pick it up with the value of _ANDROID_NDK_ROOT below. If
 # ANDROID_NDK_ROOT is set, then the value is ignored.
 # _ANDROID_NDK="android-ndk-r8e"
-_ANDROID_NDK="android-ndk-r16b"
+_ANDROID_NDK="android-ndk-r20"
 # _ANDROID_NDK="android-ndk-r10"
 
 # Set _ANDROID_EABI to the EABI you want to use. You can find the
@@ -118,12 +118,12 @@ if [ -z "$ANDROID_TOOLCHAIN" ] || [ ! -d "$ANDROID_TOOLCHAIN" ]; then
 fi
 
 case $_ANDROID_ARCH in
-	arch-arm)	  
+	arch-arm)
       ANDROID_TOOLS="arm-linux-androideabi-clang arm-linux-androideabi-ranlib arm-linux-androideabi-ld"
 	  ;;
-	arch-x86)	  
+	arch-x86)
       ANDROID_TOOLS="i686-linux-android-clang i686-linux-android-ranlib i686-linux-android-ld"
-	  ;;	  
+	  ;;
 	*)
 	  echo "ERROR ERROR ERROR"
 	  ;;

@@ -50,7 +50,7 @@ public class DisclosedProofApi extends VcxJava.API {
     private static Callback vcxProofCreateWithMsgIdCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, int proofHandle, String proofRequest) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofHandle = [" + proofHandle + "], proofRequest = [" + proofRequest + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofHandle = [" + proofHandle + "], proofRequest = [****]");
             CompletableFuture<CreateProofMsgIdResult> future = (CompletableFuture<CreateProofMsgIdResult>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             CreateProofMsgIdResult result = new CreateProofMsgIdResult(proofHandle, proofRequest);
@@ -101,7 +101,7 @@ public class DisclosedProofApi extends VcxJava.API {
     private static Callback proofGetRequestsCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String proofRequests) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofRequests = [" + proofRequests + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], proofRequests = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             future.complete(proofRequests);
@@ -145,7 +145,6 @@ public class DisclosedProofApi extends VcxJava.API {
     }
 
 
-
     public static int proofRelease(int proofHandle) throws VcxException {
         ParamGuard.notNull(proofHandle, "proofHandle");
         logger.debug("proofRelease() called with: proofHandle = [" + proofHandle + "]");
@@ -159,7 +158,7 @@ public class DisclosedProofApi extends VcxJava.API {
     private static Callback vcxProofRetrieveCredentialsCB = new Callback() {
         @SuppressWarnings({"unused", "unchecked"})
         public void callback(int commandHandle, int err, String matchingCredentials) {
-            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], matchingCredentials = [" + matchingCredentials + "]");
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "], matchingCredentials = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(commandHandle);
             if (!checkCallback(future, err)) return;
             String result = matchingCredentials;
@@ -198,7 +197,7 @@ public class DisclosedProofApi extends VcxJava.API {
             String selectedCredentials,
             String selfAttestedAttributes
     ) throws VcxException {
-        logger.debug("proofGenerate() called with: proofHandle = [" + proofHandle + "], selectedCredentials = [" + selectedCredentials + "], selfAttestedAttributes = [" + selfAttestedAttributes + "]");
+        logger.debug("proofGenerate() called with: proofHandle = [" + proofHandle + "], selectedCredentials = [****], selfAttestedAttributes = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<>();
         int commandHandle = addFuture(future);
 
@@ -324,7 +323,7 @@ public class DisclosedProofApi extends VcxJava.API {
     ) throws VcxException {
         ParamGuard.notNull(sourceId, "sourceId");
         ParamGuard.notNull(proofRequest, "proofRequest");
-        logger.debug("proofCreateWithRequest() called with: sourceId = [" + sourceId + "], proofRequest = [" + proofRequest + "]");
+        logger.debug("proofCreateWithRequest() called with: sourceId = [" + sourceId + "], proofRequest = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 
@@ -337,7 +336,7 @@ public class DisclosedProofApi extends VcxJava.API {
 
     private static Callback vcxProofSerializeCB = new Callback() {
         public void callback(int command_handle, int err, String serializedProof) {
-            logger.debug("callback() called with: command_handle = [" + command_handle + "], err = [" + err + "], serializedProof = [" + serializedProof + "]");
+            logger.debug("callback() called with: command_handle = [" + command_handle + "], err = [" + err + "], serializedProof = [****]");
             CompletableFuture<String> future = (CompletableFuture<String>) removeFuture(command_handle);
             if(!checkCallback(future, err)) return;
 
@@ -372,7 +371,7 @@ public class DisclosedProofApi extends VcxJava.API {
             String serializedProof
     ) throws VcxException {
         ParamGuard.notNull(serializedProof, "serializedProof");
-        logger.debug("proofDeserialize() called with: serializedProof = [" + serializedProof + "]");
+        logger.debug("proofDeserialize() called with: serializedProof = [****]");
         CompletableFuture<Integer> future = new CompletableFuture<Integer>();
         int commandHandle = addFuture(future);
 
@@ -408,5 +407,4 @@ public class DisclosedProofApi extends VcxJava.API {
 
 		return future;
 	}
-
 }

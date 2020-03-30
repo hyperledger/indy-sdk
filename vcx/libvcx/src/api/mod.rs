@@ -118,6 +118,12 @@ impl Default for PublicEntityStateType{
     }
 }
 
+impl Default for VcxStateType{
+    fn default() -> Self {
+        VcxStateType::VcxStateNone
+    }
+}
+
 #[repr(C)]
 pub struct VcxStatus {
     pub handle: libc::c_int,

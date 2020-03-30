@@ -17,7 +17,7 @@ ENV SODIUM_LIB_DIR /home/indy_user/${sodium_dir}/lib
 ENV SODIUM_INCLUDE_DIR /home/indy_user/${sodium_dir}/include
 ENV LIBZMQ_LIB_DIR /home/indy_user/${libzmq_dir}/lib
 ENV LIBZMQ_INCLUDE_DIR /home/indy_user/${libzmq_dir}/include
-ENV ANDROID_NDK_ROOT /home/indy_user/android-ndk-r16b
+ENV ANDROID_NDK_ROOT /home/indy_user/android-ndk-r20
 ENV TOOLCHAIN_DIR /home/indy_user/${target_arch}
 ENV PATH ${TOOLCHAIN_DIR}/bin:${PATH}
 ENV PKG_CONFIG_ALLOW_CROSS=1
@@ -37,8 +37,8 @@ RUN chmod 0440 /etc/sudoers.d/indy_user
 USER indy_user
 WORKDIR /home/indy_user
 
-COPY android-ndk-r16b-linux-x86_64.zip /home/indy_user/
-RUN unzip -qq /home/indy_user/android-ndk-r16b-linux-x86_64.zip -d /home/indy_user/
+COPY android-ndk-r20-linux-x86_64.zip /home/indy_user/
+RUN unzip -qq /home/indy_user/android-ndk-r20-linux-x86_64.zip -d /home/indy_user/
 COPY --chown=indy_user:indy_user indy-sdk/ /home/indy_user/indy-sdk/
 COPY --chown=indy_user:indy_user ${openssl_dir}/ ${OPENSSL_DIR}/
 COPY --chown=indy_user:indy_user ${sodium_dir}/ /home/indy_user/${sodium_dir}/

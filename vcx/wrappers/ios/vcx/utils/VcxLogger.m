@@ -61,10 +61,22 @@ void logCallback(const void *context,
     (void (^)(NSObject *context, NSNumber *level, NSString *target, NSString *message, NSString *modulePath, NSString *file, NSNumber *line)) block;
     NSObject *sarg0 = (__bridge NSObject *) context;
     NSNumber *sarg1 = @(level);
-    NSString *sarg2 = [NSString stringWithUTF8String:target];
-    NSString *sarg3 = [NSString stringWithUTF8String:message];
-    NSString *sarg4 = [NSString stringWithUTF8String:modulePath];
-    NSString *sarg5 = [NSString stringWithUTF8String:file];
+    NSString *sarg2 = nil;
+    if (target) {
+        sarg2 = [NSString stringWithUTF8String:target];
+    }
+    NSString *sarg3 = nil;
+    if (message) {
+        sarg3 = [NSString stringWithUTF8String:message];
+    }
+    NSString *sarg4 = nil;
+    if (modulePath) {
+        sarg4 = [NSString stringWithUTF8String:modulePath];
+    }
+    NSString *sarg5 = nil;
+    if (file) {
+        sarg5 = [NSString stringWithUTF8String:file];
+    }
     NSNumber *sarg6 = @(line);
 
     if (completion) {

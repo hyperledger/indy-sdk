@@ -27,6 +27,15 @@ impl Connection {
         }
     }
 
+    pub fn create_test_connection(did: String, verkey: String, label: String, endpoint: String) -> VcxResult<Connection> {
+        trace!("Connection::create_test_connection >>> source_id: {}, did: {}, verkey: {}, endpoint: {}",
+               label, did, verkey, endpoint);
+
+        Ok(Connection {
+            connection_sm: DidExchangeSM::new_completed(did, verkey, label, endpoint)?,
+        })
+    }
+
     pub fn from_parts(source_id: String, agent_info: AgentInfo, state: ActorDidExchangeState) -> Connection {
         Connection { connection_sm: DidExchangeSM::from(source_id, agent_info, state) }
     }
@@ -80,6 +89,39 @@ impl Connection {
         } else {
             Ok(json!({}).to_string())
         }
+    }
+
+    pub fn get_connection_info(&self) -> VcxResult<String> {
+        trace!("Connection::get_connection_info >>>");
+
+        let agent_info = self.agent_info().clone();
+
+        let my = SideConnectionInfo {
+            did: agent_info.pw_did.clone(),
+            recipient_keys: agent_info.recipient_keys().clone(),
+            routing_keys: agent_info.routing_keys()?,
+            service_endpoint: agent_info.agency_endpoint()?,
+            protocols: Some(self.connection_sm.get_protocols()),
+        };
+
+        let their = match self.connection_sm.did_doc() {
+            Some(did_doc) =>
+                Some(SideConnectionInfo {
+                    did: did_doc.id.clone(),
+                    recipient_keys: did_doc.recipient_keys(),
+                    routing_keys: did_doc.routing_keys(),
+                    service_endpoint: did_doc.get_endpoint(),
+                    protocols: self.connection_sm.get_remote_protocols(),
+                }),
+            None => None
+        };
+
+        let connection_info = ConnectionInfo { my, their };
+
+        let connection_info_json = serde_json::to_string(&connection_info)
+            .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidState, format!("Cannot serialize ConnectionInfo: {:?}", err)))?;
+
+        return Ok(connection_info_json);
     }
 
     pub fn actor(&self) -> Actor {
@@ -233,39 +275,6 @@ impl Connection {
     pub fn send_discovery_features(&mut self, query: Option<String>, comment: Option<String>) -> VcxResult<()> {
         trace!("Connection::send_discovery_features_query >>> query: {:?}, comment: {:?}", query, comment);
         self.handle_message(DidExchangeMessages::DiscoverFeatures((query, comment)))
-    }
-
-    pub fn get_connection_info(&self) -> VcxResult<String> {
-        trace!("Connection::get_connection_info >>>");
-
-        let agent_info = self.agent_info().clone();
-
-        let current = SideConnectionInfo {
-            did: agent_info.pw_did.clone(),
-            recipient_keys: agent_info.recipient_keys().clone(),
-            routing_keys: agent_info.routing_keys()?,
-            service_endpoint: agent_info.agency_endpoint()?,
-            protocols: Some(self.connection_sm.get_protocols()),
-        };
-
-        let remote = match self.connection_sm.did_doc() {
-            Some(did_doc) =>
-                Some(SideConnectionInfo {
-                    did: did_doc.id.clone(),
-                    recipient_keys: did_doc.recipient_keys(),
-                    routing_keys: did_doc.routing_keys(),
-                    service_endpoint: did_doc.get_endpoint(),
-                    protocols: self.connection_sm.get_remote_protocols(),
-                }),
-            None => None
-        };
-
-        let connection_info = ConnectionInfo { my: current, their: remote };
-
-        let connection_info_json = serde_json::to_string(&connection_info)
-            .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidState, format!("Cannot serialize ConnectionInfo: {:?}", err)))?;
-
-        return Ok(connection_info_json);
     }
 }
 

@@ -1,2 +1,2 @@
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-pub const REVISION: &'static str = "+338ad01";
+pub const REVISION: &'static str = "+a26ad4f";

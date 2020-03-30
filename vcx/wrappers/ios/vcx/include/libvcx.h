@@ -33,6 +33,8 @@ typedef unsigned int vcx_bool_t;
 typedef unsigned int vcx_payment_handle_t;
 typedef unsigned int vcx_u32_t;
 typedef SInt32 VcxHandle;
+typedef const uint8_t vcx_data_t;
+typedef unsigned long long vcx_u64_t;
 
 typedef struct
 {
@@ -419,6 +421,35 @@ vcx_error_t vcx_set_logger( const void* context,
                                           const char* file,
                                           vcx_u32_t line),
                             void (*flushFn)(const void*  context));
+
+/// Retrieve author agreement set on the Ledger
+///
+/// #params
+///
+/// command_handle: command handle to map callback to user context.
+///
+/// cb: Callback that provides array of matching messages retrieved
+///
+/// #Returns
+/// Error code as a u32
+vcx_error_t vcx_get_ledger_author_agreement(vcx_u32_t command_handle,
+                                            void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
+
+/// Set some accepted agreement as active.
+///
+/// As result of succesfull call of this funciton appropriate metadata will be appended to each write request by `indy_append_txn_author_agreement_meta_to_request` libindy call.
+///
+/// #Params
+/// text and version - (optional) raw data about TAA from ledger.
+///     These parameters should be passed together.
+///     These parameters are required if hash parameter is ommited.
+/// hash - (optional) hash on text and version. This parameter is required if text and version parameters are ommited.
+/// acc_mech_type - mechanism how user has accepted the TAA
+/// time_of_acceptance - UTC timestamp when user has accepted the TAA
+///
+/// #Returns
+/// Error code as a u32
+vcx_error_t vcx_set_active_txn_author_agreement_meta(const char *text, const char *version, const char *hash, const char *acc_mech_type, vcx_u64_t type_);
 
 /** For testing purposes only */
 void vcx_set_next_agency_response(int);

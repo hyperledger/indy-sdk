@@ -4,34 +4,32 @@ set -e
 set -x
 
 if [ "$1" = "--help" ] ; then
-  echo "Usage: <package> <version> <type> <suffix> <repo> <host> <key> <package_type> <extra_flags>"
+  echo "Usage: <package> <version> <type> <repo> <host> <key> <package_type> <extra_flags>"
   return
 fi
 
 package="$1"
 version="$2"
 type="$3"
-suffix="$4"
-repo="$5"
-host="$6"
-key="$7"
-package_type="$8"
-extra_flags="$9"
+repo="$4"
+host="$5"
+key="$6"
+package_type="$7"
+extra_flags="$8"
 
 [ -z $package ] && exit 1
 [ -z $version ] && exit 2
 [ -z $type ] && exit 3
-[ -z $suffix ] && exit 4
 [ -z $repo ] && exit 5
 [ -z $host ] && exit 6
 [ -z $key ] && exit 7
 [ -z $package_type ] && exit 8
 
-sed -i -E -e 'H;1h;$!d;x' -e "s/$package ([(,),0-9,.]+)/$package ($version$suffix)/" debian/changelog
+sed -i -E -e "s/provides = \"${package} \(= [(,),0-9,.]+\)\"/provides = \"${package} \(= ${version}\)\"/g" Cargo.toml
 sed -i -e "s/RELEASE=\(%RELEASE%\)/RELEASE=$type/" debian/postinst
 
-dpkg-buildpackage -tc
+cargo deb --no-build --deb-version ${version}-${package_type} --variant ${package}-${package_type}
 
-mkdir debs &&  mv ../*.deb ./debs/
+mkdir debs &&  mv target/debian/*.deb ./debs/
 
 ./sovrin-packaging/upload_debs.py ./debs $repo $type --distro=$package_type --host $host --ssh-key $key $extra_flags

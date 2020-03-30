@@ -4,16 +4,16 @@ import { assert } from 'chai'
 import { initVcxTestMode, shouldThrow } from 'helpers/utils'
 import {
   downloadMessages,
+  endorseTransaction,
+  getLedgerAuthorAgreement,
   getLedgerFees,
   getVersion,
   provisionAgent,
+  setActiveTxnAuthorAgreementMeta,
   updateAgentInfo,
   updateInstitutionConfigs,
   updateMessages,
-  VCXCode,
-  setActiveTxnAuthorAgreementMeta,
-  getLedgerAuthorAgreement,
-  endorseTransaction
+  VCXCode
 } from 'src'
 import { errorMessage } from '../../src/utils/error-message'
 describe('utils:', () => {
@@ -106,9 +106,9 @@ describe('utils:', () => {
 
   describe('VCXCode:', () => {
     it('should have a one-to-one mapping for each code', async () => {
-      let max = 0
+      let max: number = 0
       for (const ec in VCXCode) {
-        if (typeof VCXCode[ec] === 'number' && Number(VCXCode[ec]) > max) {
+        if (Number(VCXCode[ec]) > max) {
           max = Number(VCXCode[ec])
         }
       }
@@ -131,7 +131,7 @@ describe('utils:', () => {
 
   describe('endorseTransaction:', () => {
     it('success', async () => {
-      let transaction = '{"req_id":1, "identifier": "EbP4aYNeTHL6q385GuVpRV", "signature": "gkVDhwe2", "endorser": "NcYxiDXkpYi6ov5FcYDi1e"}'
+      const transaction = '{"req_id":1, "identifier": "EbP4aYNeTHL6q385GuVpRV", "signature": "gkVDhwe2", "endorser": "NcYxiDXkpYi6ov5FcYDi1e"}'
       await endorseTransaction(transaction)
     })
   })

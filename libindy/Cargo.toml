@@ -1,6 +1,6 @@
 [package]
 name = "libindy"
-version = "1.14.2"
+version = "1.14.4"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 edition = "2018"
 
@@ -55,6 +55,7 @@ regex = "1.2.1"
 indy-api-types = { path = "./indy-api-types"}
 indy-utils = { path = "./indy-utils"}
 indy-wallet = { path = "./indy-wallet"}
+quote = "=1.0.2"
 
 [dependencies.uuid]
 version = "0.7.4"
@@ -80,3 +81,52 @@ dirs = "2.0.2"
 [[bench]]
 name = "wallet"
 harness = false
+
+[package.metadata.deb]
+extended-description = """\
+This is the official SDK for Hyperledger Indy, which provides a \
+distributed-ledger-based foundation for self-sovereign identity. \
+The major artifact of the SDK is a c-callable library; there are \
+also convenience wrappers for various programming languages. \
+All bugs, stories, and backlog for this project are managed through \
+Hyperledger's Jira in project IS (note that regular Indy tickets are \
+in the INDY project instead...). Also, join us on Jira's Rocket.Chat \
+at #indy-sdk to discuss."""
+section = "devel"
+priority = "optional"
+maintainer-scripts = "./debian"
+changelog = "./debian/changelog"
+
+[package.metadata.deb.variants.libindy-xenial]
+provides = "libindy (= 1.14.4)"
+name = "libindy"
+depends = "libzmq5, libsodium18, libssl1.0.0"
+assets = [
+    ["target/release/libindy.so", "usr/lib/", "644"],
+]
+
+[package.metadata.deb.variants.libindy-bionic]
+provides = "libindy (= 1.14.4)"
+name = "libindy"
+depends = "libzmq5, libsodium23, libssl1.1"
+assets = [
+    ["target/release/libindy.so", "usr/lib/", "644"],
+]
+
+[package.metadata.deb.variants.libindy-dev-xenial]
+provides = "libindy-dev (= 1.14.4)"
+name = "libindy-dev"
+depends = "libindy (= 1.14.4)"
+assets = [
+    ["include/*.h", "usr/include/indy/", "644"],
+    ["target/release/libindy.a", "usr/lib/", "644"],
+]
+
+[package.metadata.deb.variants.libindy-dev-bionic]
+provides = "libindy-dev (= 1.14.4)"
+name = "libindy-dev"
+depends = "libindy (= 1.14.4)"
+assets = [
+    ["include/*.h", "usr/include/indy/", "644"],
+    ["target/release/libindy.a", "usr/lib/", "644"],
+]

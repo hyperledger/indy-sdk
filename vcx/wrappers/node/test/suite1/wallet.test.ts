@@ -98,7 +98,7 @@ describe('Wallet:', () => {
 
   describe('signWithAddress:', () => {
     it('success', async () => {
-      const msg = Buffer.from('random string');
+      const msg = Buffer.from('random string')
       const sig = await Wallet.signWithAddress('pay:sov:1234', msg)
       assert.ok(sig)
     })
@@ -106,8 +106,8 @@ describe('Wallet:', () => {
 
   describe('verifyWithAddress:', () => {
     it('success', async () => {
-      const msg = Buffer.from('random string');
-      const sig = Buffer.from('random string');
+      const msg = Buffer.from('random string')
+      const sig = Buffer.from('random string')
       const valid = await Wallet.verifyWithAddress('pay:sov:1234', msg, sig)
       assert.ok(valid)
     })
@@ -143,22 +143,22 @@ describe('Wallet:', () => {
 
       config = '{"wallet_key":"","exported_wallet_path":"","backup_key":""}'
       error = await shouldThrow(async () => Wallet.import(config))
-      assert.equal(error.vcxCode, VCXCode.MISSING_WALLET_NAME)
+      assert.equal(error.vcxCode, VCXCode.INVALID_JSON)
       shutdownVcx(false)
 
       config = '{"wallet_name":"","exported_wallet_path":"","backup_key":""}'
       error = await shouldThrow(async () => Wallet.import(config))
-      assert.equal(error.vcxCode, VCXCode.MISSING_WALLET_KEY)
+      assert.equal(error.vcxCode, VCXCode.INVALID_JSON)
       shutdownVcx(false)
 
       config = '{"wallet_name":"","wallet_key":"","backup_key":""}'
       error = await shouldThrow(async () => Wallet.import(config))
-      assert.equal(error.vcxCode, VCXCode.MISSING_EXPORTED_WALLET_PATH)
+      assert.equal(error.vcxCode, VCXCode.INVALID_JSON)
       shutdownVcx(false)
 
       config = '{"wallet_name":"","wallet_key":"","exported_wallet_path":""}'
       error = await shouldThrow(async () => Wallet.import(config))
-      assert.equal(error.vcxCode, VCXCode.MISSING_BACKUP_KEY)
+      assert.equal(error.vcxCode, VCXCode.INVALID_JSON)
     })
   })
 

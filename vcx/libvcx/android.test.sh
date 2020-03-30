@@ -47,6 +47,10 @@ build_test_artifacts(){
     pushd ${WORKDIR}
 
         set -e
+        # The libc.so in the standalone toolchains does not have FORTIFIED_SOURCE compatible symbols.
+        # We need to copy the libc.so from platforms folder into the standalone toolchain.
+        #DEPS_TARGET_API_LEVEL=21 #FIXME remove it, should be same with TARGET_API. Probably deps (sodium and/or zmq) should be rebuilt
+        #cp "${ANDROID_NDK_ROOT}/platforms/android-${DEPS_TARGET_API_LEVEL}/arch-${TARGET_ARCH}/usr/lib/libc.so" "${TOOLCHAIN_DIR}/sysroot/usr/${TOOLCHAIN_SYSROOT_LIB}"
 
         cargo clean
 

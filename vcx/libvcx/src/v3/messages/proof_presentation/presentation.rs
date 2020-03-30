@@ -42,6 +42,18 @@ please_ack!(Presentation);
 threadlike!(Presentation);
 a2a_message!(Presentation);
 
+impl TryInto<Presentation> for ProofMessage {
+    type Error = VcxError;
+
+    fn try_into(self) -> Result<Presentation, Self::Error> {
+        let presentation = Presentation::create()
+            .set_presentations_attach(self.libindy_proof)?
+            .ask_for_ack();
+
+        Ok(presentation)
+    }
+}
+
 impl TryInto<ProofMessage> for Presentation {
     type Error = VcxError;
 

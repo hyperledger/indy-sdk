@@ -270,6 +270,7 @@ Almost all of them are optional and depend on the way you use Vcx (with agency o
 Can be one of:
     * "1.0" - use bundled messages, auth/anon cryptography.
     * "2.0" - use aries cross domain message format, pack/unpack functions. 
+    * "3.0" - use aries cross domain message format, pack/unpack functions and aries communication protocols (is alternative to the combination of settings "protocol_version":"2.0" and "communication_method":"aries"). 
     
 * `author_agreement` - accept and use transaction author agreement data containing the following fields:
     * `acceptanceMechanismType` - (string) mechanism how user has accepted the TAA 

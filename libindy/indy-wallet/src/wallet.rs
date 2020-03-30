@@ -76,7 +76,7 @@ impl EncryptedValue {
         let value_key = chacha20poly1305_ietf::gen_key();
         EncryptedValue::new(
             encrypt_as_not_searchable(data.as_bytes(), &value_key),
-            encrypt_as_not_searchable(&value_key[..], key)
+            encrypt_as_not_searchable(&value_key[..], key),
         )
     }
 
@@ -189,8 +189,10 @@ impl Wallet {
     }
 
     pub fn search<'a>(&'a self, type_: &str, query: &str, options: Option<&str>) -> IndyResult<WalletIterator> {
-        let parsed_query: Query = ::serde_json::from_str(query)
-            .map_err(|err| IndyError::from_msg(IndyErrorKind::WalletQueryError, err))?;
+        let parsed_query: Query = ::serde_json::from_str::<Query>(query)
+            .map_err(|err| IndyError::from_msg(IndyErrorKind::WalletQueryError, err))?
+            .optimise()
+            .unwrap_or_default();
 
         let encrypted_query = encrypt_query(parsed_query, &self.keys)?;
         let encrypted_type_ = encrypt_as_searchable(type_.as_bytes(), &self.keys.type_key, &self.keys.item_hmac_key);
@@ -1907,6 +1909,43 @@ mod tests {
             wallet.close().unwrap();
         }
         test::cleanup_wallet("wallet_search_works_for_nested");
+    }
+
+    #[test]
+    fn wallet_search_works_for_nested_empty() {
+        test::cleanup_wallet("wallet_search_works_for_nested_empty");
+        {
+            let mut wallet = _wallet("wallet_search_works_for_nested_empty");
+            wallet.add(_type1(), _id1(), _value1(), &_tags()).unwrap();
+
+            let query = json!({
+                "$and": [
+                    {
+                        "$or": []
+                    },
+                    {
+                        "$or": []
+                    }
+                ]
+            }).to_string();
+
+            let mut iterator = wallet.search(_type1(), &query, Some(&_search_options(true, false, false, true, false))).unwrap();
+
+            let expected_records = vec![
+                WalletRecord {
+                    type_: None,
+                    id: _id1().to_string(),
+                    value: Some(_value1().to_string()),
+                    tags: None,
+                },
+            ];
+
+            assert_eq!(_fetch_all(&mut iterator), expected_records);
+            assert!(iterator.get_total_count().unwrap().is_none());
+
+            wallet.close().unwrap();
+        }
+        test::cleanup_wallet("wallet_search_works_for_nested_empty");
     }
 
     fn _type1() -> &'static str {

@@ -104,13 +104,13 @@ extern void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_h
                withCompletion:(void (^)(NSError *error, NSString *msg_id))completion;
 
 - (void)connectionSignData:(VcxHandle)connectionHandle
-                   data:(NSData *)data
-                completion:(void (^)(NSError *, NSData *signature))completion;
+                  withData:(NSData *)dataRaw
+            withCompletion:(void (^)(NSError *error, NSData *signature_raw, vcx_u32_t signature_len))completion;
 
 - (void)connectionVerifySignature:(VcxHandle)connectionHandle
-                             data:(NSData *)data
-                        signature:(NSData *)signature
-                       completion:(void (^)(NSError *, BOOL *valid))completion;
+                         withData:(NSData *)dataRaw
+                withSignatureData:(NSData *)signatureRaw
+                   withCompletion:(void (^)(NSError *error, vcx_bool_t valid))completion;
 
 - (void)agentUpdateInfo:(NSString *)config
              completion:(void (^)(NSError *error))completion;
@@ -238,8 +238,19 @@ withConnectionHandle:(vcx_connection_handle_t)connection_handle
             pwdidsJson:(NSString *)pwdidsJson
             completion:(void (^)(NSError *error))completion;
 
+- (void)downloadAgentMessages:(NSString *)messageStatus
+                    uid_s:(NSString *)uid_s
+                    completion:(void (^)(NSError *error, NSString* messages))completion;
+
 - (void) getLedgerFees:(void(^)(NSError *error, NSString *fees)) completion;
 
+- (void) getTxnAuthorAgreement:(void(^)(NSError *error, NSString *authorAgreement)) completion;
+
+- (vcx_error_t) activateTxnAuthorAgreement:(NSString *)text
+                               withVersion:(NSString *)version
+                                  withHash:(NSString *)hash
+                             withMechanism:(NSString *)mechanism
+                             withTimestamp:(long)timestamp;
 @end
 
 #endif /* init_h */

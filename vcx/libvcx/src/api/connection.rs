@@ -702,11 +702,7 @@ pub extern fn vcx_connection_get_state(command_handle: CommandHandle,
 ///         "serviceEndpoint": "https://example.com/endpoint",
 ///         "recipientKeys": ["8HH5gYEeNc3z7PYXmd54d4x6qAfCNrqQqEB3nS7Zfu7K"],
 ///         "routingKeys": ["8HH5gYEeNc3z7PYXmd54d4x6qAfCNrqQqEB3nS7Zfu7K"],
-///         "protocols": [
-///             {"pid": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0", "roles": "Invitee"},
-///             ...
-///         ] - optional array. The set of protocol supported by remote side. Is filled after DiscoveryFeatures process was completed.
-/////    }
+///    }
 ///
 /// #Returns
 /// Error code as a u32
@@ -1288,6 +1284,69 @@ pub extern fn vcx_connection_get_their_pw_did(command_handle: u32,
                       command_handle, connection_handle, x, "null", source_id);
                 cb(command_handle, x.into(), ptr::null_mut());
             },
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
+/// Create a connection object in completed state based on provided remote details.
+/// Once object is created it's already ready for message exchange and no addition connection steps are required.
+///
+/// This method can be used for testing purposes to skip connection protocol steps.
+///
+/// Note: It's STRONGLY not recommended to use this method for real connection establishment.
+/// Note: This method can be used for `aries` communication method only.
+///     For other communication method it returns ActionNotSupported error.
+///
+/// #params
+///
+/// command_handle: command handle to map callback to user context.
+///
+/// label: Institution's unique ID for the connection
+///
+/// did: DID of remote side
+///
+/// verkey: Recipient Verkey recipient
+///
+/// endpoint: Endpoint of remote side
+///
+/// cb: Callback that provides success or failure of request
+///
+/// #Returns
+/// Error code as a u32
+#[no_mangle]
+pub extern fn vcx_connection_create_test_connection(command_handle: CommandHandle,
+                                                    label: *const c_char,
+                                                    did: *const c_char,
+                                                    verkey: *const c_char,
+                                                    endpoint: *const c_char,
+                                                    cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32, connection_handle: u32)>) -> u32 {
+    info!("vcx_connection_create_test_connection >>>");
+
+    check_useful_c_str!(did, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(verkey, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(label, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(endpoint, VcxErrorKind::InvalidOption);
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+
+    trace!("vcx_connection_create_test_connection(command_handle: {}, did: {}, verkey: {}, endpoint: {}), label: {:?}",
+           command_handle, did, verkey, endpoint, label);
+
+    spawn(move || {
+        match create_test_connection(did, verkey, label, endpoint) {
+            Ok(handle) => {
+                trace!("vcx_connection_create_test_connection(command_handle: {}, connection_handle: {}, rc: {})",
+                       command_handle, handle, error::SUCCESS.message);
+                cb(command_handle, error::SUCCESS.code_num, handle);
+            }
+            Err(x) => {
+                warn!("vcx_connection_create_test_connection(command_handle: {}, connection_handle: {}, rc: {})",
+                      command_handle, 0, x);
+                cb(command_handle, x.into(), 0);
+            }
         };
 
         Ok(())
