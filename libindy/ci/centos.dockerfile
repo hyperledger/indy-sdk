@@ -15,7 +15,8 @@ RUN \
            openssl-devel \
            sqlite-devel \
            libsodium-devel \
-           spectool
+           spectool \
+           rpmrebuild
 
 # install nodejs and npm
 RUN curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -

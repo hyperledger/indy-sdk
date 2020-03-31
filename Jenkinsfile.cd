@@ -1005,13 +1005,32 @@ def indyCliRpmPublishing(testEnv, env_name) {
 
 def rpmPublishing(testEnv, directory, packageName, version, inStashName) {
     echo 'Publish rpm files'
+
+    def releaseChannel = env.BRANCH_NAME
+    def release
+
+    if (releaseChannel == "rc") {
+        // prerelease format
+        //TODO verify that `version` contains the next stable version
+        release = "0.$env.BUILD_NUMBER"
+    } else {
+        // dev build format
+        version = "$version~$releaseChannel"
+        release = "$env.BUILD_NUMBER." +
+            Date().format('yyyymmdd') +
+            "git" + env.GIT_COMMIT.subString(0, 8)
+    }
+
     testEnv.inside {
         sh "cp ci/rpm-build-and-upload.sh $directory && chmod -R 755 $directory/*.sh"
 
         unstash name: inStashName
 
-        withCredentials([file(credentialsId: 'SovrinRepoSSHKey', variable: 'repo_key')]) {
-            sh "cd $directory && ./rpm-build-and-upload.sh $version $repo_key $env.BRANCH_NAME $env.BUILD_NUMBER $packageName"
+        withCredentials([
+            file(credentialsId: 'SovrinRepoSSHKey', variable: 'repo_key'),
+            string(credentialsId: 'jenkins-nexus-upload', variable: 'REPO_PASSWORD)]) {
+
+            sh "cd $directory && ./rpm-build-and-upload.sh $version $release $repo_key $REPO_PASSWORD $releaseChannel $packageName"
         }
     }
 }
@@ -1543,7 +1562,7 @@ def publishingRCtoStable() {
                 echo 'Moving MacOS RC artifacts to Stable: indy cli'
                 publishIndyCliMacOSFilesRCtoStable(libindyVersion)
 
-                echo 'Moving RC artifacts to Stable: Build docker image for wrappers publishing'
+                echo 'Moving RC artifacts to Stable: Build Ubuntu docker image for wrappers publishing'
                 testEnv = dockerBuild('indy-sdk', 'libindy/ci/ubuntu18.dockerfile libindy/ci')
 
                 env_name = Ubuntu18
@@ -1560,19 +1579,22 @@ def publishingRCtoStable() {
                 echo "Moving ${env_name} RC artifacts to Stable: libvcx"
                 publishLibvcxDebRCtoStable(testEnv, env_name)
 
+                echo 'Moving RC artifacts to Stable: Build Centos docker image for wrappers publishing'
+                testEnv = dockerBuild('indy-sdk', 'libindy/ci/centos.dockerfile libindy/ci')
+
                 env_name = Centos
 
                 echo "Moving ${env_name} RC artifacts to Stable: libindy"
-                publishLibindyCentosFilesRCtoStable(libindyVersion)
+                publishLibindyCentosFilesRCtoStable(testEnv, libindyVersion)
 
                 echo "Moving ${env_name} RC artifacts to Stable: libnullpay"
-                publishLibnullpayCentosFilesRCtoStable(libnullpayVersion)
+                publishLibnullpayCentosFilesRCtoStable(testEnv, libnullpayVersion)
 
                 echo "Moving ${env_name} RC artifacts to Stable: libvcx"
-                publishLibvcxCentosFilesRCtoStable(libvcxVersion)
+                publishLibvcxCentosFilesRCtoStable(testEnv, libvcxVersion)
 
                 echo "Moving ${env_name} RC artifacts to Stable: indy-cli"
-                publishIndyCliCentosFilesRCtoStable(libindyVersion)
+                publishIndyCliCentosFilesRCtoStable(testEnv, libindyVersion)
 
             } finally {
                 echo 'Moving RC artifacts to Stable: Cleanup'
@@ -1582,24 +1604,40 @@ def publishingRCtoStable() {
     }
 }
 
-def publishLibindyCentosFilesRCtoStable(version) {
-    publishCentosFilesRCtoStable("libindy", version)
+def publishLibindyCentosFilesRCtoStable(testEnv, version) {
+    publishCentosFilesRCtoStable(testEnv, "libindy", version)
 }
 
-def publishLibnullpayCentosFilesRCtoStable(version) {
-    publishCentosFilesRCtoStable("libnullpay", version)
+def publishLibnullpayCentosFilesRCtoStable(testEnv, version) {
+    publishCentosFilesRCtoStable(testEnv, "libnullpay", version)
 }
 
-def publishLibvcxCentosFilesRCtoStable(version) {
-    publishCentosFilesRCtoStable("libvcx", version)
+def publishLibvcxCentosFilesRCtoStable(testEnv, version) {
+    publishCentosFilesRCtoStable(testEnv, "libvcx", version)
 }
 
-def publishIndyCliCentosFilesRCtoStable(version) {
-    publishCentosFilesRCtoStable("indy-cli", version)
+def publishIndyCliCentosFilesRCtoStable(testEnv, version) {
+    publishCentosFilesRCtoStable(testEnv, "indy-cli", version)
 }
 
-def publishCentosFilesRCtoStable(packageName, version) {
+def publishCentosFilesRCtoStable(testEnv, packageName, version) {
+    // Old release process
     copyRcFilesToStable("rpm", packageName, version)
+
+    // New release process
+    testEnv.inside {
+        // FIXME: Because our Jenkins setup doesn't have a way to grab the
+        //        original rpm, (or at least, it is not obviously available),
+        //        we need to grab the published 'rc' rpm, and then rebuild it
+        //        with the proper release corresponding to stable.
+
+        sh "mkdir -p rpms/"
+        sh "wget -O temp_centos.rpm $env.SOVRIN_REPO_HOST/repository/rpm-dev/$packageName/rc/$packageName-$version-0.$env.BUILD_NUMBER.x86_64.rpm"
+        sh "rpmrebuild --package --directory rpms/ --change-spec-whole="sed -E -e 's/^Release:.*/Release: 1/'" temp_centos.rpm
+        withCredentials([string(credentialsId: 'SovrinRepoPassword', variable: 'REPO_PASSWORD)]) {
+            sh "curl --fail -u '$SOVRIN_REPO_USER:$REPO_PASSWORD' --upload-file rpms/*.rpm https://$SOVRIN_REPO_HOST/repository/rpm-stable/$packageName/stable/$packageName-$version-1.x86_64.rpm"
+        }
+    }
 }
 
 def publishLibindyWindowsFilesRCtoStable(version) {

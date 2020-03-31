@@ -1,6 +1,6 @@
 %global __os_install_post %{nil}
 %define _rpmdir @result_dir@
-%define _rpmfilename %%{NAME}.%%{VERSION}.rpm
+%define _rpmfilename %%{NAME}.%%{VERSION}.%%{RELEASE}.%{ARCH}.rpm
 
 Summary: Official SDK for Hyperledger Indy
 Name: libindy

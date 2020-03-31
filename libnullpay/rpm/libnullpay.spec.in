@@ -1,6 +1,6 @@
 %global __os_install_post %{nil}
 %define _rpmdir @result_dir@
-%define _rpmfilename %%{NAME}.%%{VERSION}.rpm
+%define _rpmfilename %%{NAME}.%%{VERSION}.%%{RELEASE}.%{ARCH}.rpm
 
 Summary: Null Payment Plugin for Indy SDK
 Name: libnullpay
