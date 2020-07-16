@@ -87,7 +87,7 @@ You can also run demo in mode where both Faber and Alice are using Postgres wall
 [instructions](https://github.com/hyperledger/indy-sdk/tree/master/experimental/plugins/postgres_storage) to
 compile postgres wallet plugin and startup local postgres docker container.
 
-Once yu have that ready, use these commands to start demo in postgres mode.
+Once you have that ready, use these commands to start demo in postgres mode.
 ```
 npm run demo:faber:pg
 ```

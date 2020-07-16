@@ -1,4 +1,4 @@
-import * as weak from 'weak'
+import * as weak from 'weak-napi'
 
 export abstract class GCWatcher {
   protected abstract _releaseFn: any

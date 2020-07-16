@@ -43,8 +43,10 @@ pub fn post_message(body_content: &Vec<u8>, url: &str) -> VcxResult<Vec<u8>> {
         info!("::Android code");
         set_ssl_cert_location();
     }
-    let client = reqwest::ClientBuilder::new().timeout(::utils::timeout::TimeoutUtils::long_timeout()).build()
-        .or(Err(VcxError::from_msg(VcxErrorKind::PostMessageFailed, "Preparing Post failed")))?;
+    let client = reqwest::ClientBuilder::new().timeout(::utils::timeout::TimeoutUtils::long_timeout()).build().map_err(|err| {
+        error!("error: {}", err);
+        VcxError::from_msg(VcxErrorKind::PostMessageFailed, format!("Building reqwest client failed: {:?}", err))
+    })?;
     debug!("Posting encrypted bundle to: \"{}\"", url);
 
     let mut response =

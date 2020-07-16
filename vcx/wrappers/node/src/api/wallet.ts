@@ -1,5 +1,5 @@
-import { Callback } from 'ffi'
-import * as ref from 'ref'
+import { Callback } from 'ffi-napi'
+import * as ref from 'ref-napi'
 
 import { VCXInternalError } from '../errors'
 import { rustAPI } from '../rustlib'

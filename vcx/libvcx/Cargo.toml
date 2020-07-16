@@ -41,7 +41,7 @@ regex = "1.1.0"
 rust-base58 = "0.0.4"
 rmp-serde = "0.13.7"
 base64 = "0.8.0"
-openssl = "0.10"
+openssl = { version = "0.10.29", features = ["vendored"] }
 num-traits = "0.2.0"
 indy = { version = "1.15.0", path = "../../wrappers/rust/" }
 indy-sys = { version = "1.15.0", path = "../../wrappers/rust/indy-sys/" }

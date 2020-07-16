@@ -1,5 +1,5 @@
 const { initRustAPI, initVcxWithConfig, provisionAgent } = require('./../dist/src')
-const ffi = require('ffi')
+const ffi = require('ffi-napi');
 const os = require('os')
 
 const extension = { darwin: '.dylib', linux: '.so', win32: '.dll' }

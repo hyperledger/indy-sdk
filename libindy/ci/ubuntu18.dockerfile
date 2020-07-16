@@ -35,7 +35,7 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
 RUN apt-get update && apt-get install -y maven
 
 # install nodejs and npm
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt-get install -y nodejs
 
 RUN apt-get install -y wget

@@ -1,7 +1,7 @@
 import '../module-resolver-helper'
 
 import { assert } from 'chai'
-import * as ffi from 'ffi'
+import * as ffi from 'ffi-napi'
 import * as os from 'os'
 import { initVcxTestMode, shouldThrow } from 'helpers/utils'
 import { initVcx, VCXCode, VCXRuntime } from 'src'

@@ -1,4 +1,4 @@
-import * as ffi from 'ffi'
+import * as ffi from 'ffi-napi'
 import '../module-resolver-helper'
 
 import { assert } from 'chai'
