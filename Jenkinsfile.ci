@@ -866,7 +866,7 @@ def shell(command) {
 }
 
 def setupRust() {
-    shell("rustup default 1.40.0")
+    shell("rustup default 1.44.1")
 }
 
 def setupBrewPackages() {

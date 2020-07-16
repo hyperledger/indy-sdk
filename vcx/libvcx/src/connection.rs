@@ -20,11 +20,14 @@ use utils::libindy::signus::create_and_store_my_did;
 use utils::libindy::crypto;
 use utils::json::mapped_key_rewrite;
 use utils::json::KeyMatch;
+use utils::libindy::cache;
 
 use v3::handlers::connection::connection::Connection as ConnectionV3;
+use v3::handlers::connection::connection::ConnectionOptions as ConnectionOptionsV3;
 use v3::handlers::connection::states::ActorDidExchangeState;
 use v3::handlers::connection::agent::AgentInfo;
-use v3::messages::connection::invite::Invitation as InvitationV3;
+use v3::messages::connection::invite::Invitation;
+
 use settings::ProtocolTypes;
 
 lazy_static! {
@@ -60,7 +63,7 @@ impl Default for ConnectionOptions {
 }
 
 impl ConnectionOptions {
-    pub fn from_opt_str(options: Option<String>) -> VcxResult<ConnectionOptions> {
+    pub fn from_opt_str(options: &Option<String>) -> VcxResult<ConnectionOptions> {
         Ok(
             match options.as_ref().map(|opt| opt.trim()) {
                 None => ConnectionOptions::default(),
@@ -702,10 +705,12 @@ pub fn create_connection(source_id: &str) -> VcxResult<u32> {
 pub fn create_connection_with_invite(source_id: &str, details: &str) -> VcxResult<u32> {
     debug!("create connection {} with invite {}", source_id, details);
 
-    // Invitation of new format -- redirect to v3 folder
-    if let Ok(invitation) = serde_json::from_str::<InvitationV3>(details) {
-        let connection = Connections::V3(ConnectionV3::create_with_invite(source_id, invitation)?);
-        return store_connection(connection);
+    if let Ok(msg) = serde_json::from_str::<A2AMessage>(details) {
+        match msg {
+            A2AMessage::ConnectionInvitationPairwise(invite) => return store_connection(Connections::V3(ConnectionV3::create_with_invite(source_id, Invitation::Pairwise(invite))?)),
+            A2AMessage::ConnectionInvitationPublic(invite) => return store_connection(Connections::V3(ConnectionV3::create_with_invite(source_id, Invitation::Public(invite))?)),
+            _ => {}
+        }
     }
 
     let details: Value = serde_json::from_str(&details)
@@ -734,6 +739,29 @@ pub fn create_connection_with_invite(source_id: &str, details: &str) -> VcxResul
     connection.set_state(VcxStateType::VcxStateRequestReceived);
 
     store_connection(Connections::V1(connection))
+}
+
+pub fn create_connection_with_connection_request_message(source_id: &str, request: &str) -> VcxResult<u32> {
+    debug!("create connection {} with request message {}", source_id, request);
+
+    if settings::is_aries_protocol_set() {
+        let connection = Connections::V3(ConnectionV3::create_connection_with_connection_request_message(source_id, request)?);
+        return store_connection(connection)
+    }
+
+    Err(VcxError::from_msg(VcxErrorKind::NotReady, "Not implemented for legacy protocol"))
+}
+
+pub fn create_connection_with_obtained_connection_request(source_id: &str) -> VcxResult<Option<u32>> {
+    debug!("create connection {} from obtained request", source_id);
+
+    if settings::is_aries_protocol_set() {
+        match ConnectionV3::create_connection_with_obtained_connection_request(source_id)? {
+            Some(connection) => return store_connection(Connections::V3(connection)).map(|handle| Some(handle)),
+            None => return Ok(None)
+        }
+    };
+    Err(VcxError::from_msg(VcxErrorKind::NotReady, "Not implemented for legacy protocol"))
 }
 
 pub fn parse_acceptance_details(message: &Message) -> VcxResult<SenderDetail> {
@@ -962,18 +990,19 @@ pub fn delete_connection(handle: u32) -> VcxResult<u32> {
 }
 
 pub fn connect(handle: u32, options: Option<String>) -> VcxResult<u32> {
-    let options_obj: ConnectionOptions = ConnectionOptions::from_opt_str(options)?;
 
     CONNECTION_MAP.get_mut(handle, |connection| {
         match connection {
             Connections::V1(ref mut connection) => {
+                let options_obj: ConnectionOptions = ConnectionOptions::from_opt_str(&options)?;
                 debug!("establish connection {}", connection.source_id);
                 connection.update_agent_profile(&options_obj)?;
                 connection.create_agent_pairwise()?;
                 connection.connect(&options_obj)
             }
             Connections::V3(ref mut connection) => {
-                connection.connect()?;
+                let options_obj: ConnectionOptionsV3 = ConnectionOptionsV3::from_opt_str(&options)?;
+                connection.connect(options_obj)?;
                 Ok(error::SUCCESS.code_num)
             }
         }
@@ -1076,6 +1105,12 @@ pub fn get_invite_details(handle: u32, abbreviated: bool) -> VcxResult<String> {
             }
         }
     }).or(Err(VcxError::from(VcxErrorKind::InvalidConnectionHandle)))
+}
+
+pub fn get_public_invite_details() -> VcxResult<String> {
+    let invite: A2AMessage = cache::get_from_cache("pub_invite", "0")?;
+    serde_json::to_string(&invite)
+        .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidInviteDetail, format!("Cannot serialize public invitation: {}", err)))
 }
 
 pub fn set_invite_details(handle: u32, invite_detail: &InviteDetail) -> VcxResult<()> {

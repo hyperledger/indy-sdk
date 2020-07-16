@@ -1,8 +1,9 @@
-use v3::messages::connection::invite::Invitation;
+use v3::messages::connection::invite::{Invitation, PairwiseInvitation};
 
 use error::prelude::*;
 use url::Url;
 use messages::validation::validate_verkey;
+use utils::libindy::ledger;
 
 pub const CONTEXT: &str = "https://w3id.org/did/v1";
 pub const KEY_TYPE: &str = "Ed25519VerificationKey2018";
@@ -86,60 +87,38 @@ impl DidDoc {
 
     pub fn set_keys(&mut self, recipient_keys: Vec<String>, routing_keys: Vec<String>) {
         let mut id = 0;
+        let mut public_key = Vec::new();
+        let controller = String::from(&self.id); // TODO: Will not be a valid did if created from pairwise invitation
 
         recipient_keys
             .iter()
             .for_each(|key| {
-                id += 1;
-
-                let key_id = id.to_string();
-                let key_reference = DidDoc::_build_key_reference(&self.id, &key_id);
-
-                self.public_key.push(
-                    Ed25519PublicKey {
-                        id: key_id,
-                        type_: String::from(KEY_TYPE),
-                        controller: self.id.clone(),
-                        public_key_base_58: key.clone(),
-                    });
-
-                self.authentication.push(
-                    Authentication {
-                        type_: String::from(KEY_AUTHENTICATION_TYPE),
-                        public_key: key_reference.clone(),
-                    });
-
-
                 self.service.get_mut(0)
                     .map(|service| {
-                        service.recipient_keys.push(key_reference);
+                        service.recipient_keys.push(key.to_string());
+                        public_key.push(
+                            Ed25519PublicKey {
+                                id: id.to_string(),
+                                type_: KEY_TYPE.to_string(),
+                                controller: controller.clone(),
+                                public_key_base_58: String::from(key)
+                            });
+                        id += 1;
                         service
                     });
             });
+        self.public_key = public_key;
 
         routing_keys
             .iter()
             .for_each(|key| {
-                // Note: comment lines 123 - 134 and append key instead key_reference to be compatible with Streetcred
-//                id += 1;
-//
-//                let key_id = id.to_string();
-//                let key_reference = DidDoc::_build_key_reference(&self.id, &key_id);
-//
-//                self.public_key.push(
-//                    Ed25519PublicKey {
-//                        id: key_id,
-//                        type_: String::from(KEY_TYPE),
-//                        controller: self.id.clone(),
-//                        public_key_base_58: key.clone(),
-//                    });
-
                 self.service.get_mut(0)
                     .map(|service| {
                         service.routing_keys.push(key.to_string());
                         service
                     });
             });
+
     }
 
     pub fn validate(&self) -> VcxResult<()> {
@@ -290,20 +269,33 @@ impl Default for Service {
 }
 
 impl From<Invitation> for DidDoc {
-    fn from(invite: Invitation) -> DidDoc {
+    fn from(invitation: Invitation) -> DidDoc {
         let mut did_doc: DidDoc = DidDoc::default();
-        did_doc.set_id(invite.id.0.clone()); // TODO: FIXME DIDDoc id always MUST be a valid DID
-        did_doc.set_service_endpoint(invite.service_endpoint.clone());
-        did_doc.set_keys(invite.recipient_keys, invite.routing_keys);
+        let (service_endpoint, recipient_keys, routing_keys) = match invitation {
+            Invitation::Public(invitation) => {
+                did_doc.set_id(invitation.did.clone());
+                let service = ledger::get_service(&invitation.did).unwrap_or_else(|err| {
+                    error!("Failed to obtain service definition from the ledger: {}", err);
+                    Service::default()                
+                });
+                (service.service_endpoint, service.recipient_keys, service.routing_keys)
+            },
+            Invitation::Pairwise(invitation) => {
+                did_doc.set_id(invitation.id.0.clone());
+                (invitation.service_endpoint.clone(), invitation.recipient_keys, invitation.routing_keys)
+            }
+        };
+        did_doc.set_service_endpoint(service_endpoint);
+        did_doc.set_keys(recipient_keys, routing_keys);
         did_doc
     }
 }
 
-impl From<DidDoc> for Invitation {
-    fn from(did_doc: DidDoc) -> Invitation {
+impl From<DidDoc> for PairwiseInvitation {
+    fn from(did_doc: DidDoc) -> PairwiseInvitation {
         let (recipient_keys, routing_keys) = did_doc.resolve_keys();
 
-        Invitation::create()
+        PairwiseInvitation::create()
             .set_id(did_doc.id.clone())
             .set_service_endpoint(did_doc.get_endpoint())
             .set_recipient_keys(recipient_keys)
@@ -314,8 +306,10 @@ impl From<DidDoc> for Invitation {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use settings;
+    use utils::devsetup::*;
     use v3::messages::a2a::MessageId;
-    use v3::messages::connection::invite::tests::_invitation;
+    use v3::messages::connection::invite::tests::{ _invitation, _public_invitation };
 
     pub fn _key_1() -> String {
         String::from("GJ1SzoWzavQYfNL9XkaJdrQejfztN4XqdsiV4ct3LXKL")
@@ -343,6 +337,10 @@ pub mod tests {
 
     pub fn _routing_keys() -> Vec<String> {
         vec![_key_2(), _key_3()]
+    }
+    
+    pub fn _did() -> String {
+        String::from("VsKV7grR1BUE29mG2Fm2kX")
     }
 
     pub fn _key_reference_1() -> String {
@@ -513,6 +511,23 @@ pub mod tests {
         did_doc.set_service_endpoint(_service_endpoint());
         did_doc.set_keys(_recipient_keys(), _routing_keys());
 
-        assert_eq!(did_doc, DidDoc::from(_invitation()))
+        assert_eq!(did_doc, DidDoc::from(Invitation::Pairwise(_invitation())))
+    }
+
+    #[test]
+    #[cfg(feature = "pool_tests")]
+    fn test_did_doc_from_public_invitation_works() {
+        // TODO: Either make part of ledger tests, or setup ledger mocks
+        let _setup = SetupLibraryWalletPoolZeroFees::init();
+
+        let mut did_doc = DidDoc::default();
+        did_doc.set_id(MessageId::id().0);
+        did_doc.set_service_endpoint(_service_endpoint());
+        did_doc.set_keys(_recipient_keys(), _routing_keys());
+
+        let public_did = settings::get_config_value(settings::CONFIG_INSTITUTION_DID).unwrap();
+        ledger::add_service(&public_did, &did_doc.service[0]).unwrap();
+        let did_doc_from_invite = DidDoc::from(Invitation::Public(_public_invitation(&public_did)));
+        assert_eq!(did_doc, did_doc_from_invite)
     }
 }

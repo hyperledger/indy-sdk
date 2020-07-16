@@ -1,11 +1,12 @@
 use messages::get_message::Message;
 use error::prelude::*;
 
-use v3::handlers::connection::states::{DidExchangeSM, Actor, ActorDidExchangeState};
+use v3::handlers::connection::states::{DidExchangeSM, Actor, ActorDidExchangeState, DidExchangeState, InvitedState};
 use v3::handlers::connection::messages::DidExchangeMessages;
 use v3::handlers::connection::agent::AgentInfo;
 use v3::messages::a2a::A2AMessage;
-use v3::messages::connection::invite::Invitation;
+use v3::messages::connection::invite::{Invitation, PairwiseInvitation, PublicInvitation};
+use v3::messages::connection::request::Request;
 
 use std::collections::HashMap;
 use v3::messages::connection::did_doc::DidDoc;
@@ -16,6 +17,40 @@ use v3::messages::discovery::disclose::ProtocolDescriptor;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Connection {
     connection_sm: DidExchangeSM
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionOptions {
+    #[serde(default)]
+    pub connection_type: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    pub use_public_did: Option<bool>,
+}
+
+impl Default for ConnectionOptions {
+    fn default() -> Self {
+        ConnectionOptions {
+            connection_type: None,
+            phone: None,
+            use_public_did: None,
+        }
+    }
+}
+
+impl ConnectionOptions {
+    pub fn from_opt_str(options: &Option<String>) -> VcxResult<ConnectionOptions> {
+        Ok(
+            match options.as_ref().map(|opt| opt.trim()) {
+                None => ConnectionOptions::default(),
+                Some(opt) if opt.is_empty() => ConnectionOptions::default(),
+                Some(opt) => {
+                    serde_json::from_str(&opt)
+                        .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidOption, format!("Cannot deserialize ConnectionOptions: {}", err)))?
+                }
+            }
+        )
+    }
 }
 
 impl Connection {
@@ -41,6 +76,63 @@ impl Connection {
         connection.process_invite(invitation)?;
 
         Ok(connection)
+    }
+
+    pub fn create_connection_with_connection_request_message(source_id: &str, request_msg: &str) -> VcxResult<Connection> {
+        let request_msg: A2AMessage = serde_json::from_str(request_msg)
+            .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot deserialize connection request message: {:?}", err)))?;
+        match request_msg {
+            request @ A2AMessage::ConnectionRequest(_) => match request.into() {
+               DidExchangeMessages::ExchangeRequestReceived(request) => Connection::create_connection_with_connection_request(source_id, request),
+                _ => Err(VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot deserialize connection request message")))
+            },
+            _ => Err(VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot deserialize connection request message")))
+        }
+    }
+
+    fn create_connection_with_connection_request(source_id: &str, request: Request) -> VcxResult<Connection> {
+        trace!("Connection::create_with_conn_request >>> source_id: {}, request: {:?}", source_id, request);
+
+        let pub_agent = AgentInfo::get_pub_agent()?;
+
+        let pub_invite = PublicInvitation::create()
+                             .set_label(source_id.to_string())
+                             .set_public_did(String::from(&pub_agent.pw_did));
+
+        let mut connection = Connection {
+            connection_sm: DidExchangeSM::from(String::from(source_id), pub_agent, ActorDidExchangeState::Inviter(DidExchangeState::Invited(InvitedState { invitation: Invitation::Public(pub_invite) })))
+        };
+
+        connection.process_conn_request(request)?;
+
+        Ok(connection)
+    }
+
+    pub fn create_connection_with_obtained_connection_request(source_id: &str) -> VcxResult<Option<Connection>> {
+        let request = match Connection::find_request_message_to_handle()? {
+            Some(message) => match message.into() {
+               DidExchangeMessages::ExchangeRequestReceived(request) => Some(request),
+               _ => None
+            }
+            None => None
+        };
+        match request {
+            Some(request) => Connection::create_connection_with_connection_request(&source_id, request).map(|conn| Ok(Some(conn)))?,
+            None => Ok(None)
+        }
+    }
+
+    fn find_request_message_to_handle() -> VcxResult<Option<A2AMessage>> {
+        for (_, message) in AgentInfo::get_pub_agent()?.get_messages()? {
+            match message {
+                request @ A2AMessage::ConnectionRequest(_) => {
+                    debug!("Inviter received ConnectionRequest message");
+                    return Ok(Some(request));
+                }
+              _ => {}
+            }
+        }
+        Ok(None)
     }
 
     pub fn source_id(&self) -> String { self.connection_sm.source_id().to_string() }
@@ -70,13 +162,21 @@ impl Connection {
         self.step(DidExchangeMessages::InvitationReceived(invitation))
     }
 
+    pub fn process_conn_request(&mut self, request: Request) -> VcxResult<()> {
+        trace!("Connection::process_conn_request >>> request: {:?}", request);
+        self.step(DidExchangeMessages::ExchangeRequestReceived(request))
+    }
+
+
     pub fn get_invite_details(&self) -> VcxResult<String> {
         trace!("Connection::get_invite_details >>>");
         if let Some(invitation) = self.connection_sm.get_invitation() {
-            return Ok(json!(invitation.to_a2a_message()).to_string());
+            match invitation {
+                Invitation::Pairwise(invitation) => Ok(json!(invitation.to_a2a_message()).to_string()),
+                Invitation::Public(invitation) => Ok(json!(invitation.to_a2a_message()).to_string())
+            }
         } else if let Some(did_doc) = self.connection_sm.did_doc() {
-            let info = json!(Invitation::from(did_doc));
-            return Ok(info.to_string());
+            Ok(json!(PairwiseInvitation::from(did_doc).to_a2a_message()).to_string())
         } else {
             Ok(json!({}).to_string())
         }
@@ -86,8 +186,8 @@ impl Connection {
         self.connection_sm.actor()
     }
 
-    pub fn connect(&mut self) -> VcxResult<()> {
-        trace!("Connection::connect >>> source_id: {}", self.connection_sm.source_id());
+    pub fn connect(&mut self, options: ConnectionOptions) -> VcxResult<()> {
+        trace!("Connection::connect >>> source_id: {}, options: {:?}", self.connection_sm.source_id(), options);
         self.step(DidExchangeMessages::Connect())
     }
 

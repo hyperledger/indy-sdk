@@ -16,6 +16,12 @@ use utils::libindy::signus::create_and_store_my_did;
 use settings;
 use error::prelude::*;
 use settings::ProtocolTypes;
+use object_cache::ObjectCache;
+
+// TODO: No need to use map
+lazy_static! {
+    static ref AGENT_INFO_MAP: ObjectCache<AgentInfo> = Default::default();
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
@@ -50,6 +56,28 @@ impl AgentInfo {
         let (agent_did, agent_vk) = create_agent_keys("", &pw_did, &pw_vk)?;
 
         Ok(AgentInfo { pw_did, pw_vk, agent_did, agent_vk })
+    }
+
+    pub fn get_pub_agent() -> VcxResult<AgentInfo> {
+        trace!("Agent::get_pub_agent >>>");
+
+        // TODO: No need to clone, we will read only
+        AGENT_INFO_MAP.get(0, |agent_info| Ok(agent_info.clone()))
+    }
+
+    pub fn create_pub_agent() -> VcxResult<AgentInfo> {
+        trace!("Agent::create_pub_agent >>>");
+
+        let method_name = settings::get_config_value(settings::CONFIG_DID_METHOD).ok();
+        let (pw_did, pw_vk) = create_and_store_my_did(None, method_name.as_ref().map(String::as_str))?;
+
+        let (agent_did, agent_vk) = create_agent_keys("pub_agent", &pw_did, &pw_vk)?;
+
+        let agent_info = AgentInfo { pw_did, pw_vk, agent_did, agent_vk };
+
+        AGENT_INFO_MAP.insert(0, agent_info.clone())?;
+
+        Ok(agent_info)
     }
 
     pub fn agency_endpoint(&self) -> VcxResult<String> {

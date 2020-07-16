@@ -13,6 +13,7 @@ const { runScript } = require('./script-comon')
 const utime = Math.floor(new Date() / 1000)
 const optionalWebhook = 'http://localhost:7209/notifications/alice'
 
+// TODO: Alice uses the same seed as faber, will overwrite faber's service record
 const provisionConfig = {
   agency_url: 'http://localhost:8080',
   agency_did: 'VsKV7grR1BUE29mG2Fm2kX',
@@ -65,11 +66,11 @@ async function runAlice (options) {
   logger.info('#10 Convert to valid json and string and create a connection to faber')
   const connectionToFaber = await Connection.createWithInvite({ id: 'faber', invite: JSON.stringify(jdetails) })
   await connectionToFaber.connect({ data: '{"use_public_did": true}' })
-  let connectionstate = await connectionToFaber.getState()
-  while (connectionstate !== StateType.Accepted) {
+  let connectionState = await connectionToFaber.getState()
+  while (connectionState !== StateType.Accepted) {
     await sleepPromise(2000)
     await connectionToFaber.updateState()
-    connectionstate = await connectionToFaber.getState()
+    connectionState = await connectionToFaber.getState()
   }
 
   logger.info('#11 Wait for faber.py to issue a credential offer')

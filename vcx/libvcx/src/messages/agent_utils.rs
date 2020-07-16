@@ -10,6 +10,12 @@ use utils::libindy::signus::create_and_store_my_did;
 use utils::option_util::get_or_default;
 use error::prelude::*;
 use utils::httpclient::AgencyMock;
+use utils::libindy::ledger::add_service;
+use utils::libindy::cache;
+
+use v3::handlers::connection::agent::AgentInfo;
+use v3::messages::connection::invite::PublicInvitation;
+use v3::messages::connection::did_doc::Service;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Connect {
@@ -309,7 +315,9 @@ pub fn connect_register_provision(config: &str) -> VcxResult<String> {
         settings::ProtocolTypes::V4 => onboarding_v2(&my_did, &my_vk, &my_config.agency_did)?,
     };
 
+    debug!("***Constructing final config");
     let config = get_final_config(&my_did, &my_vk, &agent_did, &agent_vk, &wallet_name, &my_config)?;
+    settings::set_config_value(settings::CONFIG_REMOTE_TO_SDK_DID, &agent_did);
 
     wallet::close_wallet()?;
 
@@ -512,6 +520,33 @@ pub fn send_message_to_agency(message: &A2AMessage, did: &str) -> VcxResult<Vec<
         .map_err(|err| err.map(VcxErrorKind::InvalidHttpResponse, error::INVALID_HTTP_RESPONSE.message))?;
 
     parse_response_from_agency(&response, &settings::get_protocol_type())
+}
+
+pub fn create_pub_agent() -> VcxResult<()> {
+    debug!("***Creating public agent");
+
+    let pub_did = settings::get_config_value(settings::CONFIG_INSTITUTION_DID)?;
+    let agent_info: AgentInfo = AgentInfo::create_pub_agent()?;
+
+    let agency_url = settings::get_config_value(settings::CONFIG_AGENCY_ENDPOINT)?;
+
+    debug!("***Writing agency endpoint and routing keys to the ledger");
+    let service = Service {
+        service_endpoint: String::from(format!("{}/agency/msg", agency_url)),
+        recipient_keys: agent_info.recipient_keys(),
+        routing_keys: agent_info.routing_keys()?,
+        ..Default::default()
+    };
+
+    debug!("***Writing service to the ledger: {:?}", service);
+    add_service(&pub_did, &service)?;
+
+    let label = settings::get_config_value(settings::CONFIG_INSTITUTION_NAME)?;
+    let pub_invite = PublicInvitation::create().set_label(label).set_public_did(pub_did.to_string()).to_a2a_message();
+
+    cache::save_to_cache("pub_invite", "0", &pub_invite)?;
+
+    Ok(())
 }
 
 #[cfg(test)]

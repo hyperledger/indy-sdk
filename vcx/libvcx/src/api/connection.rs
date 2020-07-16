@@ -274,6 +274,69 @@ pub extern fn vcx_connection_create_with_invite(command_handle: CommandHandle,
     error::SUCCESS.code_num
 }
 
+#[no_mangle]
+pub extern fn vcx_connection_create_with_connection_request_message(command_handle: CommandHandle,
+                                                source_id: *const c_char,
+                                                request_msg: *const c_char,
+                                                cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32, connection_handle: u32)>) -> u32 {
+    info!("vcx_connection_create_with_connection_request_message >>>");
+
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(source_id, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(request_msg, VcxErrorKind::InvalidOption);
+    trace!("vcx_connection_create_with_connection_request_message(command_handle: {}, source_id: {})", command_handle, source_id);
+    spawn(move || {
+        match create_connection_with_connection_request_message(&source_id, &request_msg) {
+            Ok(handle) => {
+                trace!("vcx_connection_create_with_with_connection_request_message_cb(command_handle: {}, rc: {}, handle: {}) source_id: {}",
+                       command_handle, error::SUCCESS.message, handle, source_id);
+                cb(command_handle, error::SUCCESS.code_num, handle);
+            }
+            Err(x) => {
+                warn!("vcx_connection_create_with_with_connection_request_message_cb(command_handle: {}, rc: {}, handle: {}) source_id: {}",
+                      command_handle, x, 0, source_id);
+                cb(command_handle, x.into(), 0);
+            }
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
+#[no_mangle]
+pub extern fn vcx_connection_create_with_obtained_connection_request(command_handle: CommandHandle,
+                                                source_id: *const c_char,
+                                                cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32, connection_handle: u32)>) -> u32 {
+    info!("vcx_connection_create_with_obtained_connection_request >>>");
+
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+    check_useful_c_str!(source_id, VcxErrorKind::InvalidOption);
+    trace!("vcx_connection_create_with_obtained_connection_request(command_handle: {}, source_id: {})", command_handle, source_id);
+    spawn(move || {
+        match create_connection_with_obtained_connection_request(&source_id) {
+            Ok(handle) => {
+                trace!("vcx_connection_create_with_obtained_connection_request_cb(command_handle: {}, rc: {}, handle: {:?}) source_id: {}",
+                       command_handle, error::SUCCESS.message, handle, source_id);
+                match handle {
+                    Some(handle) => cb(command_handle, error::SUCCESS.code_num, handle),
+                    None => cb(command_handle, error::NO_REQUEST_RECEIVED.code_num, 0)
+                }
+            }
+            Err(x) => {
+                warn!("vcx_connection_create_with_obtained_connection_request_cb(command_handle: {}, rc: {}, handle: {}) source_id: {}",
+                      command_handle, x, 0, source_id);
+                cb(command_handle, x.into(), 0);
+            }
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
 /// Establishes connection between institution and its user
 ///
 /// # Params
@@ -739,6 +802,34 @@ pub extern fn vcx_connection_invite_details(command_handle: CommandHandle,
             Err(x) => {
                 warn!("vcx_connection_invite_details_cb(command_handle: {}, connection_handle: {}, rc: {}, details: {}, source_id: {:?})",
                       command_handle, connection_handle, x, "null", source_id);
+                cb(command_handle, x.into(), ptr::null_mut());
+            }
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
+#[no_mangle]
+pub extern fn vcx_connection_public_invite_details(command_handle: CommandHandle,
+                                            cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32, request: *const c_char)>) -> u32 {
+    info!("vcx_connection_public_invite_details >>>");
+
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+
+    spawn(move || {
+        match get_public_invite_details() {
+            Ok(str) => {
+                trace!("vcx_connection_public_invite_details_cb(command_handle: {}, rc: {}, request: {})",
+                       command_handle, error::SUCCESS.message, str);
+                let msg = CStringUtils::string_to_cstring(str);
+                cb(command_handle, error::SUCCESS.code_num, msg.as_ptr());
+            }
+            Err(x) => {
+                warn!("vcx_connection_public_invite_details_cb(command_handle: {}, rc: {}, request: {})",
+                      command_handle, x, "null");
                 cb(command_handle, x.into(), ptr::null_mut());
             }
         };

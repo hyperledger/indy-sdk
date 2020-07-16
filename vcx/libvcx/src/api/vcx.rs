@@ -9,6 +9,7 @@ use utils::threadpool::spawn;
 use error::prelude::*;
 use indy::{INVALID_WALLET_HANDLE, CommandHandle};
 use utils::libindy::pool::init_pool;
+use messages::agent_utils;
 
 /// Initializes VCX with config settings
 ///
@@ -136,7 +137,7 @@ fn _finish_init(command_handle: CommandHandle, cb: extern fn(xcommand_handle: Co
             match init_pool() {
                 Ok(()) => (),
                 Err(e) => {
-                    error!("Init Pool Error {}.", e);
+                    error!("Init Pool Error: {}", e);
                     cb(command_handle, e.into());
                     return Ok(());
                 }
@@ -147,7 +148,18 @@ fn _finish_init(command_handle: CommandHandle, cb: extern fn(xcommand_handle: Co
                                   storage_config.as_ref().map(String::as_str), storage_creds.as_ref().map(String::as_str)) {
             Ok(_) => debug!("Init Wallet Successful"),
             Err(e) => {
-                error!("Init Wallet Error {}.", e);
+                error!("Init Wallet Error: {}", e);
+                cb(command_handle, e.into());
+            }
+        };
+
+        match agent_utils::create_pub_agent() {
+            Ok(_) => {
+                debug!("Create public agent successful");
+                cb(command_handle, error::SUCCESS.code_num);
+            }
+            Err(e) => {
+                error!("Error creating public agent: {}", e);
                 cb(command_handle, e.into());
                 return Ok(());
             }

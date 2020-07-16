@@ -128,6 +128,15 @@ vcx_error_t vcx_connection_create_with_invite(vcx_command_handle_t command_handl
                                            const char *invite_details,
                                            void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_connection_handle_t));
 
+vcx_error_t vcx_connection_create_with_connection_request_message(vcx_command_handle_t command_handle,
+                                           const char *source_id,
+                                           const char *request_msg,
+                                           void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_connection_handle_t));
+
+vcx_error_t vcx_connection_create_with_obtained_connection_request(vcx_command_handle_t command_handle,
+                                           const char *source_id,
+                                           void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_connection_handle_t));
+
 // Delete a Connection object and release its handle
 //
 // #Params
@@ -188,6 +197,10 @@ vcx_error_t vcx_connection_get_state(vcx_command_handle_t command_handle,
 vcx_error_t vcx_connection_invite_details(vcx_command_handle_t command_handle,
                                        vcx_connection_handle_t connection_handle,
                                        vcx_bool_t abbreviated,
+                                       void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
+
+vcx_error_t vcx_connection_public_invite_details(vcx_command_handle_t command_handle,
+                                       vcx_connection_handle_t connection_handle,
                                        void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
 
 /// Get the information about the connection state.

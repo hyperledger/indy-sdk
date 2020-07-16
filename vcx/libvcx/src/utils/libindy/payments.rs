@@ -414,26 +414,15 @@ fn _address_balance(address: &Vec<UTXO>) -> u64 {
 }
 
 pub fn inputs(cost: u64) -> VcxResult<(u64, Vec<String>, String)> {
-    let mut inputs: Vec<String> = Vec::new();
-    let mut balance = 0;
-    let mut refund_address = String::new();
+    let inputs: Vec<String> = Vec::new();
+    let balance = 0;
+    let refund_address = String::new();
 
     let wallet_info: WalletInfo = get_wallet_token_info()?;
 
     if wallet_info.balance < cost {
         warn!("not enough tokens in wallet to pay: balance: {}, cost: {}", wallet_info.balance, cost);
         return Err(VcxError::from_msg(VcxErrorKind::InsufficientTokenAmount, format!("Not enough tokens in wallet to pay: balance: {}, cost: {}", wallet_info.balance, cost)));
-    }
-
-    // Todo: explore 'smarter' ways of selecting utxos ie bitcoin algorithms etc
-    'outer: for address in wallet_info.addresses.iter() {
-        refund_address = address.address.clone();
-        'inner: for utxo in address.utxo.iter() {
-            if balance < cost {
-                inputs.push(utxo.source.clone().ok_or(VcxErrorKind::InsufficientTokenAmount)?.to_string());
-                balance += utxo.amount;
-            } else { break 'outer }
-        }
     }
 
     let remainder = balance - cost;

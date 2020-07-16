@@ -3,7 +3,7 @@ use api::VcxStateType;
 use v3::handlers::connection::messages::DidExchangeMessages;
 use v3::messages::a2a::A2AMessage;
 use v3::handlers::connection::agent::AgentInfo;
-use v3::messages::connection::invite::Invitation;
+use v3::messages::connection::invite::{PairwiseInvitation, PublicInvitation, Invitation};
 use v3::messages::connection::request::Request;
 use v3::messages::connection::response::{Response, SignedResponse};
 use v3::messages::connection::problem_report::{ProblemReport, ProblemCode};
@@ -69,7 +69,7 @@ pub struct NullState {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvitedState {
-    invitation: Invitation
+    pub invitation: Invitation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,10 +91,17 @@ pub struct CompleteState {
     protocols: Option<Vec<ProtocolDescriptor>>,
 }
 
-impl From<(NullState, Invitation)> for InvitedState {
-    fn from((_state, invitation): (NullState, Invitation)) -> InvitedState {
+impl From<(NullState, PairwiseInvitation)> for InvitedState {
+    fn from((_state, invitation): (NullState, PairwiseInvitation)) -> InvitedState {
         trace!("DidExchangeStateSM: transit state from NullState to InvitedState");
-        InvitedState { invitation }
+        InvitedState { invitation: Invitation::Pairwise(invitation) }
+    }
+}
+
+impl From<(NullState, PublicInvitation)> for InvitedState {
+    fn from((_state, invitation): (NullState, PublicInvitation)) -> InvitedState {
+        trace!("DidExchangeStateSM: transit state from NullState to InvitedState");
+        InvitedState { invitation: Invitation::Public(invitation) }
     }
 }
 
@@ -455,17 +462,14 @@ impl DidExchangeSM {
                             DidExchangeMessages::Connect() => {
                                 agent_info = agent_info.create_agent()?;
 
-                                let invite: Invitation = Invitation::create()
+                                let invite: PairwiseInvitation = PairwiseInvitation::create()
                                     .set_label(source_id.to_string())
                                     .set_service_endpoint(agent_info.agency_endpoint()?)
                                     .set_recipient_keys(agent_info.recipient_keys())
                                     .set_routing_keys(agent_info.routing_keys()?);
-
                                 ActorDidExchangeState::Inviter(DidExchangeState::Invited((state, invite).into()))
                             }
-                            _ => {
-                                ActorDidExchangeState::Inviter(DidExchangeState::Null(state))
-                            }
+                            _ => ActorDidExchangeState::Inviter(DidExchangeState::Null(state))
                         }
                     }
                     DidExchangeState::Invited(state) => {
@@ -478,6 +482,7 @@ impl DidExchangeSM {
                                         ActorDidExchangeState::Inviter(DidExchangeState::Responded((state, request, response, prev_agent_info).into()))
                                     }
                                     Err(err) => {
+                                        trace!("Sending problem report, err: {:?}", err);
                                         let problem_report = ProblemReport::create()
                                             .set_problem_code(ProblemCode::RequestProcessingError)
                                             .set_explain(err.to_string())
@@ -538,7 +543,10 @@ impl DidExchangeSM {
                     DidExchangeState::Null(state) => {
                         match message {
                             DidExchangeMessages::InvitationReceived(invitation) => {
-                                ActorDidExchangeState::Invitee(DidExchangeState::Invited((state, invitation).into()))
+                                match invitation {
+                                    Invitation::Pairwise(invitation) => ActorDidExchangeState::Invitee(DidExchangeState::Invited((state, invitation).into())),
+                                    Invitation::Public(invitation) => ActorDidExchangeState::Invitee(DidExchangeState::Invited((state, invitation).into())),
+                                }
                             }
                             _ => {
                                 ActorDidExchangeState::Invitee(DidExchangeState::Null(state))
@@ -575,6 +583,7 @@ impl DidExchangeSM {
                                         ActorDidExchangeState::Invitee(DidExchangeState::Completed((state, response).into()))
                                     }
                                     Err(err) => {
+                                        trace!("Sending problem report, err: {:?}", err);
                                         let problem_report = ProblemReport::create()
                                             .set_problem_code(ProblemCode::ResponseProcessingError)
                                             .set_explain(err.to_string())
@@ -625,10 +634,10 @@ impl DidExchangeSM {
         }
     }
 
-    pub fn get_invitation(&self) -> Option<&Invitation> {
+    pub fn get_invitation(&self) -> Option<Invitation> {
         match self.state {
             ActorDidExchangeState::Inviter(DidExchangeState::Invited(ref state)) |
-            ActorDidExchangeState::Invitee(DidExchangeState::Invited(ref state)) => Some(&state.invitation),
+            ActorDidExchangeState::Invitee(DidExchangeState::Invited(ref state)) => Some(state.invitation.clone()),
             _ => None
         }
     }
@@ -1120,21 +1129,21 @@ pub mod test {
 
         impl DidExchangeSM {
             pub fn to_invitee_invited_state(mut self) -> DidExchangeSM {
-                self = self.step(DidExchangeMessages::InvitationReceived(_invitation())).unwrap();
+                self = self.step(DidExchangeMessages::InvitationReceived(Invitation::Pairwise(_invitation()))).unwrap();
                 self
             }
 
             pub fn to_invitee_requested_state(mut self) -> DidExchangeSM {
-                self = self.step(DidExchangeMessages::InvitationReceived(_invitation())).unwrap();
+                self = self.step(DidExchangeMessages::InvitationReceived(Invitation::Pairwise(_invitation()))).unwrap();
                 self = self.step(DidExchangeMessages::Connect()).unwrap();
                 self
             }
 
             pub fn to_invitee_completed_state(mut self) -> DidExchangeSM {
                 let key = "GJ1SzoWzavQYfNL9XkaJdrQejfztN4XqdsiV4ct3LXKL".to_string();
-                let invitation = Invitation::default().set_recipient_keys(vec![key.clone()]);
+                let invitation = PairwiseInvitation::default().set_recipient_keys(vec![key.clone()]);
 
-                self = self.step(DidExchangeMessages::InvitationReceived(invitation)).unwrap();
+                self = self.step(DidExchangeMessages::InvitationReceived(Invitation::Pairwise(invitation))).unwrap();
                 self = self.step(DidExchangeMessages::Connect()).unwrap();
                 self = self.step(DidExchangeMessages::ExchangeResponseReceived(_response(&key))).unwrap();
                 self = self.step(DidExchangeMessages::AckReceived(_ack())).unwrap();
@@ -1182,7 +1191,7 @@ pub mod test {
 
                 let mut did_exchange_sm = invitee_sm();
 
-                did_exchange_sm = did_exchange_sm.step(DidExchangeMessages::InvitationReceived(_invitation())).unwrap();
+                did_exchange_sm = did_exchange_sm.step(DidExchangeMessages::InvitationReceived(Invitation::Pairwise(_invitation()))).unwrap();
 
                 assert_match!(ActorDidExchangeState::Invitee(DidExchangeState::Invited(_)), did_exchange_sm.state);
             }

@@ -153,6 +153,7 @@ export interface IConnectionCreateData {
 
 // A string representing a invitation json object.
 export type IConnectionInvite = string
+export type IConnectionRequest = string
 
 /**
  * @description Interface that represents the parameters for `Connection.createWithInvite` function.
@@ -161,6 +162,10 @@ export type IConnectionInvite = string
 export interface IRecipientInviteInfo extends IConnectionCreateData {
   // Invitation provided by an entity that wishes to make a connection.
   invite: IConnectionInvite
+}
+
+export interface IRequestMessage extends IConnectionCreateData {
+  request: IConnectionRequest
 }
 
 /**
@@ -278,6 +283,52 @@ export class Connection extends VCXBaseWithState<IConnectionData> {
     }
   }
 
+  public static async createWithRequestMessage ({ id, request }: IRequestMessage): Promise<Connection> {
+    const connection = new Connection(id)
+    const commandHandle = 0
+    try {
+      await connection._create((cb) => rustAPI().vcx_connection_create_with_connection_request_message(commandHandle,
+                                                 id, request, cb))
+
+      return connection
+    } catch (err) {
+      throw new VCXInternalError(err)
+    }
+  }
+
+  public static async createWithObtainedRequest ({ id }: IConnectionCreateData): Promise<Connection | null> {
+    let connection
+    try {
+      return await createFFICallbackPromise<Connection | null>(
+          (resolve, reject, cb) => {
+            const rc = rustAPI().vcx_connection_create_with_obtained_connection_request(0, id, cb)
+            if (rc) {
+              reject(rc)
+            }
+          },
+          (resolve, reject) => ffi.Callback(
+            'void',
+            ['uint32', 'uint32', 'uint32'],
+            (xHandle: number, err: number, handle: number) => {
+              // TODO: Quick workaround - there is probably a better solution
+              if (err === 1107) {
+                resolve(null)
+                return
+              }
+              if (err) {
+                reject(err)
+                return
+              }
+              connection = new Connection(id)
+              connection._setHandle(handle)
+              resolve(connection)
+            })
+      )
+    } catch (err) {
+      throw new VCXInternalError(err)
+    }
+  }
+
   /**
    * Create the object from a previously serialized object.
    * Example:
@@ -296,6 +347,7 @@ export class Connection extends VCXBaseWithState<IConnectionData> {
   protected _serializeFn = rustAPI().vcx_connection_serialize
   protected _deserializeFn = rustAPI().vcx_connection_deserialize
   protected _inviteDetailFn = rustAPI().vcx_connection_invite_details
+  protected _publicInviteDetailFn = rustAPI().vcx_connection_public_invite_details
   protected _infoFn = rustAPI().vcx_connection_info
 
   /**
@@ -824,5 +876,35 @@ export class Connection extends VCXBaseWithState<IConnectionData> {
     } catch (err) {
       throw new VCXInternalError(err)
     }
+  }
+}
+
+export async function publicInviteDetails (): Promise<IConnectionInvite> {
+  try {
+    const data = await createFFICallbackPromise<string>(
+      (resolve, reject, cb) => {
+        const rc = rustAPI().vcx_connection_public_invite_details(0, cb)
+        if (rc) {
+          reject(rc)
+        }
+      },
+      (resolve, reject) => ffi.Callback(
+        'void',
+        ['uint32', 'uint32', 'string'],
+        (handle: number, err: number, details: string) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          if (!details) {
+            reject('no details returned')
+            return
+          }
+          resolve(details)
+        })
+    )
+    return data
+  } catch (err) {
+    throw new VCXInternalError(err)
   }
 }

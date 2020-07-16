@@ -30,8 +30,11 @@ pub enum DidExchangeMessages {
 impl From<A2AMessage> for DidExchangeMessages {
     fn from(msg: A2AMessage) -> Self {
         match msg {
-            A2AMessage::ConnectionInvitation(invite) => {
-                DidExchangeMessages::InvitationReceived(invite)
+            A2AMessage::ConnectionInvitationPairwise(invite) => {
+                DidExchangeMessages::InvitationReceived(Invitation::Pairwise(invite))
+            }
+            A2AMessage::ConnectionInvitationPublic(invite) => {
+                DidExchangeMessages::InvitationReceived(Invitation::Public(invite))
             }
             A2AMessage::ConnectionRequest(request) => {
                 DidExchangeMessages::ExchangeRequestReceived(request)

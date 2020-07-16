@@ -121,8 +121,6 @@ impl SignedResponse {
             return Err(VcxError::from_msg(VcxErrorKind::InvalidJson, "ConnectionResponse signature is invalid for original Invite recipient key"));
         }
 
-        //TODO check sig_data.signer
-
         let sig_data = &sig_data[8..];
 
         let connection: ConnectionData = ::serde_json::from_slice(&sig_data)

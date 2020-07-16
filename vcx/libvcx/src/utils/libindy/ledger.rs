@@ -9,6 +9,8 @@ use settings;
 use utils::libindy::pool::get_pool_handle;
 use utils::libindy::wallet::get_wallet_handle;
 use error::prelude::*;
+use indy::ledger::{build_attrib_request, build_get_attrib_request};
+use v3::messages::connection::did_doc::Service;
 
 pub fn multisign_request(did: &str, request: &str) -> VcxResult<String> {
     ledger::multi_sign_request(get_wallet_handle(), did, request)
@@ -347,6 +349,42 @@ pub fn get_nym(did: &str) -> VcxResult<String> {
     libindy_submit_request(&get_nym_req)
 }
 
+// TODO: To test: does work like update, or write?
+pub fn add_attr(did: &str, key: &str, value: &str) -> VcxResult<String> {
+    let attrib_json = json!({ key: value }).to_string();
+    let attrib_req = build_attrib_request(&did, &did, None, Some(&attrib_json), None).wait()?;
+    libindy_sign_and_submit_request(&did, &attrib_req)
+}
+
+pub fn get_attr(did: &str, attr_name: &str) -> VcxResult<String> {
+    let get_attrib_req = build_get_attrib_request(None, &did, Some(attr_name), None, None).wait()?;
+    libindy_submit_request(&get_attrib_req)
+}
+
+// TODO: This should be responsibility of the service struct?
+pub fn add_service(did: &str, service: &Service) -> VcxResult<String> {
+    let ser_service = serde_json::to_string(service)
+        .map_err(|err| VcxError::from_msg(VcxErrorKind::SerializationError, format!("Failed to serialize service before writing to ledger: {:?}", err)))?;
+    add_attr(did, "service", &ser_service)
+}
+
+// TODO: This should be responsibility of the service struct?
+pub fn get_service(did: &str) -> VcxResult<Service> {
+    let attr_resp = get_attr(did, "service")?;
+    let data = get_data_from_response(&attr_resp)?;
+    let ser_service = data["service"]
+        .as_str().ok_or(VcxError::from_msg(VcxErrorKind::SerializationError, format!("Unable to read service from the ledger response")))?.to_string();
+    serde_json::from_str(&ser_service)
+        .map_err(|err| VcxError::from_msg(VcxErrorKind::SerializationError, format!("Failed to deserialize service read from the ledger: {:?}", err)))
+}
+
+fn get_data_from_response(resp: &str) -> VcxResult<serde_json::Value> {
+    let resp: serde_json::Value = serde_json::from_str(&resp)
+        .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidLedgerResponse, format!("{:?}", err)))?;
+    serde_json::from_str(&resp["result"]["data"].as_str().unwrap_or("{}"))
+        .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidLedgerResponse, format!("{:?}", err)))
+}
+
 pub fn get_role(did: &str) -> VcxResult<String> {
     if settings::indy_mocks_enabled() { return Ok(settings::DEFAULT_ROLE.to_string()); }
 
@@ -471,6 +509,19 @@ mod test {
         let schema_request = multisign_request(&author_did, &schema_request).unwrap();
 
         endorse_transaction(&schema_request).unwrap();
+    }
+
+    #[cfg(feature = "pool_tests")]
+    #[test]
+    fn test_add_get_service() {
+        let _setup = SetupLibraryWalletPoolZeroFees::init();
+
+        let did = settings::get_config_value(settings::CONFIG_INSTITUTION_DID).unwrap();
+        let expect_service = Service::default();
+        add_service(&did, &expect_service).unwrap();
+        let service = get_service(&did).unwrap();
+        
+        assert_eq!(expect_service, service)
     }
 }
 

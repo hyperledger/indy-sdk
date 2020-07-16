@@ -100,4 +100,3 @@ pub fn get_agent_info() -> VcxResult<MyAgentInfo> {
         agency_vk: get_config_value(CONFIG_AGENCY_VERKEY)?,
     })
 }
-

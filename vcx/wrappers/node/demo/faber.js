@@ -1,7 +1,7 @@
 const { CredentialDef } = require('../dist/src/api/credential-def')
 const { IssuerCredential } = require('../dist/src/api/issuer-credential')
 const { Proof } = require('../dist/src/api/proof')
-const { Connection } = require('../dist/src/api/connection')
+const { Connection, publicInviteDetails } = require('../dist/src/api/connection')
 const { Schema } = require('./../dist/src/api/schema')
 const { StateType, ProofState } = require('../dist/src')
 const { setActiveTxnAuthorAgreementMeta, getLedgerAuthorAgreement } = require('./../dist/src/api/utils')
@@ -17,6 +17,7 @@ const utime = Math.floor(new Date() / 1000)
 const optionalWebhook = 'http://localhost:7209/notifications/faber'
 
 const TAA_ACCEPT = process.env.TAA_ACCEPT === 'true' || false
+const PUBLIC_INVITE = process.env.PUBLIC_INVITE === 'true' || false
 
 const provisionConfig = {
   agency_url: 'http://localhost:8080',
@@ -105,10 +106,15 @@ async function runFaber (options) {
   logger.info(`Created credential with id ${credDefId} and handle ${credDefHandle}`)
 
   logger.info('#5 Create a connection to alice and print out the invite details')
-  const connectionToAlice = await Connection.create({ id: 'alice' })
-  await connectionToAlice.connect('{}')
-  await connectionToAlice.updateState()
-  const details = await connectionToAlice.inviteDetails(false)
+  let details, connectionToAlice, connectionState
+  if (PUBLIC_INVITE) {
+    details = await publicInviteDetails()
+  } else {
+    connectionToAlice = await Connection.create({ id: 'alice' })
+    await connectionToAlice.connect('{}')
+    await connectionToAlice.updateState()
+    details = await connectionToAlice.inviteDetails(false)
+  }
   logger.info('\n\n**invite details**')
   logger.info("**You'll ge queried to paste this data to alice side of the demo. This is invitation to connect.**")
   logger.info("**It's assumed this is obtained by Alice from Faber by some existing secure channel.**")
@@ -118,7 +124,11 @@ async function runFaber (options) {
   logger.info('\n\n******************\n\n')
 
   logger.info('#6 Polling agency and waiting for alice to accept the invitation. (start alice.py now)')
-  let connectionState = await connectionToAlice.getState()
+  while (!connectionToAlice && PUBLIC_INVITE) {
+    connectionToAlice = await Connection.createWithObtainedRequest({ id: 'alice' })
+    await sleepPromise(2000)
+  }
+  connectionState = await connectionToAlice.getState()
   while (connectionState !== StateType.Accepted) {
     await sleepPromise(2000)
     await connectionToAlice.updateState()

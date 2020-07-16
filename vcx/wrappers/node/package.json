@@ -42,6 +42,7 @@
         "demo:notifyserver": "node notification-server.js",
         "demo:alice": "node demo/alice.js",
         "demo:faber": "node demo/faber.js",
+        "demo:faber:pub": "PUBLIC_INVITE=true node demo/faber.js",
         "demo:alice:pg": "node demo/alice.js --postgresql",
         "demo:faber:pg": "node demo/faber.js --postgresql",
         "demo:alice:sign": "node demo/alice-signature.js",
