@@ -529,6 +529,42 @@ pub extern fn vcx_credentialdef_get_state(command_handle: CommandHandle,
     error::SUCCESS.code_num
 }
 
+#[no_mangle]
+pub extern fn vcx_credentialdef_publish_revocations(command_handle: CommandHandle,
+                                          credentialdef_handle: u32,
+                                          cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32)>) -> u32 {
+    info!("vcx_credentialdef_publish_revocations >>>");
+
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+
+    let source_id = credential_def::get_source_id(credentialdef_handle).unwrap_or_default();
+    trace!("vcx_credentialdef_get_state(command_handle: {}, credentialdef_handle: {}) source_id: {}",
+           command_handle, credentialdef_handle, source_id);
+
+    if !credential_def::is_valid_handle(credentialdef_handle) {
+        return VcxError::from(VcxErrorKind::InvalidCredDefHandle).into();
+    }
+
+    spawn(move || {
+        match credential_def::publish_revocations(credentialdef_handle) {
+            Ok(()) => {
+                trace!("vcx_credentialdef_publish_revocations(command_handle: {}, credentialdef_handle: {}, rc: {})",
+                       command_handle, credentialdef_handle, error::SUCCESS.message);
+                cb(command_handle, error::SUCCESS.code_num);
+            }
+            Err(x) => {
+                warn!("vcx_credentialdef_publish_revocations(command_handle: {}, credentialdef_handle: {}, rc: {})",
+                      command_handle, credentialdef_handle, x);
+                cb(command_handle, x.into());
+            }
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
 #[cfg(test)]
 mod tests {
     extern crate serde_json;

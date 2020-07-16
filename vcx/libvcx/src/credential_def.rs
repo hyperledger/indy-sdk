@@ -243,6 +243,15 @@ pub fn create_and_publish_credentialdef(source_id: String,
     Ok(handle)
 }
 
+pub fn publish_revocations(handle: u32) -> VcxResult<()> {
+    if let Some(rev_reg_id) = get_rev_reg_id(handle)? {
+        anoncreds::publish_local_revocations(rev_reg_id.as_str())?;
+        Ok(())
+    } else {
+        Err(VcxError::from(VcxErrorKind::InvalidCredDefHandle))
+    }
+}
+
 pub fn is_valid_handle(handle: u32) -> bool {
     CREDENTIALDEF_MAP.has_handle(handle)
 }

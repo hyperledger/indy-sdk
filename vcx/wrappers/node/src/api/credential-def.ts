@@ -358,8 +358,8 @@ export class CredentialDef extends VCXBase<ICredentialDefData> {
         (resolve, reject, cb) => {
           const rc = rustAPI().vcx_credentialdef_get_state(0, this.handle, cb)
           if (rc) {
-              reject(rc)
-            }
+            reject(rc)
+          }
         },
         (resolve, reject) => ffi.Callback(
           'void',
@@ -376,6 +376,31 @@ export class CredentialDef extends VCXBase<ICredentialDefData> {
       throw new VCXInternalError(err)
     }
   }
+
+  public async publishRevocations (): Promise<void> {
+    try {
+      await createFFICallbackPromise<number>(
+        (resolve, reject, cb) => {
+          const rc = rustAPI().vcx_credentialdef_publish_revocations(0, this.handle, cb)
+          if (rc) {
+            reject(rc)
+          }
+        },
+        (resolve, reject) => ffi.Callback(
+          'void',
+          ['uint32', 'uint32', 'uint32'],
+          (handle: number, err: any, state: CredentialDefState) => {
+            if (err) {
+              reject(err)
+            }
+            resolve(state)
+          })
+      )
+    } catch (err) {
+      throw new VCXInternalError(err)
+    }
+  }
+
 
   get name () {
     return this._name

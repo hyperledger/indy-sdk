@@ -481,7 +481,7 @@ impl IssuerCredential {
         })
     }
 
-    fn revoke_cred(&mut self) -> VcxResult<()> {
+    fn revoke_cred(&mut self, publish: bool) -> VcxResult<()> {
         let tails_file = self.tails_file
             .as_ref()
             .ok_or(VcxError::from_msg(VcxErrorKind::InvalidRevocationDetails, "Invalid RevocationInfo: `tails_file` field not found"))?;
@@ -494,9 +494,13 @@ impl IssuerCredential {
             .as_ref()
             .ok_or(VcxError::from_msg(VcxErrorKind::InvalidRevocationDetails, "Invalid RevocationInfo: `cred_rev_id` field not found"))?;
 
-        let (payment, _) = anoncreds::revoke_credential(tails_file, rev_reg_id, cred_rev_id)?;
+        if publish {
+            let (payment, _) = anoncreds::revoke_credential(tails_file, rev_reg_id, cred_rev_id)?;
+            self.rev_cred_payment_txn = payment;
+        } else {
+            anoncreds::revoke_credential_local(tails_file, rev_reg_id, cred_rev_id)?;
+        };
 
-        self.rev_cred_payment_txn = payment;
         Ok(())
     }
 
@@ -810,11 +814,22 @@ pub fn send_credential(handle: u32, connection_handle: u32) -> VcxResult<u32> {
 pub fn revoke_credential(handle: u32) -> VcxResult<()> {
     ISSUER_CREDENTIAL_MAP.get_mut(handle, |obj| {
         match obj {
-            IssuerCredentials::Pending(ref mut obj) => obj.revoke_cred(),
-            IssuerCredentials::V1(ref mut obj) => obj.revoke_cred(),
+            IssuerCredentials::Pending(ref mut obj) => obj.revoke_cred(true),
+            IssuerCredentials::V1(ref mut obj) => obj.revoke_cred(true),
             IssuerCredentials::V3(_) => Err(VcxError::from(VcxErrorKind::NotReady)), // TODO: implement
         }
     })
+}
+
+pub fn revoke_credential_local(handle: u32) -> VcxResult<()> {
+    ISSUER_CREDENTIAL_MAP.get_mut(handle, |obj| {
+        match obj {
+            IssuerCredentials::Pending(ref mut obj) => obj.revoke_cred(false),
+            IssuerCredentials::V1(ref mut obj) => obj.revoke_cred(false),
+            IssuerCredentials::V3(_) => Err(VcxError::from(VcxErrorKind::NotReady)), // TODO: implement
+        }
+    })
+
 }
 
 pub fn convert_to_map(s: &str) -> VcxResult<serde_json::Map<String, serde_json::Value>> {
@@ -1315,22 +1330,22 @@ pub mod tests {
         credential.tails_file = Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string());
         credential.cred_rev_id = None;
         credential.rev_reg_id = None;
-        assert_eq!(credential.revoke_cred().unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
+        assert_eq!(credential.revoke_cred(true).unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
         credential.tails_file = None;
         credential.cred_rev_id = Some(CRED_REV_ID.to_string());
         credential.rev_reg_id = None;
-        assert_eq!(credential.revoke_cred().unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
+        assert_eq!(credential.revoke_cred(true).unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
         credential.tails_file = None;
         credential.cred_rev_id = None;
         credential.rev_reg_id = Some(REV_REG_ID.to_string());
-        assert_eq!(credential.revoke_cred().unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
+        assert_eq!(credential.revoke_cred(true).unwrap_err().kind(), VcxErrorKind::InvalidRevocationDetails);
 
         credential.tails_file = Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string());
         credential.cred_rev_id = Some(CRED_REV_ID.to_string());
         credential.rev_reg_id = Some(REV_REG_ID.to_string());
         credential.rev_cred_payment_txn = None;
 
-        credential.revoke_cred().unwrap();
+        credential.revoke_cred(true).unwrap();
         assert!(credential.rev_cred_payment_txn.is_some());
     }
 

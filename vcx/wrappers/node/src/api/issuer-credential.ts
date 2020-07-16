@@ -432,6 +432,31 @@ export class IssuerCredential extends VCXBaseWithState<IIssuerCredentialData> {
     }
   }
 
+  public async revokeCredentialLocal (): Promise<void> {
+    try {
+      await createFFICallbackPromise<void>(
+        (resolve, reject, cb) => {
+          const rc = rustAPI().vcx_issuer_revoke_credential_local(0, this.handle, cb)
+          if (rc) {
+            reject(rc)
+          }
+        },
+        (resolve, reject) => ffi.Callback(
+          'void',
+          ['uint32', 'uint32'],
+          (xcommandHandle: number, err: number) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve()
+          })
+      )
+    } catch (err) {
+      throw new VCXInternalError(err)
+    }
+  }
+
   get credDefHandle () {
     return this._credDefHandle
   }
