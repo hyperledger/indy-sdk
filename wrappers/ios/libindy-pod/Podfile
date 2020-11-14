@@ -7,13 +7,14 @@ workspace 'Indy.xcworkspace'
 def appPods
     pod 'libsodium'
     pod 'libzmq',"4.2.3"
-    pod 'OpenSSL'
+    pod 'OpenSSL-Universal', "1.0.2.17"
     pod 'libindy', "1.10.0"
 end
 
 target 'Indy-demo' do
+    use_frameworks!
     project 'Indy-demo'
-    pod 'CoreBitcoin', :podspec => 'https://raw.github.com/oleganza/CoreBitcoin/master/CoreBitcoin.podspec'
+    pod 'BigInt'
 
     target 'Indy-demoTests' do
 	inherit! :search_paths

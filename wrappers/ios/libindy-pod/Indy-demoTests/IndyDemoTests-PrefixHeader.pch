@@ -1,0 +1,17 @@
+//
+//  IndyDemoTests-PrefixHeader.pch
+//  Indy-demoTests
+//
+//  Created by Anastasia Tarasova on 12/06/2019.
+//  Copyright © 2019 Hyperledger. All rights reserved.
+//
+
+#ifndef IndyDemoTests_PrefixHeader_pch
+#define IndyDemoTests_PrefixHeader_pch
+
+// Include any system framework and library headers here that should be included in all compilation units.
+// You will also need to set the Prefix Header build setting of one or more of your targets to reference this file.
+
+#import <Indy_demo-Swift.h>
+
+#endif /* IndyDemoTests_PrefixHeader_pch */

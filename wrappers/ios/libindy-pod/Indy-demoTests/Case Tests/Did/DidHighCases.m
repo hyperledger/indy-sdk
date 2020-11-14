@@ -2,7 +2,7 @@
 #import <XCTest/XCTest.h>
 #import "PoolUtils.h"
 #import "TestUtils.h"
-#import <CoreBitcoin+Categories.h>
+#import "Base58Utils.h"
 
 @interface DidHignCases : XCTestCase
 
@@ -43,8 +43,8 @@
                                                         outMyDid:&myDid
                                                      outMyVerkey:&myVerKey];
     XCTAssertEqual(ret.code, Success, @"DidUtils::createMyDidWithWalletHandle() failed");
-    XCTAssertEqual([[myDid dataFromBase58] length], 16, @"length of myDid != 16");
-    XCTAssertEqual([[myVerKey dataFromBase58] length], 32, @"length of myVerKey != 32");
+    XCTAssertEqual([[Base58Utils decode:myDid] length], 16, @"length of myDid != 16");
+    XCTAssertEqual([[Base58Utils decode:myVerKey] length], 32, @"length of myVerKey != 32");
 }
 
 - (void)testCreateMyDidWorksWithSeed {
