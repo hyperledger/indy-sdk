@@ -100,4 +100,17 @@ public class VcxApi extends VcxJava.API {
 
     }
 
+    public static int vcxUpdateInstitutionInfo(String name, String logoUrl) throws VcxException {
+        ParamGuard.notNullOrWhiteSpace(name, "name");
+        ParamGuard.notNullOrWhiteSpace(logoUrl, "logoUrl");
+        logger.debug("vcxUpdateInstitutionInfo() called with: name = [" + name + "], logoUrl = [" + logoUrl + "]");
+
+        int result = LibVcx.api.vcx_update_institution_info(
+                name,
+                logoUrl);
+        checkResult(result);
+
+        return result;
+    }
+
 }

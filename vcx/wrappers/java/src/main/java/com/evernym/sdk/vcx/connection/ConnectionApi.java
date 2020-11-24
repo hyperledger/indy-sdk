@@ -505,7 +505,7 @@ public class ConnectionApi extends VcxJava.API {
 
         CompletableFuture<String> future = new CompletableFuture<String>();
         int commandHandle = addFuture(future);
-        int result = LibVcx.api.vcx_connection_get_pw_did(commandHandle, connectionHandle, vcxConnectionGetTheirPwDidCB);
+        int result = LibVcx.api.vcx_connection_get_their_pw_did(commandHandle, connectionHandle, vcxConnectionGetTheirPwDidCB);
         checkResult(result);
 
         return future;

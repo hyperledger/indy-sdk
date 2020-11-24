@@ -34,14 +34,6 @@ public class DisclosedProofApiTest {
    }
 
     @Test
-    @DisplayName("throw illegal argument exception if invalid arguments are provided")
-    void throwIllegalArgumentxException() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            TestHelper.getResultFromFuture(DisclosedProofApi.proofCreate(sourceId, null, "{}", name));
-        });
-    }
-
-    @Test
     @DisplayName("serialize and deserialize proof")
     void serializeDisclosedProof() throws VcxException, ExecutionException, InterruptedException {
         int proofHandle = TestHelper.getResultFromFuture(DisclosedProofApi.proofCreateWithRequest(sourceId, proofRequest));
