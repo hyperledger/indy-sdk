@@ -5,7 +5,7 @@ use serde_json;
 use indy::{ErrorCode, IndyError};
 use indy::wallet;
 
-use self::futures::Future;
+use crate::indy::future::Future;
 
 use crate::utils::{callback, sequence, environment};
 use crate::utils::inmem_wallet::InmemWallet;

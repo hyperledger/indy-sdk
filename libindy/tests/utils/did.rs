@@ -2,7 +2,7 @@ extern crate futures;
 
 use indy::did;
 use indy::IndyError;
-use self::futures::Future;
+use indy::future::Future;
 
 use crate::utils::{ledger, pool};
 use crate::utils::types::ResponseType;

@@ -1,14 +1,17 @@
-extern crate ursa;
 extern crate threadpool;
+extern crate ursa;
 
 use std::env;
 use std::rc::Rc;
 use std::sync::{Mutex, MutexGuard};
-use std::sync::mpsc::{channel, Sender};
 use std::thread;
+
+use futures::StreamExt;
+use futures::channel::mpsc::{unbounded, UnboundedSender};
 
 use crate::commands::anoncreds::{AnoncredsCommand, AnoncredsCommandExecutor};
 use crate::commands::blob_storage::{BlobStorageCommand, BlobStorageCommandExecutor};
+use crate::commands::cache::{CacheCommand, CacheCommandExecutor};
 use crate::commands::crypto::{CryptoCommand, CryptoCommandExecutor};
 use crate::commands::did::{DidCommand, DidCommandExecutor};
 use crate::commands::ledger::{LedgerCommand, LedgerCommandExecutor};
@@ -17,7 +20,6 @@ use crate::commands::pairwise::{PairwiseCommand, PairwiseCommandExecutor};
 use crate::commands::payments::{PaymentsCommand, PaymentsCommandExecutor};
 use crate::commands::pool::{PoolCommand, PoolCommandExecutor};
 use crate::commands::wallet::{WalletCommand, WalletCommandExecutor};
-use crate::commands::cache::{CacheCommand, CacheCommandExecutor};
 use crate::commands::metrics::{MetricsCommand, MetricsCommandExecutor};
 use crate::domain::IndyConfig;
 use indy_api_types::errors::prelude::*;
@@ -33,6 +35,7 @@ use indy_wallet::WalletService;
 
 use self::threadpool::ThreadPool;
 use std::time::{SystemTime, UNIX_EPOCH};
+use futures::task::LocalSpawnExt;
 
 pub mod anoncreds;
 pub mod blob_storage;
@@ -79,7 +82,6 @@ impl InstrumentedCommand {
     }
 }
 
-
 lazy_static! {
     static ref THREADPOOL: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(4));
 }
@@ -105,7 +107,7 @@ fn get_cur_time() -> u128 {
 
 pub struct CommandExecutor {
     worker: Option<thread::JoinHandle<()>>,
-    sender: Sender<InstrumentedCommand>
+    sender: UnboundedSender<InstrumentedCommand>
 }
 
 // Global (lazy inited) instance of CommandExecutor
@@ -119,11 +121,12 @@ impl CommandExecutor {
     }
 
     fn new() -> CommandExecutor {
-        let (sender, receiver) = channel();
+        let (sender, mut receiver) = unbounded();
+        let thread = thread::Builder::new().name("libindy CommandExecutor".to_owned());
 
         CommandExecutor {
             sender,
-            worker: Some(thread::spawn(move || {
+            worker: Some(thread.spawn(move || {
                 info!(target: "command_executor", "Worker thread started");
 
                 let anoncreds_service = Rc::new(AnoncredsService::new());
@@ -135,29 +138,34 @@ impl CommandExecutor {
                 let wallet_service = Rc::new(WalletService::new());
                 let metrics_service = Rc::new(MetricsService::new());
 
-                let anoncreds_command_executor = AnoncredsCommandExecutor::new(anoncreds_service.clone(), blob_storage_service.clone(), pool_service.clone(), wallet_service.clone(), crypto_service.clone());
-                let crypto_command_executor = CryptoCommandExecutor::new(wallet_service.clone(), crypto_service.clone());
-                let ledger_command_executor = LedgerCommandExecutor::new(pool_service.clone(), crypto_service.clone(), wallet_service.clone(), ledger_service.clone());
-                let pool_command_executor = PoolCommandExecutor::new(pool_service.clone());
-                let did_command_executor = DidCommandExecutor::new(wallet_service.clone(), crypto_service.clone(), ledger_service.clone());
-                let wallet_command_executor = WalletCommandExecutor::new(wallet_service.clone(), crypto_service.clone());
-                let pairwise_command_executor = PairwiseCommandExecutor::new(wallet_service.clone());
-                let blob_storage_command_executor = BlobStorageCommandExecutor::new(blob_storage_service.clone());
-                let non_secret_command_executor = NonSecretsCommandExecutor::new(wallet_service.clone());
-                let payments_command_executor = PaymentsCommandExecutor::new(payments_service.clone(), wallet_service.clone(), crypto_service.clone(), ledger_service.clone());
-                let cache_command_executor = CacheCommandExecutor::new(wallet_service.clone());
-                let metrics_command_executor = MetricsCommandExecutor::new(wallet_service.clone(), metrics_service.clone());
+                let anoncreds_command_executor = Rc::new(AnoncredsCommandExecutor::new(anoncreds_service.clone(), blob_storage_service.clone(), pool_service.clone(), wallet_service.clone(), crypto_service.clone()));
+                let crypto_command_executor = Rc::new(CryptoCommandExecutor::new(wallet_service.clone(), crypto_service.clone()));
+                let ledger_command_executor = Rc::new(LedgerCommandExecutor::new(pool_service.clone(), crypto_service.clone(), wallet_service.clone(), ledger_service.clone()));
+                let pool_command_executor = Rc::new(PoolCommandExecutor::new(pool_service.clone()));
+                let did_command_executor = Rc::new(DidCommandExecutor::new(wallet_service.clone(), crypto_service.clone(), ledger_service.clone(), pool_service.clone()));
+                let wallet_command_executor = Rc::new(WalletCommandExecutor::new(wallet_service.clone(), crypto_service.clone()));
+                let pairwise_command_executor = Rc::new(PairwiseCommandExecutor::new(wallet_service.clone()));
+                let blob_storage_command_executor = Rc::new(BlobStorageCommandExecutor::new(blob_storage_service.clone()));
+                let non_secret_command_executor = Rc::new(NonSecretsCommandExecutor::new(wallet_service.clone()));
+                let payments_command_executor = Rc::new(PaymentsCommandExecutor::new(payments_service.clone(), wallet_service.clone(), crypto_service.clone(), ledger_service.clone()));
+                let cache_command_executor = Rc::new(CacheCommandExecutor::new(crypto_service.clone(), ledger_service.clone(), pool_service.clone(), wallet_service.clone()));
+                let metrics_command_executor = Rc::new(MetricsCommandExecutor::new(wallet_service.clone(), metrics_service.clone()));
 
-                loop {
-                    let instrumented_cmd = match receiver.recv() {
-                        Ok(cmd) => {
-                            cmd
-                        }
-                        Err(err) => {
-                            error!("Failed to get command!");
-                            panic!("Failed to get command! {:?}", err)
-                        }
-                    };
+                async fn _exec_cmd(instrumented_cmd: InstrumentedCommand,
+                                   metrics_service: Rc<MetricsService>,
+                                   anoncreds_command_executor: Rc<AnoncredsCommandExecutor>,
+                                   crypto_command_executor: Rc<CryptoCommandExecutor>,
+                                   ledger_command_executor: Rc<LedgerCommandExecutor>,
+                                   pool_command_executor: Rc<PoolCommandExecutor>,
+                                   did_command_executor: Rc<DidCommandExecutor>,
+                                   wallet_command_executor: Rc<WalletCommandExecutor>,
+                                   pairwise_command_executor: Rc<PairwiseCommandExecutor>,
+                                   blob_storage_command_executor: Rc<BlobStorageCommandExecutor>,
+                                   non_secret_command_executor: Rc<NonSecretsCommandExecutor>,
+                                   payments_command_executor: Rc<PaymentsCommandExecutor>,
+                                   cache_command_executor: Rc<CacheCommandExecutor>,
+                                   metrics_command_executor: Rc<MetricsCommandExecutor>,
+                ) {
                     let cmd_index: CommandIndex = (&instrumented_cmd.command).into();
                     let start_execution_ts = get_cur_time();
                     metrics_service.cmd_left_queue(cmd_index,
@@ -178,19 +186,19 @@ impl CommandExecutor {
                         }
                         Command::Ledger(cmd) => {
                             debug!("LedgerCommand command received");
-                            ledger_command_executor.execute(cmd);
+                            ledger_command_executor.execute(cmd).await;
                         }
                         Command::Pool(cmd) => {
                             debug!("PoolCommand command received");
-                            pool_command_executor.execute(cmd);
+                            pool_command_executor.execute(cmd).await;
                         }
                         Command::Did(cmd) => {
                             debug!("DidCommand command received");
-                            did_command_executor.execute(cmd);
+                            did_command_executor.execute(cmd).await;
                         }
                         Command::Wallet(cmd) => {
                             debug!("WalletCommand command received");
-                            wallet_command_executor.execute(cmd);
+                            wallet_command_executor.execute(cmd).await;
                         }
                         Command::Pairwise(cmd) => {
                             debug!("PairwiseCommand command received");
@@ -202,11 +210,11 @@ impl CommandExecutor {
                         }
                         Command::Payments(cmd) => {
                             debug!("PaymentsCommand command received");
-                            payments_command_executor.execute(cmd);
+                            payments_command_executor.execute(cmd).await;
                         }
                         Command::Cache(cmd) => {
                             debug!("CacheCommand command received");
-                            cache_command_executor.execute(cmd);
+                            cache_command_executor.execute(cmd).await;
                         }
                         Command::Metrics(cmd) => {
                             debug!("MetricsCommand command received");
@@ -214,19 +222,42 @@ impl CommandExecutor {
                         }
                         Command::Exit => {
                             debug!("Exit command received");
-                            break
                         }
                     }
+
                     metrics_service.cmd_executed(cmd_index,
                                                  get_cur_time() - start_execution_ts);
+                };
+
+                let mut in_progress_tasks = futures::executor::LocalPool::new();
+                let spawner = in_progress_tasks.spawner();
+                loop {
+                    trace!("CommandExecutor main loop >>");
+                    let cmd = in_progress_tasks.run_until(receiver.next());
+                    
+                    let cmd = if let Some(cmd) = cmd {
+                        cmd
+                    } else {
+                        warn!("No command to execute");
+                        continue
+                    };
+
+                    if let Command::Exit = cmd.command {
+                        break
+                    }
+
+                    spawner.spawn_local(_exec_cmd(cmd, metrics_service.clone(), anoncreds_command_executor.clone(), crypto_command_executor.clone(), ledger_command_executor.clone(), pool_command_executor.clone(), did_command_executor.clone(), wallet_command_executor.clone(), pairwise_command_executor.clone(), blob_storage_command_executor.clone(), non_secret_command_executor.clone(), payments_command_executor.clone(), cache_command_executor.clone(), metrics_command_executor.clone())).unwrap();
+                    trace!("CommandExecutor main loop <<");
                 }
-            }))
+
+                trace!("CommandExecutor main loop finished");
+            }).unwrap())
         }
     }
 
-    pub fn send(&self, cmd: Command) -> IndyResult<()> {
+    pub fn send(&mut self, cmd: Command) -> IndyResult<()> {
         self.sender
-            .send(InstrumentedCommand::new(cmd))
+            .unbounded_send(InstrumentedCommand::new(cmd))
             .map_err(|err| err_msg(IndyErrorKind::InvalidState, format!("Can't send msg to CommandExecutor: {}", err)))
     }
 }
@@ -235,6 +266,7 @@ impl Drop for CommandExecutor {
     fn drop(&mut self) {
         info!(target: "command_executor", "Drop started");
         self.send(Command::Exit).unwrap();
+        self.sender.disconnect();
         // Option worker type and this kludge is workaround for rust
         self.worker.take().unwrap().join().unwrap();
         info!(target: "command_executor", "Drop finished");

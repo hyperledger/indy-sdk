@@ -1,9 +1,8 @@
 extern crate futures;
 
-use indy::IndyError;
-use self::futures::Future;
-
 use indy::cache;
+use indy::future::Future;
+use indy::IndyError;
 use indy::{WalletHandle, PoolHandle};
 
 

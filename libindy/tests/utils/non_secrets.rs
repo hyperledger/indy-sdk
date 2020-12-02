@@ -1,7 +1,7 @@
 extern crate futures;
 
 use indy::IndyError;
-use self::futures::Future;
+use crate::indy::future::Future;
 use serde_json;
 
 use indy::wallet;

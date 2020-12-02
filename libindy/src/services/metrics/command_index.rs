@@ -145,7 +145,6 @@ impl From<&Command> for CommandIndex {
                 match cmd {
                     LedgerCommand::SignAndSubmitRequest(_, _, _, _, _) => { CommandIndex::LedgerCommandSignAndSubmitRequest }
                     LedgerCommand::SubmitRequest(_, _, _) => { CommandIndex::LedgerCommandSubmitRequest }
-                    LedgerCommand::SubmitAck(_, _) => { CommandIndex::LedgerCommandSubmitAck }
                     LedgerCommand::SubmitAction(_, _, _, _, _) => { CommandIndex::LedgerCommandSubmitAction }
                     LedgerCommand::SignRequest(_, _, _, _) => { CommandIndex::LedgerCommandSignRequest }
                     LedgerCommand::MultiSignRequest(_, _, _, _) => { CommandIndex::LedgerCommandMultiSignRequest }
@@ -180,10 +179,6 @@ impl From<&Command> for CommandIndex {
                     LedgerCommand::BuildAuthRuleRequest(_, _, _, _, _, _, _, _) => { CommandIndex::LedgerCommandBuildAuthRuleRequest }
                     LedgerCommand::BuildAuthRulesRequest(_, _, _) => { CommandIndex::LedgerCommandBuildAuthRulesRequest }
                     LedgerCommand::BuildGetAuthRuleRequest(_, _, _, _, _, _, _) => { CommandIndex::LedgerCommandBuildGetAuthRuleRequest }
-                    LedgerCommand::GetSchema(_, _, _, _) => { CommandIndex::LedgerCommandGetSchema }
-                    LedgerCommand::GetSchemaContinue(_, _, _) => { CommandIndex::LedgerCommandGetSchemaContinue }
-                    LedgerCommand::GetCredDef(_, _, _, _) => { CommandIndex::LedgerCommandGetCredDef }
-                    LedgerCommand::GetCredDefContinue(_, _, _) => { CommandIndex::LedgerCommandGetCredDefContinue }
                     LedgerCommand::BuildTxnAuthorAgreementRequest(_, _, _, _, _, _) => { CommandIndex::LedgerCommandBuildTxnAuthorAgreementRequest }
                     LedgerCommand::BuildDisableAllTxnAuthorAgreementsRequest(_, _) => { CommandIndex::LedgerCommandBuildDisableAllTxnAuthorAgreementsRequest }
                     LedgerCommand::BuildGetTxnAuthorAgreementRequest(_, _, _) => { CommandIndex::LedgerCommandBuildGetTxnAuthorAgreementRequest }
@@ -198,12 +193,9 @@ impl From<&Command> for CommandIndex {
                     PoolCommand::Create(_, _, _) => { CommandIndex::PoolCommandCreate }
                     PoolCommand::Delete(_, _) => { CommandIndex::PoolCommandDelete }
                     PoolCommand::Open(_, _, _) => { CommandIndex::PoolCommandOpen }
-                    PoolCommand::OpenAck(_, _, _) => { CommandIndex::PoolCommandOpenAck }
                     PoolCommand::List(_) => { CommandIndex::PoolCommandList }
                     PoolCommand::Close(_, _) => { CommandIndex::PoolCommandClose }
-                    PoolCommand::CloseAck(_, _) => { CommandIndex::PoolCommandCloseAck }
                     PoolCommand::Refresh(_, _) => { CommandIndex::PoolCommandRefresh }
-                    PoolCommand::RefreshAck(_, _) => { CommandIndex::PoolCommandRefreshAck }
                     PoolCommand::SetProtocolVersion(_, _) => { CommandIndex::PoolCommandSetProtocolVersion }
                 }
             }
@@ -222,8 +214,6 @@ impl From<&Command> for CommandIndex {
                     DidCommand::SetDidMetadata(_, _, _, _) => { CommandIndex::DidCommandSetDidMetadata }
                     DidCommand::GetDidMetadata(_, _, _) => { CommandIndex::DidCommandGetDidMetadata }
                     DidCommand::AbbreviateVerkey(_, _, _) => { CommandIndex::DidCommandAbbreviateVerkey }
-                    DidCommand::GetNymAck(_, _, _, _) => { CommandIndex::DidCommandGetNymAck }
-                    DidCommand::GetAttribAck(_, _, _) => { CommandIndex::DidCommandGetAttribAck }
                     DidCommand::QualifyDid(_, _, _, _) => { CommandIndex::DidCommandQualifyDid }
                 }
             }
@@ -231,18 +221,12 @@ impl From<&Command> for CommandIndex {
                 match cmd {
                     WalletCommand::RegisterWalletType(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) => { CommandIndex::WalletCommandRegisterWalletType }
                     WalletCommand::Create(_, _, _) => { CommandIndex::WalletCommandCreate }
-                    WalletCommand::CreateContinue(_, _, _, _, _) => { CommandIndex::WalletCommandCreateContinue }
                     WalletCommand::Open(_, _, _) => { CommandIndex::WalletCommandOpen }
-                    WalletCommand::OpenContinue(_, _) => { CommandIndex::WalletCommandOpenContinue }
                     WalletCommand::Close(_, _) => { CommandIndex::WalletCommandClose }
                     WalletCommand::Delete(_, _, _) => { CommandIndex::WalletCommandDelete }
-                    WalletCommand::DeleteContinue(_, _, _, _, _) => { CommandIndex::WalletCommandDeleteContinue }
                     WalletCommand::Export(_, _, _) => { CommandIndex::WalletCommandExport }
-                    WalletCommand::ExportContinue(_, _, _, _, _) => { CommandIndex::WalletCommandExportContinue }
                     WalletCommand::Import(_, _, _, _) => { CommandIndex::WalletCommandImport }
-                    WalletCommand::ImportContinue(_, _, _, _, _) => { CommandIndex::WalletCommandImportContinue }
                     WalletCommand::GenerateKey(_, _) => { CommandIndex::WalletCommandGenerateKey }
-                    WalletCommand::DeriveKey(_, _) => { CommandIndex::WalletCommandDeriveKey }
                 }
             }
             Command::Pairwise(cmd) => {
@@ -272,46 +256,29 @@ impl From<&Command> for CommandIndex {
                 match cmd {
                     PaymentsCommand::RegisterMethod(_, _, _) => { CommandIndex::PaymentsCommandRegisterMethod }
                     PaymentsCommand::CreateAddress(_, _, _, _) => { CommandIndex::PaymentsCommandCreateAddress }
-                    PaymentsCommand::CreateAddressAck(_, _, _) => { CommandIndex::PaymentsCommandCreateAddressAck }
                     PaymentsCommand::ListAddresses(_, _) => { CommandIndex::PaymentsCommandListAddresses }
                     PaymentsCommand::AddRequestFees(_, _, _, _, _, _, _) => { CommandIndex::PaymentsCommandAddRequestFees }
-                    PaymentsCommand::AddRequestFeesAck(_, _) => { CommandIndex::PaymentsCommandAddRequestFeesAck }
                     PaymentsCommand::ParseResponseWithFees(_, _, _) => { CommandIndex::PaymentsCommandParseResponseWithFees }
-                    PaymentsCommand::ParseResponseWithFeesAck(_, _) => { CommandIndex::PaymentsCommandParseResponseWithFeesAck }
                     PaymentsCommand::BuildGetPaymentSourcesRequest(_, _, _, _, _) => { CommandIndex::PaymentsCommandBuildGetPaymentSourcesRequest }
-                    PaymentsCommand::BuildGetPaymentSourcesRequestAck(_, _) => { CommandIndex::PaymentsCommandBuildGetPaymentSourcesRequestAck }
                     PaymentsCommand::ParseGetPaymentSourcesResponse(_, _, _) => { CommandIndex::PaymentsCommandParseGetPaymentSourcesResponse }
-                    PaymentsCommand::ParseGetPaymentSourcesResponseAck(_, _) => { CommandIndex::PaymentsCommandParseGetPaymentSourcesResponseAck }
                     PaymentsCommand::BuildPaymentReq(_, _, _, _, _, _) => { CommandIndex::PaymentsCommandBuildPaymentReq }
-                    PaymentsCommand::BuildPaymentReqAck(_, _) => { CommandIndex::PaymentsCommandBuildPaymentReqAck }
                     PaymentsCommand::ParsePaymentResponse(_, _, _) => { CommandIndex::PaymentsCommandParsePaymentResponse }
-                    PaymentsCommand::ParsePaymentResponseAck(_, _) => { CommandIndex::PaymentsCommandParsePaymentResponseAck }
                     PaymentsCommand::AppendTxnAuthorAgreementAcceptanceToExtra(_, _, _, _, _, _, _) => { CommandIndex::PaymentsCommandAppendTxnAuthorAgreementAcceptanceToExtra }
                     PaymentsCommand::BuildMintReq(_, _, _, _, _) => { CommandIndex::PaymentsCommandBuildMintReq }
-                    PaymentsCommand::BuildMintReqAck(_, _) => { CommandIndex::PaymentsCommandBuildMintReqAck }
                     PaymentsCommand::BuildSetTxnFeesReq(_, _, _, _, _) => { CommandIndex::PaymentsCommandBuildSetTxnFeesReq }
-                    PaymentsCommand::BuildSetTxnFeesReqAck(_, _) => { CommandIndex::PaymentsCommandBuildSetTxnFeesReqAck }
                     PaymentsCommand::BuildGetTxnFeesReq(_, _, _, _) => { CommandIndex::PaymentsCommandBuildGetTxnFeesReq }
-                    PaymentsCommand::BuildGetTxnFeesReqAck(_, _) => { CommandIndex::PaymentsCommandBuildGetTxnFeesReqAck }
                     PaymentsCommand::ParseGetTxnFeesResponse(_, _, _) => { CommandIndex::PaymentsCommandParseGetTxnFeesResponse }
-                    PaymentsCommand::ParseGetTxnFeesResponseAck(_, _) => { CommandIndex::PaymentsCommandParseGetTxnFeesResponseAck }
                     PaymentsCommand::BuildVerifyPaymentReq(_, _, _, _) => { CommandIndex::PaymentsCommandBuildVerifyPaymentReq }
-                    PaymentsCommand::BuildVerifyPaymentReqAck(_, _) => { CommandIndex::PaymentsCommandBuildVerifyPaymentReqAck }
                     PaymentsCommand::ParseVerifyPaymentResponse(_, _, _) => { CommandIndex::PaymentsCommandParseVerifyPaymentResponse }
-                    PaymentsCommand::ParseVerifyPaymentResponseAck(_, _) => { CommandIndex::PaymentsCommandParseVerifyPaymentResponseAck }
                     PaymentsCommand::GetRequestInfo(_, _, _, _) => { CommandIndex::PaymentsCommandGetRequestInfo }
                     PaymentsCommand::SignWithAddressReq(_, _, _, _) => { CommandIndex::PaymentsCommandSignWithAddressReq }
-                    PaymentsCommand::SignWithAddressAck(_, _) => { CommandIndex::PaymentsCommandSignWithAddressAck }
                     PaymentsCommand::VerifyWithAddressReq(_, _, _, _) => { CommandIndex::PaymentsCommandVerifyWithAddressReq }
-                    PaymentsCommand::VerifyWithAddressAck(_, _) => { CommandIndex::PaymentsCommandVerifyWithAddressAck }
                 }
             }
             Command::Cache(cmd) => {
                 match cmd {
                     CacheCommand::GetSchema(_, _, _, _, _, _) => { CommandIndex::CacheCommandGetSchema }
-                    CacheCommand::GetSchemaContinue(_, _, _, _) => { CommandIndex::CacheCommandGetSchemaContinue }
                     CacheCommand::GetCredDef(_, _, _, _, _, _) => { CommandIndex::CacheCommandGetCredDef }
-                    CacheCommand::GetCredDefContinue(_, _, _, _) => { CommandIndex::CacheCommandGetCredDefContinue }
                     CacheCommand::PurgeSchemaCache(_, _, _) => { CommandIndex::CacheCommandPurgeSchemaCache }
                     CacheCommand::PurgeCredDefCache(_, _, _) => { CommandIndex::CacheCommandPurgeCredDefCache }
                 }

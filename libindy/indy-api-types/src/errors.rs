@@ -216,6 +216,12 @@ impl From<cell::BorrowMutError> for IndyError {
     }
 }
 
+impl From<futures::channel::oneshot::Canceled> for IndyError {
+    fn from(err: futures::channel::oneshot::Canceled) -> Self {
+        err.context(IndyErrorKind::InvalidState).into()
+    }
+}
+
 impl From<log::SetLoggerError> for IndyError {
     fn from(err: log::SetLoggerError) -> IndyError {
         err.context(IndyErrorKind::InvalidState).into()

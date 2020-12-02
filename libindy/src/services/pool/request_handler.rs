@@ -11,16 +11,13 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 use self::super::THRESHOLD;
 
-use crate::commands::Command;
-use crate::commands::CommandExecutor;
-use crate::commands::ledger::LedgerCommand;
 use indy_api_types::errors::prelude::*;
 use crate::services::ledger::merkletree::merkletree::MerkleTree;
 use crate::services::pool::catchup::{build_catchup_req, CatchupProgress, check_cons_proofs, check_nodes_responses_on_status};
 use crate::services::pool::events::NetworkerEvent;
 use crate::services::pool::events::PoolEvent;
 use crate::services::pool::events::RequestEvent;
-use crate::services::pool::{get_last_signed_time, Nodes};
+use crate::services::pool::{get_last_signed_time, Nodes, PoolService};
 use crate::services::pool::merkle_tree_factory;
 use crate::services::pool::networker::Networker;
 use crate::services::pool::state_proof;
@@ -717,10 +714,7 @@ fn _finish_request(cmd_ids: &[CommandHandle]) {
 
 fn _send_replies(cmd_ids: &[CommandHandle], msg: IndyResult<String>) {
     cmd_ids.iter().for_each(|id| {
-        CommandExecutor::instance().send(
-            Command::Ledger(
-                LedgerCommand::SubmitAck(*id, msg.clone()))
-        ).unwrap();
+        PoolService::submit_ack(*id, msg.clone());
     });
 }
 
@@ -1271,7 +1265,7 @@ pub mod tests {
         }
 
         fn add_state_proof_parser() {
-            use crate::services::pool::{PoolService, REGISTERED_SP_PARSERS};
+            use crate::services::pool::REGISTERED_SP_PARSERS;
             use indy_api_types::ErrorCode;
             use libc::c_char;
             use std::ffi::CString;
@@ -1491,7 +1485,6 @@ pub mod tests {
 
         // this test is marked ignore until https://jira.hyperledger.org/browse/IS-1137 is resolved
         #[test]
-        #[ignore]
         fn request_handler_process_reply_event_from_single_state_works_for_consensus_reached_with_0_concensus() {
             // the test will use 4 nodes, each node replying with a response to the "custom consensus request" message
             // some nodes accept, some reject and some nack.  the end result is consensus should not be reached

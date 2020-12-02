@@ -12,6 +12,7 @@ use crate::utils::domain::anoncreds::revocation_registry::RevocationRegistryV1;
 use crate::utils::domain::anoncreds::revocation_registry_definition::RevocationRegistryDefinitionV1;
 use crate::utils::domain::anoncreds::revocation_registry_delta::RevocationRegistryDeltaV1;
 use crate::utils::domain::anoncreds::schema::SchemaV1;
+#[cfg(not(feature="only_high_cases"))]
 use crate::utils::domain::crypto::did::DidValue;
 use crate::utils::domain::ledger::constants;
 use crate::utils::domain::ledger::nym::NymData;

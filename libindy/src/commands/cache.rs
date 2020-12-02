@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -8,13 +6,12 @@ use crate::domain::anoncreds::schema::SchemaId;
 use crate::domain::anoncreds::credential_definition::CredentialDefinitionId;
 use indy_api_types::errors::prelude::*;
 use indy_wallet::{WalletService, WalletRecord};
-use indy_api_types::{WalletHandle, PoolHandle, CommandHandle};
-use crate::commands::{Command, CommandExecutor};
-use crate::commands::ledger::LedgerCommand;
+use indy_api_types::{WalletHandle, PoolHandle};
 use crate::domain::cache::{GetCacheOptions, PurgeOptions};
 use crate::domain::crypto::did::DidValue;
-
-use indy_utils::next_command_handle;
+use crate::services::crypto::CryptoService;
+use crate::services::ledger::LedgerService;
+use crate::services::pool::PoolService;
 
 const CRED_DEF_CACHE: &str = "cred_def_cache";
 const SCHEMA_CACHE: &str = "schema_cache";
@@ -26,24 +23,12 @@ pub enum CacheCommand {
               SchemaId, // id
               GetCacheOptions, // options
               Box<dyn Fn(IndyResult<String>) + Send>),
-    GetSchemaContinue(
-        WalletHandle,
-        IndyResult<(String, String)>, // ledger_response
-        GetCacheOptions,              // options
-        CommandHandle,                          // cb_id
-    ),
     GetCredDef(PoolHandle,
                WalletHandle,
                DidValue, // submitter_did
                CredentialDefinitionId, // id
                GetCacheOptions, // options
                Box<dyn Fn(IndyResult<String>) + Send>),
-    GetCredDefContinue(
-        WalletHandle,
-        IndyResult<(String, String)>, // ledger_response
-        GetCacheOptions,              // options
-        CommandHandle,                          // cb_id
-    ),
     PurgeSchemaCache(WalletHandle,
                      PurgeOptions, // options
                      Box<dyn Fn(IndyResult<()>) + Send>),
@@ -53,57 +38,52 @@ pub enum CacheCommand {
 }
 
 pub struct CacheCommandExecutor {
+    crypto_service: Rc<CryptoService>,
+    ledger_service: Rc<LedgerService>,
+    pool_service: Rc<PoolService>,
     wallet_service: Rc<WalletService>,
-
-    pending_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<String>)>>>,
 }
 
 macro_rules! check_cache {
-    ($cache: ident, $options: ident, $cb: ident) => {
+    ($cache: ident, $options: ident) => {
     if let Some(cache) = $cache {
             let min_fresh = $options.min_fresh.unwrap_or(-1);
             if min_fresh >= 0 {
                 let ts = match CacheCommandExecutor::get_seconds_since_epoch() {
                     Ok(ts) => ts,
                     Err(err) => {
-                        return $cb(Err(err))
+                        return Err(err)
                     }
                 };
                 if ts - min_fresh <= cache.get_tags().unwrap_or(&Tags::new()).get("timestamp").unwrap_or(&"-1".to_string()).parse().unwrap_or(-1) {
-                    return $cb(Ok(cache.get_value().unwrap_or("").to_string()))
+                    return Ok(cache.get_value().unwrap_or("").to_string())
                 }
             } else {
-                return $cb(Ok(cache.get_value().unwrap_or("").to_string()))
+                return Ok(cache.get_value().unwrap_or("").to_string())
             }
         }
     };
 }
 
 impl CacheCommandExecutor {
-    pub fn new(wallet_service: Rc<WalletService>) -> CacheCommandExecutor {
+    pub fn new(crypto_service: Rc<CryptoService>, ledger_service: Rc<LedgerService>, pool_service: Rc<PoolService>, wallet_service: Rc<WalletService>) -> CacheCommandExecutor {
         CacheCommandExecutor {
+            crypto_service,
+            ledger_service,
+            pool_service,
             wallet_service,
-            pending_callbacks: RefCell::new(HashMap::new()),
         }
     }
 
-    pub fn execute(&self, command: CacheCommand) {
+    pub async fn execute(&self, command: CacheCommand) {
         match command {
             CacheCommand::GetSchema(pool_handle, wallet_handle, submitter_did, id, options, cb) => {
                 debug!(target: "non_secrets_command_executor", "GetSchema command received");
-                self.get_schema(pool_handle, wallet_handle, &submitter_did, &id, options, cb);
-            }
-            CacheCommand::GetSchemaContinue(wallet_handle, ledger_response, options, cb_id) => {
-                debug!(target: "non_secrets_command_executor", "GetSchemaContinue command received");
-                self._get_schema_continue(wallet_handle, ledger_response, options, cb_id);
+                cb(self.get_schema(pool_handle, wallet_handle, &submitter_did, &id, options).await);
             }
             CacheCommand::GetCredDef(pool_handle, wallet_handle, submitter_did, id, options, cb) => {
                 debug!(target: "non_secrets_command_executor", "GetCredDef command received");
-                self.get_cred_def(pool_handle, wallet_handle, &submitter_did, &id, options, cb);
-            }
-            CacheCommand::GetCredDefContinue(wallet_handle, ledger_response, options, cb_id) => {
-                debug!(target: "non_secrets_command_executor", "GetCredDefContinue command received");
-                self._get_cred_def_continue(wallet_handle, ledger_response, options, cb_id);
+                cb(self.get_cred_def(pool_handle, wallet_handle, &submitter_did, &id, options).await);
             }
             CacheCommand::PurgeSchemaCache(wallet_handle, options, cb) => {
                 debug!(target: "non_secrets_command_executor", "PurgeSchemaCache command received");
@@ -116,49 +96,40 @@ impl CacheCommandExecutor {
         }
     }
 
-    fn get_schema(&self,
+    async fn get_schema(&self,
                   pool_handle: PoolHandle,
                   wallet_handle: WalletHandle,
                   submitter_did: &DidValue,
                   id: &SchemaId,
-                  options: GetCacheOptions,
-                  cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+                  options: GetCacheOptions) -> IndyResult<String> {
         trace!("get_schema >>> pool_handle: {:?}, wallet_handle: {:?}, submitter_did: {:?}, id: {:?}, options: {:?}",
                pool_handle, wallet_handle, submitter_did, id, options);
 
-        let cache = self.get_record_from_cache(wallet_handle, &id.0, &options, SCHEMA_CACHE);
-        let cache = try_cb!(cache, cb);
+        let cache = self.get_record_from_cache(wallet_handle, &id.0, &options, SCHEMA_CACHE)?;
 
-        check_cache!(cache, options, cb);
+        check_cache!(cache, options);
 
         if options.no_update.unwrap_or(false) {
-            return cb(Err(IndyError::from(IndyErrorKind::LedgerItemNotFound)));
+            return Err(IndyError::from(IndyErrorKind::LedgerItemNotFound));
         }
 
-        let cb_id = next_command_handle();
-        self.pending_callbacks.borrow_mut().insert(cb_id, cb);
+        let ledger_response = {
+            let request_json = { self.crypto_service.validate_opt_did(Some(submitter_did))?;
 
-        CommandExecutor::instance().send(
-            Command::Ledger(
-                LedgerCommand::GetSchema(
-                    pool_handle,
-                    Some(submitter_did.clone()),
-                    id.clone(),
-                    Box::new(move |ledger_response| {
-                        CommandExecutor::instance().send(
-                            Command::Cache(
-                                CacheCommand::GetSchemaContinue(
-                                    wallet_handle,
-                                    ledger_response,
-                                    options.clone(),
-                                    cb_id,
-                                )
-                            )
-                        ).unwrap();
-                    })
-                )
-            )
-        ).unwrap();
+                self.ledger_service.build_get_schema_request(Some(submitter_did), id)?
+            };
+
+            let pool_response = self.pool_service.send_tx(pool_handle, &request_json).await?;
+
+            self.ledger_service.parse_get_schema_response(&pool_response, id.get_method().as_ref().map(String::as_str))
+        };
+
+        let (schema_id, schema_json) = ledger_response?;
+
+        self._delete_and_add_record(wallet_handle, options, &schema_id, &schema_json, SCHEMA_CACHE)
+            .map_err(|err| IndyError::from_msg(IndyErrorKind::InvalidState, format!("get_schema_continue failed: {:?}", err)))?;
+
+        Ok(schema_json)
     }
 
     fn _delete_and_add_record(&self,
@@ -184,63 +155,38 @@ impl CacheCommandExecutor {
         Ok(())
     }
 
-    fn _get_schema_continue(&self,
-                            wallet_handle: WalletHandle,
-                            ledger_response: IndyResult<(String, String)>,
-                            options: GetCacheOptions, cb_id: CommandHandle) {
-        let cb = self.pending_callbacks.borrow_mut().remove(&cb_id).expect("FIXME INVALID STATE");
-
-        let (schema_id, schema_json) = try_cb!(ledger_response, cb);
-
-        match self._delete_and_add_record(wallet_handle, options, &schema_id, &schema_json, SCHEMA_CACHE) {
-            Ok(_) => cb(Ok(schema_json)),
-            Err(err) => cb(Err(IndyError::from_msg(IndyErrorKind::InvalidState, format!("get_schema_continue failed: {:?}", err))))
-        }
-    }
-
-    fn get_cred_def(&self,
+    async fn get_cred_def<'a>(&'a self,
                     pool_handle: PoolHandle,
                     wallet_handle: WalletHandle,
-                    submitter_did: &DidValue,
-                    id: &CredentialDefinitionId,
-                    options: GetCacheOptions,
-                    cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+                    submitter_did: &'a DidValue,
+                    id: &'a CredentialDefinitionId,
+                    options: GetCacheOptions) -> IndyResult<String> {
         trace!("get_cred_def >>> pool_handle: {:?}, wallet_handle: {:?}, submitter_did: {:?}, id: {:?}, options: {:?}",
                pool_handle, wallet_handle, submitter_did, id, options);
 
-        let cache = self.get_record_from_cache(wallet_handle, &id.0, &options, CRED_DEF_CACHE);
-        let cache = try_cb!(cache, cb);
+        let cache = self.get_record_from_cache(wallet_handle, &id.0, &options, CRED_DEF_CACHE)?;
 
-        check_cache!(cache, options, cb);
+        check_cache!(cache, options);
 
         if options.no_update.unwrap_or(false) {
-            return cb(Err(IndyError::from(IndyErrorKind::LedgerItemNotFound)));
+            return Err(IndyError::from(IndyErrorKind::LedgerItemNotFound));
         }
 
-        let cb_id = next_command_handle();
-        self.pending_callbacks.borrow_mut().insert(cb_id, cb);
+        let (cred_def_id, cred_def_json) = self.ledger_get_cred_def_and_parse(pool_handle, Some(submitter_did), id).await?;
 
-        CommandExecutor::instance().send(
-            Command::Ledger(
-                LedgerCommand::GetCredDef(
-                    pool_handle,
-                    Some(submitter_did.clone()),
-                    id.clone(),
-                    Box::new(move |ledger_response| {
-                        CommandExecutor::instance().send(
-                            Command::Cache(
-                                CacheCommand::GetCredDefContinue(
-                                    wallet_handle,
-                                    ledger_response,
-                                    options.clone(),
-                                    cb_id,
-                                )
-                            )
-                        ).unwrap();
-                    })
-                )
-            )
-        ).unwrap();
+        match self._delete_and_add_record(wallet_handle, options, &cred_def_id, &cred_def_json, CRED_DEF_CACHE) {
+            Ok(_) => Ok(cred_def_json),
+            Err(err) => Err(IndyError::from_msg(IndyErrorKind::InvalidState, format!("get_cred_def_continue failed: {:?}", err)))
+        }
+    }
+
+    async fn ledger_get_cred_def_and_parse<'a>(&'a self, pool_handle: i32, submitter_did: Option<&'a DidValue>, id: &'a CredentialDefinitionId) -> IndyResult<(String, String)> {
+        self.crypto_service.validate_opt_did(submitter_did)?;
+        let request_json = self.ledger_service.build_get_cred_def_request(submitter_did, id)?;
+
+        let pool_response = self.pool_service.send_tx(pool_handle, &request_json).await?;
+
+        self.ledger_service.parse_get_cred_def_response(&pool_response, id.get_method().as_ref().map(String::as_str))
     }
 
     fn get_record_from_cache(&self, wallet_handle: WalletHandle, id: &str, options: &GetCacheOptions, which_cache: &str) -> Result<Option<WalletRecord>, IndyError> {
@@ -255,17 +201,6 @@ impl CacheCommandExecutor {
                 Err(err) => if err.kind() == IndyErrorKind::WalletItemNotFound { Ok(None) } else { Err(err) }
             }
         } else { Ok(None) }
-    }
-
-    fn _get_cred_def_continue(&self, wallet_handle: WalletHandle, ledger_response: IndyResult<(String, String)>, options: GetCacheOptions, cb_id: CommandHandle) {
-        let cb = self.pending_callbacks.borrow_mut().remove(&cb_id).expect("FIXME INVALID STATE");
-
-        let (cred_def_id, cred_def_json) = try_cb!(ledger_response, cb);
-
-        match self._delete_and_add_record(wallet_handle, options, &cred_def_id, &cred_def_json, CRED_DEF_CACHE) {
-            Ok(_) => cb(Ok(cred_def_json)),
-            Err(err) => cb(Err(IndyError::from_msg(IndyErrorKind::InvalidState, format!("get_cred_def_continue failed: {:?}", err))))
-        }
     }
 
     fn get_seconds_since_epoch() -> Result<i32, IndyError> {

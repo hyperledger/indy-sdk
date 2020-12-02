@@ -10,9 +10,9 @@ use self::zmq::Socket;
 
 use std::{fs, io};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde_json;
 use serde::de::DeserializeOwned;
@@ -34,6 +34,10 @@ use indy_api_types::{CommandHandle, PoolHandle};
 use indy_utils::{next_command_handle, next_pool_handle};
 use ursa::bls::VerKey;
 
+use futures::channel::oneshot;
+
+use log_derive::logfn;
+
 mod catchup;
 mod commander;
 mod events;
@@ -46,20 +50,23 @@ mod types;
 
 lazy_static! {
     static ref REGISTERED_SP_PARSERS: Mutex<HashMap<String, (CustomTransactionParser, CustomFree)>> = Mutex::new(HashMap::new());
+    static ref POOL_HANDLE_SENDERS: Arc<Mutex<HashMap<PoolHandle, oneshot::Sender<IndyResult<PoolHandle>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref SUBMIT_SENDERS: Arc<Mutex<HashMap<PoolHandle, oneshot::Sender<IndyResult<String>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref CLOSE_SENDERS: Arc<Mutex<HashMap<PoolHandle, oneshot::Sender<IndyResult<()>>>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
 type Nodes = HashMap<String, Option<VerKey>>;
 
 pub struct PoolService {
     open_pools: RefCell<HashMap<PoolHandle, ZMQPool>>,
-    pending_pools: RefCell<HashMap<PoolHandle, ZMQPool>>,
+    pending_pools: RefCell<HashSet<String>>,
 }
 
 impl PoolService {
     pub fn new() -> PoolService {
         PoolService {
             open_pools: RefCell::new(HashMap::new()),
-            pending_pools: RefCell::new(HashMap::new()),
+            pending_pools: RefCell::new(HashSet::new()),
         }
     }
 
@@ -131,10 +138,9 @@ impl PoolService {
     }
 
     pub fn delete(&self, name: &str) -> IndyResult<()> {
-        for ref pool in self.open_pools.try_borrow()?.values() {
-            if pool.pool.get_name().eq(name) {
-                return Err(err_msg(IndyErrorKind::InvalidState, "Can't delete pool config - pool is open now"));
-            }
+        if self.open_pools.try_borrow()?.values()
+            .find(|pool| pool.pool.get_name().eq(name)).is_some() {
+            return Err(err_msg(IndyErrorKind::InvalidState, "Can't delete pool config - pool is open now"));
         }
 
         let path = environment::pool_path(name);
@@ -143,54 +149,88 @@ impl PoolService {
             .to_indy(IndyErrorKind::IOError, "Can't delete pool config directory")
     }
 
-    pub fn open(&self, name: &str, config: Option<PoolOpenConfig>) -> IndyResult<PoolHandle> {
-        for ref pool in self.open_pools.try_borrow()?.values() {
-            if name.eq(pool.pool.get_name()) {
-                //TODO change error
-                return Err(err_msg(IndyErrorKind::InvalidPoolHandle, "Pool with the same name is already opened"));
-            }
+    pub async fn open(&self, name: String, config: Option<PoolOpenConfig>) -> IndyResult<PoolHandle> {
+        if self.open_pools.try_borrow()?.values()
+            .find(|pool| pool.pool.get_name().eq(&name)).is_some() {
+            //TODO change error
+            return Err(err_msg(IndyErrorKind::InvalidPoolHandle, "Pool with the same name is already opened"));
+        }
+        if self.pending_pools.try_borrow()?.contains(&name) {
+            return Err(err_msg(IndyErrorKind::InvalidPoolHandle, "Pool with the same name is already being opened"));
         }
 
         let config = config.unwrap_or_default();
 
         let pool_handle: PoolHandle = next_pool_handle();
-        let mut new_pool = Pool::new(name, pool_handle, config);
+        let mut new_pool = Pool::new(&name, pool_handle, config);
 
         let (send_cmd_sock, recv_cmd_sock) = pool_create_pair_of_sockets(&format!("pool_{}", name));
 
         new_pool.work(recv_cmd_sock);
         self._send_msg(pool_handle, COMMAND_CONNECT, &send_cmd_sock, None, None)?;
 
-        self.pending_pools.try_borrow_mut()?
-            .insert(new_pool.get_id(), ZMQPool::new(new_pool, send_cmd_sock));
-        Ok(pool_handle)
-    }
+        let (sender, receiver) = oneshot::channel::<IndyResult<PoolHandle>>();
 
-    pub fn add_open_pool(&self, pool_id: PoolHandle) -> IndyResult<PoolHandle> {
-        let pool = self.pending_pools.try_borrow_mut()?
-            .remove(&pool_id)
-            .ok_or_else(|| err_msg(IndyErrorKind::InvalidPoolHandle, format!("No pool with requested handle {:?}", pool_id)))?;
+        self.pending_pools.try_borrow_mut()?.insert(name.clone());
+        POOL_HANDLE_SENDERS.lock().unwrap().insert(pool_handle, sender);
 
-        self.open_pools.try_borrow_mut()?.insert(pool_id, pool);
+        let res = receiver.await?;
 
-        Ok(pool_id)
-    }
-
-
-    pub fn send_tx(&self, handle: PoolHandle, msg: &str) -> IndyResult<CommandHandle> {
-        self.send_action(handle, msg, None, None)
-    }
-
-    pub fn send_action(&self, handle: PoolHandle, msg: &str, nodes: Option<&str>, timeout: Option<i32>) -> IndyResult<CommandHandle> {
-        let pools = self.open_pools.try_borrow()?;
-
-        if let Some(ref pool) = pools.get(&handle) {
-            let cmd_id: CommandHandle = next_command_handle();
-            self._send_msg(cmd_id, msg, &pool.cmd_socket, nodes, timeout)?;
-            Ok(cmd_id)
-        } else {
-            Err(err_msg(IndyErrorKind::InvalidPoolHandle, format!("No pool with requested handle {:?}", handle)))
+        self.pending_pools.try_borrow_mut()?.remove(&name);
+        if res.is_ok() {
+            self.open_pools.try_borrow_mut()?
+                .insert(new_pool.get_id(), ZMQPool::new(new_pool, send_cmd_sock));
         }
+
+        res
+    }
+
+    #[logfn(trace)]
+    pub fn open_ack(pool_hanlde: PoolHandle, result: IndyResult<()>) {
+        let sender: futures::channel::oneshot::Sender<IndyResult<PoolHandle>> = POOL_HANDLE_SENDERS.lock().unwrap().remove(&pool_hanlde).unwrap();
+        sender.send(result.map(|()| pool_hanlde)).unwrap(); //FIXME
+    }
+
+    #[logfn(trace)]
+    pub fn refresh_ack(cmd_id: CommandHandle, result: IndyResult<()>) {
+        let sender: futures::channel::oneshot::Sender<IndyResult<String>> = SUBMIT_SENDERS.lock().unwrap().remove(&cmd_id).unwrap();
+        sender.send(result.map(|()| String::new())).unwrap(); //FIXME
+    }
+
+    pub async fn send_tx(&self, handle: PoolHandle, msg: &str) -> IndyResult<String> {
+        self.send_action(handle, msg, None, None).await
+    }
+
+    pub async fn send_action(&self, handle: PoolHandle, msg: &str, nodes: Option<&str>, timeout: Option<i32>) -> IndyResult<String> {
+        trace!("send_action >>");
+
+        let receiver = {
+            let borrowed_pools = self.open_pools.try_borrow()?;
+
+            let pool = borrowed_pools.get(&handle)
+                .ok_or(err_msg(IndyErrorKind::InvalidPoolHandle, format!("No pool with requested handle {:?}", handle)))?;
+
+            let cmd_id: CommandHandle = next_command_handle();
+
+            let (sender, receiver) = oneshot::channel::<IndyResult<String>>();
+
+            SUBMIT_SENDERS.lock().unwrap().insert(cmd_id, sender);
+
+            self._send_msg(cmd_id, msg, &pool.cmd_socket, nodes, timeout)?;
+
+            receiver
+        };
+
+        let res = receiver.await?;
+
+        trace!("send_action <<< {:?}", res);
+        res
+    }
+
+    #[logfn(trace)]
+    fn submit_ack(cmd_id: CommandHandle, result: IndyResult<String>) {
+        let sender: futures::channel::oneshot::Sender<IndyResult<String>> = SUBMIT_SENDERS.lock().unwrap().remove(&cmd_id).unwrap();
+        sender.send(result).unwrap(); //FIXME
     }
 
     pub fn register_sp_parser(txn_type: &str,
@@ -214,21 +254,28 @@ impl PoolService {
         parsers.get(txn_type).map(Clone::clone)
     }
 
-    pub fn close(&self, handle: PoolHandle) -> IndyResult<CommandHandle> {
-        let cmd_id: CommandHandle = next_command_handle();
+    pub async fn close(&self, handle: PoolHandle) -> IndyResult<()> {
+        let pool = self.open_pools.try_borrow_mut()?.remove(&handle);
 
-        let mut pools = self.open_pools.try_borrow_mut()?;
+        let (sender, receiver) = oneshot::channel::<IndyResult<()>>();
+        CLOSE_SENDERS.lock().unwrap().insert(handle, sender);
 
-        match pools.remove(&handle) {
-            Some(ref pool) => self._send_msg(cmd_id, COMMAND_EXIT, &pool.cmd_socket, None, None)?,
+        match pool {
+            Some(pool) => self._send_msg(handle, COMMAND_EXIT, &pool.cmd_socket, None, None)?,
             None => return Err(err_msg(IndyErrorKind::InvalidPoolHandle, format!("No pool with requested handle {}", handle)))
         }
 
-        Ok(cmd_id)
+        receiver.await?
     }
 
-    pub fn refresh(&self, handle: PoolHandle) -> IndyResult<i32> {
-        self.send_action(handle, COMMAND_REFRESH, None, None)
+    #[logfn(trace)]
+    fn close_ack(cmd_id: CommandHandle, result: IndyResult<()>) {
+        let sender: futures::channel::oneshot::Sender<IndyResult<()>> = CLOSE_SENDERS.lock().unwrap().remove(&cmd_id).unwrap();
+        sender.send(result).unwrap(); //FIXME
+    }
+
+    pub async fn refresh(&self, handle: PoolHandle) -> IndyResult<()> {
+        self.send_action(handle, COMMAND_REFRESH, None, None).await.map(|_| ())
     }
 
     fn _send_msg(&self, cmd_id: CommandHandle, msg: &str, socket: &Socket, nodes: Option<&str>, timeout: Option<i32>) -> IndyResult<()> {
@@ -337,8 +384,36 @@ pub fn pool_create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod test_utils {
+    use super::*;
+
+    pub fn fake_pool_handle_for_poolsm() -> (indy_api_types::PoolHandle, oneshot::Receiver<IndyResult<indy_api_types::PoolHandle>>) {
+        let pool_handle = indy_utils::next_pool_handle();
+        let (sender, receiver) = oneshot::channel();
+        super::POOL_HANDLE_SENDERS.lock().unwrap().insert(pool_handle, sender);
+        (pool_handle, receiver)
+    }
+
+    pub fn fake_cmd_id() -> (indy_api_types::CommandHandle, oneshot::Receiver<IndyResult<String>>) {
+        let cmd_id = indy_utils::next_command_handle();
+        let (sender, receiver) = oneshot::channel();
+        super::SUBMIT_SENDERS.lock().unwrap().insert(cmd_id, sender);
+        (cmd_id, receiver)
+    }
+
+    pub fn fake_pool_handle_for_close_cmd() -> (indy_api_types::CommandHandle, oneshot::Receiver<IndyResult<()>>) {
+        let pool_handle = indy_utils::next_command_handle();
+        let (sender, receiver) = oneshot::channel();
+        super::CLOSE_SENDERS.lock().unwrap().insert(pool_handle, sender);
+        (pool_handle, receiver)
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
     use std::thread;
+
+    use futures::executor::block_on;
 
     use crate::domain::ledger::request::ProtocolVersion;
     use crate::services::pool::types::*;
@@ -385,11 +460,16 @@ mod tests {
             let pool_id = next_pool_handle();
             let (send_cmd_sock, recv_cmd_sock) = pool_create_pair_of_sockets("pool_service_close_works");
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(Pool::new("", pool_id, PoolOpenConfig::default()), send_cmd_sock));
-            let cmd_id = ps.close(pool_id).unwrap();
-            let recv = recv_cmd_sock.recv_multipart(zmq::DONTWAIT).unwrap();
-            assert_eq!(recv.len(), 3);
-            assert_eq!(COMMAND_EXIT, String::from_utf8(recv[0].clone()).unwrap());
-            assert_eq!(cmd_id, LittleEndian::read_i32(recv[1].as_slice()));
+            let pool_mock = thread::spawn(move || {
+                let recv = recv_cmd_sock.recv_multipart(0).unwrap();
+                assert_eq!(recv.len(), 3);
+                assert_eq!(COMMAND_EXIT, String::from_utf8(recv[0].clone()).unwrap());
+                assert_eq!(pool_id, LittleEndian::read_i32(recv[1].as_slice()));
+                PoolService::close_ack(pool_id, Ok(()));
+            });
+
+            block_on(ps.close(pool_id)).unwrap();
+            pool_mock.join().unwrap();
         }
 
         #[test]
@@ -400,11 +480,16 @@ mod tests {
             let pool_id = next_pool_handle();
             let (send_cmd_sock, recv_cmd_sock) = pool_create_pair_of_sockets("pool_service_refresh_works");
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(Pool::new("", pool_id, PoolOpenConfig::default()), send_cmd_sock));
-            let cmd_id = ps.refresh(pool_id).unwrap();
-            let recv = recv_cmd_sock.recv_multipart(zmq::DONTWAIT).unwrap();
-            assert_eq!(recv.len(), 3);
-            assert_eq!(COMMAND_REFRESH, String::from_utf8(recv[0].clone()).unwrap());
-            assert_eq!(cmd_id, LittleEndian::read_i32(recv[1].as_slice()));
+            let pool_mock = thread::spawn(move || {
+                assert_eq!(1, zmq::poll(&mut [recv_cmd_sock.as_poll_item(zmq::POLLIN)], 10_000).unwrap());
+                let recv = recv_cmd_sock.recv_multipart(zmq::DONTWAIT).unwrap();
+                assert_eq!(recv.len(), 3);
+                assert_eq!(COMMAND_REFRESH, String::from_utf8(recv[0].clone()).unwrap());
+                let cmd_id = LittleEndian::read_i32(recv[1].as_slice());
+                PoolService::refresh_ack(cmd_id, Ok(()));
+            });
+            block_on(ps.refresh(pool_id)).unwrap();
+            pool_mock.join().unwrap();
         }
 
         #[test]
@@ -455,8 +540,14 @@ mod tests {
             let ps = PoolService::new();
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(pool, send_cmd_sock));
             let test_data = "str_instead_of_tx_json";
-            ps.send_tx(pool_id, test_data).unwrap();
-            assert_eq!(recv_cmd_sock.recv_string(zmq::DONTWAIT).unwrap().unwrap(), test_data);
+            let pool_mock = thread::spawn(move || {
+                assert_eq!(1, zmq::poll(&mut [recv_cmd_sock.as_poll_item(zmq::POLLIN)], 10_000).unwrap());
+                assert_eq!(recv_cmd_sock.recv_string(zmq::DONTWAIT).unwrap().unwrap(), test_data);
+                let cmd_id = LittleEndian::read_i32(recv_cmd_sock.recv_bytes(zmq::DONTWAIT).unwrap().as_slice());
+                PoolService::submit_ack(cmd_id, Ok("".to_owned()));
+            });
+            block_on(ps.send_tx(pool_id, test_data)).unwrap();
+            pool_mock.join().unwrap();
         }
 
         #[test]
@@ -471,7 +562,7 @@ mod tests {
             let pool = Pool::new(name, pool_id, PoolOpenConfig::default());
             let ps = PoolService::new();
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(pool, send_cmd_sock));
-            let res = ps.send_tx(pool_id, "test_data");
+            let res = block_on(ps.send_tx(pool_id, "test_data"));
             assert_eq!(IndyErrorKind::IOError, res.unwrap_err().kind());
         }
 
@@ -479,7 +570,7 @@ mod tests {
         fn pool_send_tx_works_for_invalid_handle() {
             test::cleanup_storage("pool_send_tx_works_for_invalid_handle");
             let ps = PoolService::new();
-            let res = ps.send_tx(INVALID_POOL_HANDLE, "txn");
+            let res = block_on(ps.send_tx(INVALID_POOL_HANDLE, "txn"));
             assert_eq!(IndyErrorKind::InvalidPoolHandle, res.unwrap_err().kind());
         }
 
@@ -493,15 +584,21 @@ mod tests {
             let ps = PoolService::new();
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(pool, send_cmd_sock));
             let test_data = "str_instead_of_tx_json";
-            ps.send_action(pool_id, test_data, None, None).unwrap();
-            assert_eq!(recv_cmd_sock.recv_string(zmq::DONTWAIT).unwrap().unwrap(), test_data);
+            let pool_mock = thread::spawn(move || {
+                assert_eq!(1, zmq::poll(&mut [recv_cmd_sock.as_poll_item(zmq::POLLIN)], 10_000).unwrap());
+                assert_eq!(recv_cmd_sock.recv_string(zmq::DONTWAIT).unwrap().unwrap(), test_data);
+                let cmd_id = LittleEndian::read_i32(recv_cmd_sock.recv_bytes(zmq::DONTWAIT).unwrap().as_slice());
+                PoolService::submit_ack(cmd_id, Ok("".to_owned()));
+            });
+            block_on(ps.send_action(pool_id, test_data, None, None)).unwrap();
+            pool_mock.join().unwrap();
         }
 
         #[test]
         fn pool_close_works_for_invalid_handle() {
             test::cleanup_storage("pool_close_works_for_invalid_handle");
             let ps = PoolService::new();
-            let res = ps.close(INVALID_POOL_HANDLE);
+            let res = block_on(ps.close(INVALID_POOL_HANDLE));
             assert_eq!(IndyErrorKind::InvalidPoolHandle, res.unwrap_err().kind());
         }
 
@@ -509,7 +606,7 @@ mod tests {
         fn pool_refresh_works_for_invalid_handle() {
             test::cleanup_storage("pool_refresh_works_for_invalid_handle");
             let ps = PoolService::new();
-            let res = ps.refresh(INVALID_POOL_HANDLE);
+            let res = block_on(ps.refresh(INVALID_POOL_HANDLE));
             assert_eq!(IndyErrorKind::InvalidPoolHandle, res.unwrap_err().kind());
         }
 
@@ -546,25 +643,6 @@ mod tests {
             REGISTERED_SP_PARSERS.lock().unwrap().clear();
             assert_eq!(None, PoolService::get_sp_parser("test"));
         }
-
-        #[test]
-        pub fn pool_add_open_pool_works() {
-            test::cleanup_storage("pool_add_open_pool_works");
-            let ps = PoolService::new();
-            let (send_cmd_sock, _recv_cmd_sock) = pool_create_pair_of_sockets("pool_add_open_pool_works");
-            let pool_id = next_pool_handle();
-            let pool = Pool::new("pool_add_open_pool_works", pool_id, PoolOpenConfig::default());
-            ps.pending_pools.borrow_mut().insert(pool_id, ZMQPool::new(pool, send_cmd_sock));
-            assert_match!(Ok(_pool_id), ps.add_open_pool(pool_id));
-        }
-
-        #[test]
-        pub fn pool_add_open_pool_works_for_no_pending_pool() {
-            test::cleanup_storage("pool_add_open_pool_works_for_no_pending_pool");
-            let ps = PoolService::new();
-            let res = ps.add_open_pool(INVALID_POOL_HANDLE);
-            assert_eq!(IndyErrorKind::InvalidPoolHandle, res.unwrap_err().kind());
-        }
     }
 
     #[test]
@@ -596,7 +674,7 @@ mod tests {
             pool.work(recv_cmd_sock);
             ps.open_pools.borrow_mut().insert(pool_id, ZMQPool::new(pool, send_cmd_sock));
             thread::sleep(time::Duration::from_secs(1));
-            ps.close(pool_id).unwrap();
+            block_on(ps.close(pool_id)).unwrap();
             thread::sleep(time::Duration::from_secs(1));
         }
 
