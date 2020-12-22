@@ -1,0 +1,27 @@
+on: [push, pull_request]
+
+name: Continuous integration
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-16.04
+    steps:
+      - run: sudo apt-get install -y build-essential pkg-config cmake libssl-dev libsqlite3-dev libzmq3-dev libncursesw5-dev
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path libindy/Cargo.toml
+      - run: docker build -f ci/indy-pool.dockerfile -t indy_pool .
+      - run: docker run -itd -p 9701-9708:9701-9708 indy_pool
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path libindy/Cargo.toml -- --test-threads=1
+
