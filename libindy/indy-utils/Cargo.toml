@@ -20,7 +20,7 @@ randombytes_sodium = []
 
 [dependencies]
 base64 = {version = "0.10.1"}
-dirs = "2.0.2"
+dirs-next = "2.0.0"
 failure = "0.1.6"
 indy-api-types = { path = "../indy-api-types"}
 lazy_static = "1.3"

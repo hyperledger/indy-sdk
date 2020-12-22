@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use actix::prelude::*;
 use base64;
-use dirs;
+use dirs_next;
 use env_logger;
 use failure::{err_msg, Error, Fail};
 use futures::*;
@@ -57,7 +57,7 @@ pub const PAYLOAD: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 pub fn indy_home_path() -> PathBuf {
     // TODO: FIXME: Provide better handling for the unknown home path case!!!
-    let mut path = dirs::home_dir().unwrap_or(PathBuf::from("/home/indy"));
+    let mut path = dirs_next::home_dir().unwrap_or(PathBuf::from("/home/indy"));
     path.push(if cfg!(target_os = "ios") { "Documents/.indy_client" } else { ".indy_client" });
     path
 }

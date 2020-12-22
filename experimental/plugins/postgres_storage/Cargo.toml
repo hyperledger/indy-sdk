@@ -45,7 +45,7 @@ generic-array = "0.9.0"
 hex = "0.2.0"
 libc = "0.2.60"
 log = "0.4.1"
-dirs = "1.0.4"
+dirs-next = "2.0.0"
 openssl = { version = "=0.10.12", optional = true }
 owning_ref = "0.3.3"
 rand = "0.3"
@@ -73,4 +73,3 @@ r2d2_postgres = "0.14.0"
 version = "0.5.0"
 default-features = false
 features = ["v4"]
-

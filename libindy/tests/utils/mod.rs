@@ -90,7 +90,7 @@ macro_rules! inject_indy_dependencies {
         extern crate regex;
         extern crate time;
         extern crate libc;
-        extern crate dirs;
+        extern crate dirs_next;
     }
 }
 

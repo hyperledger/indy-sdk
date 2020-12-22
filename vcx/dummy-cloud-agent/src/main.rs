@@ -2,7 +2,7 @@
 #![recursion_limit = "1024"]
 
 #[cfg(test)]
-extern crate dirs;
+extern crate dirs_next;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -173,5 +173,3 @@ fn _print_help() {
     println!("\t\tindy-dummy-agent --help");
     println!();
 }
-
-

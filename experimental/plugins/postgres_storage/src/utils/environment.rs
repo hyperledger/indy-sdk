@@ -1,11 +1,11 @@
-extern crate dirs;
+extern crate dirs_next;
 
 use std::env;
 use std::path::PathBuf;
 
 pub fn indy_home_path() -> PathBuf {
     // TODO: FIXME: Provide better handling for the unknown home path case!!!
-    let mut path = dirs::home_dir().unwrap_or(PathBuf::from("/home/indy"));
+    let mut path = dirs_next::home_dir().unwrap_or(PathBuf::from("/home/indy"));
     let mut indy_client_dir = ".indy_client";
     if cfg!(target_os = "ios") {
         indy_client_dir = "Documents/.indy_client";

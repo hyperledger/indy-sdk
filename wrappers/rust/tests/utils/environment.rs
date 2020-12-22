@@ -1,4 +1,4 @@
-extern crate dirs;
+extern crate dirs_next;
 
 use std::env;
 use std::path::PathBuf;
@@ -17,14 +17,14 @@ pub fn pool_path(pool_name: &str) -> PathBuf {
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn indy_home_path() -> PathBuf {
-    let mut path = dirs::home_dir().unwrap();
+    let mut path = dirs_next::home_dir().unwrap();
     path.push(".indy_client");
     path
 }
 
 #[cfg(target_os = "ios")]
 pub fn indy_home_path() -> PathBuf {
-    let mut path = dirs::home_dir().unwrap();
+    let mut path = dirs_next::home_dir().unwrap();
     path.push("Documents/.indy_client");
     path
 }

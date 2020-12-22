@@ -14,7 +14,7 @@ extern crate serde_json;
 
 extern crate zeroize;
 
-extern crate dirs;
+extern crate dirs_next;
 
 #[cfg(debug_assertions)]
 #[macro_export]
@@ -56,4 +56,3 @@ pub fn next_command_handle() -> CommandHandle {
 pub fn next_search_handle() -> SearchHandle {
     SearchHandle(sequence::get_next_id())
 }
-
