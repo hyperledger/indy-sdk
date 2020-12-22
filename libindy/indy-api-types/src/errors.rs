@@ -9,8 +9,6 @@ use std::ptr;
 
 use failure::{Backtrace, Context, Fail};
 
-use log;
-
 #[cfg(feature = "casting_errors")]
 use ursa::errors::{UrsaCryptoError, UrsaCryptoErrorKind};
 

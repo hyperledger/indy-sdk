@@ -8,6 +8,7 @@ use std::cmp;
 use std::io;
 use std::io::{Read, Write};
 use super::pwhash_argon2i13;
+use rand::Rng;
 
 pub const KEYBYTES: usize = chacha20poly1305_ietf::KEYBYTES;
 pub const NONCEBYTES: usize = chacha20poly1305_ietf::NONCEBYTES;
@@ -37,7 +38,8 @@ pub fn derive_key(passphrase: &str, salt: &pwhash_argon2i13::Salt, key_derivatio
 }
 
 pub fn gen_nonce() -> Nonce {
-    Nonce(chacha20poly1305_ietf::gen_nonce())
+    let n = rand::thread_rng().gen::<[u8; NONCEBYTES]>();
+    Nonce::from_slice(&n).unwrap()
 }
 
 pub fn gen_nonce_and_encrypt(data: &[u8], key: &Key) -> (Vec<u8>, Nonce) {

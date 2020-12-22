@@ -30,8 +30,9 @@ openssl = { version = "0.10" }
 serde = "1.0.99"
 serde_json = "1.0.40"
 serde_derive = "1.0.99"
-sodiumoxide = {version = "0.0.16"}
+sodiumoxide = {version = "0.2"}
 zeroize = "0.9.3"
+rand = "0.7.3"
 
 [dev-dependencies]
 rmp-serde = "0.13.7"
