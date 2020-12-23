@@ -11,6 +11,7 @@ use indy_wallet::{KeyDerivationData, WalletService, Metadata};
 use indy_utils::crypto::{chacha20poly1305_ietf, randombytes};
 use indy_utils::crypto::chacha20poly1305_ietf::Key as MasterKey;
 use indy_api_types::{WalletHandle, CallbackHandle};
+use rand::Rng;
 use rust_base58::ToBase58;
 
 type DeriveKeyResult<T> = IndyResult<T>;
@@ -493,7 +494,7 @@ impl WalletCommandExecutor {
 
         let key = match self.crypto_service.convert_seed(seed)? {
             Some(seed) => randombytes::randombytes_deterministic(chacha20poly1305_ietf::KEYBYTES, &randombytes::Seed::from_slice(&seed[..])?),
-            None => randombytes::randombytes(chacha20poly1305_ietf::KEYBYTES)
+            None => rand::thread_rng().gen::<[u8; chacha20poly1305_ietf::KEYBYTES]>().to_vec()
         };
 
         let res = key[..].to_base58();

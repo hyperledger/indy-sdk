@@ -1,11 +1,12 @@
 use indy_api_types::errors::prelude::*;
 
 use libc::c_int;
+
+use rand::Rng;
 use sodiumoxide::crypto::sign;
 use sodiumoxide::crypto::box_;
 
 use super::ed25519_box;
-use super::randombytes::randombytes;
 
 pub const SEEDBYTES: usize = sign::SEEDBYTES;
 pub const SIG_PUBLICKEYBYTES: usize = sign::PUBLICKEYBYTES;
@@ -36,7 +37,7 @@ pub fn create_key_pair_for_signature(seed: Option<&Seed>) -> Result<(PublicKey, 
     let (public_key, secret_key) =
         sign::keypair_from_seed(
             &seed.unwrap_or(
-                &Seed::from_slice(&randombytes(SEEDBYTES)).unwrap()
+                &Seed::from_slice(&rand::thread_rng().gen::<[u8; SEEDBYTES]>()).unwrap()
             ).0
         );
 
@@ -79,11 +80,12 @@ pub fn vk_to_curve25519(pk: &PublicKey) -> Result<ed25519_box::PublicKey, IndyEr
 mod tests {
     use super::*;
     use crate::crypto::ed25519_box;
+    use rand::Rng;
 
     #[test]
     fn signin_verify_works() {
-        let seed = Seed::from_slice(&randombytes(SEEDBYTES)).unwrap();
-        let text = randombytes(16);
+        let seed = Seed::from_slice(rand::thread_rng().gen::<[u8; SEEDBYTES]>()).unwrap();
+        let text = rand::thread_rng().gen::<[u8; 16]>();
 
         let (public_key, secret_key) = create_key_pair_for_signature(Some(&seed)).unwrap();
         let alice_signed_text = sign(&secret_key, &text).unwrap();

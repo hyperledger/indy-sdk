@@ -239,7 +239,8 @@ mod tests {
     extern crate rmp_serde;
 
     use super::*;
-    use crate::crypto::randombytes::randombytes;
+    use rand;
+    use rand::Rng;
 
     #[test]
     fn derivation_argon2i_mod_produces_expected_result() {
@@ -285,7 +286,7 @@ mod tests {
 
     #[test]
     fn gen_nonce_and_encrypt_decrypt_works() {
-        let data = randombytes(100);
+        let data = (0..100).map(|_| { rand::random::<u8>() }).collect();
         let key = gen_key();
 
         let (c, nonce) = gen_nonce_and_encrypt(&data, &key);
@@ -296,7 +297,7 @@ mod tests {
 
     #[test]
     pub fn gen_nonce_and_encrypt_detached_decrypt_detached_works() {
-        let data = randombytes(100);
+        let data = (0..100).map(|_| { rand::random::<u8>() }).collect();
         let key = gen_key();
         // AAD allows the sender to tie extra (protocol) data to the encryption. Example JWE enc and alg
         // Which the receiver MUST then check before decryption
@@ -309,7 +310,7 @@ mod tests {
 
     #[test]
     fn encrypt_decrypt_works_for_nonce() {
-        let data = randombytes(16);
+        let data = rand::thread_rng().gen::<[u8; 16]>();
 
         let key = gen_key();
         let nonce = gen_nonce();
@@ -341,7 +342,7 @@ mod tests {
 
     #[test]
     fn writer_reader_works_for_less_than_one_chunk() {
-        let plain = randombytes(7);
+        let plain = rand::thread_rng().gen::<[u8; 7]>();
         let key = gen_key();
         let nonce = gen_nonce();
 
@@ -361,7 +362,7 @@ mod tests {
 
     #[test]
     fn writer_reader_works_for_exact_one_chunk() {
-        let plain = randombytes(10);
+        let plain = rand::thread_rng().gen::<[u8; 10]>();
         let key = gen_key();
         let nonce = gen_nonce();
 
@@ -381,7 +382,7 @@ mod tests {
 
     #[test]
     fn writer_reader_works_for_one_to_two_chunks() {
-        let plain = randombytes(13);
+        let plain = rand::thread_rng().gen::<[u8; 13]>();
         let key = gen_key();
         let nonce = gen_nonce();
 
@@ -401,7 +402,7 @@ mod tests {
 
     #[test]
     fn writer_reader_works_for_exact_two_chunks() {
-        let plain = randombytes(20);
+        let plain = rand::thread_rng().gen::<[u8; 20]>();
         let key = gen_key();
         let nonce = gen_nonce();
 

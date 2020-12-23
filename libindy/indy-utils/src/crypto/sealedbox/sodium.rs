@@ -20,13 +20,13 @@ mod tests {
     use self::sodiumoxide::crypto::box_;
     use super::*;
     use crate::crypto::ed25519_box::{PublicKey, SecretKey};
-    use crate::crypto::randombytes::randombytes;
+    use rand::Rng;
 
     #[test]
     fn encrypt_decrypt_works() {
         let (pk, sk) = box_::gen_keypair();
         let (pk, sk) = (PublicKey(pk), SecretKey(sk));
-        let doc = randombytes(16);
+        let doc = rand::thread_rng().gen::<[u8; 16]>();
 
         let encrypted_data = encrypt(&pk, &doc).unwrap();
         let decrypt_result = decrypt(&pk, &sk, &encrypted_data).unwrap();

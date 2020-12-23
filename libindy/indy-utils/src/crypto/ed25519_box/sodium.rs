@@ -40,13 +40,14 @@ pub fn gen_nonce() -> Nonce {
 mod tests {
     use super::*;
     use crate::crypto::ed25519_sign;
-    use crate::crypto::randombytes::randombytes;
+    use rand::Rng;
 
     #[test]
     fn encrypt_decrypt_works() {
-        let text = randombytes(16);
+        let text = rand::thread_rng().gen::<[u8; 16]>();
         let nonce = gen_nonce();
-        let seed = ed25519_sign::Seed::from_slice(&randombytes(32)).unwrap();
+        let seed_bytes = rand::thread_rng().gen::<[u8; 32]>();
+        let seed = ed25519_sign::Seed::from_slice(&seed_bytes).unwrap();
 
         let (alice_ver_key, alice_sign_key) = ed25519_sign::create_key_pair_for_signature(Some(&seed)).unwrap();
         let alice_pk = ed25519_sign::vk_to_curve25519(&alice_ver_key).unwrap();
