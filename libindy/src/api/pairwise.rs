@@ -7,6 +7,10 @@ use indy_api_types::validation::Validatable;
 use crate::domain::crypto::did::DidValue;
 
 use libc::c_char;
+use std::rc::Rc;
+use crate::services::metrics::MetricsService;
+use crate::utils::time::get_cur_time;
+use crate::services::metrics::command_metrics::CommandMetric;
 
 
 /// Check if pairwise is exists.
@@ -40,10 +44,14 @@ pub  extern fn indy_is_pairwise_exists(command_handle: CommandHandle,
         .send(Command::Pairwise(PairwiseCommand::PairwiseExists(
             wallet_handle,
             their_did,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let (err, exists) = prepare_result_1!(result, false);
                 trace!("indy_is_pairwise_exists: exists: {:?}", exists);
-                cb(command_handle, err, exists)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err, exists);
+                metrics_service.cmd_callback(CommandMetric::PairwiseCommandPairwiseExists, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -94,10 +102,14 @@ pub  extern fn indy_create_pairwise(command_handle: CommandHandle,
             their_did,
             my_did,
             metadata,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_create_pairwise:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PairwiseCommandCreatePairwise, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -136,7 +148,7 @@ pub  extern fn indy_list_pairwise(command_handle: CommandHandle,
     let result = CommandExecutor::instance()
         .send(Command::Pairwise(PairwiseCommand::ListPairwise(
             wallet_handle,
-            boxed_callback_string!("indy_list_pairwise", cb, command_handle)
+            boxed_callback_string!("indy_list_pairwise", cb, command_handle, CommandMetric::PairwiseCommandListPairwise)
         )));
 
     let res = prepare_result!(result);
@@ -178,7 +190,7 @@ pub  extern fn indy_get_pairwise(command_handle: CommandHandle,
         .send(Command::Pairwise(PairwiseCommand::GetPairwise(
             wallet_handle,
             their_did,
-            boxed_callback_string!("indy_get_pairwise", cb, command_handle)
+            boxed_callback_string!("indy_get_pairwise", cb, command_handle, CommandMetric::PairwiseCommandGetPairwise)
         )));
 
     let res = prepare_result!(result);
@@ -223,10 +235,14 @@ pub  extern fn indy_set_pairwise_metadata(command_handle: CommandHandle,
             wallet_handle,
             their_did,
             metadata,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_set_pairwise_metadata:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PairwiseCommandSetPairwiseMetadata,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 

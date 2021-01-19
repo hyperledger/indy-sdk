@@ -226,12 +226,16 @@ pub fn vec_to_pointer(v: &Vec<u8>) -> (*const u8, u32) {
 
 #[macro_export]
 macro_rules! boxed_callback_string {
-    ($method_name: expr, $cb: ident, $command_handle: ident) => {
-        Box::new(move |result| {
+    ($method_name: expr, $cb: ident, $command_handle: ident, $command_metric: expr) => {
+        Box::new(move |result, metrics_service: Rc<MetricsService>| {
             let (err, result_string) = prepare_result_1!(result, String::new());
             trace!("{}: result: {:?}", $method_name, result_string);
             let result_string = ctypes::string_to_cstring(result_string);
-            $cb($command_handle, err, result_string.as_ptr())
+            let start_execution_ts = get_cur_time();
+            let result = $cb($command_handle, err, result_string.as_ptr());
+            metrics_service.cmd_callback($command_metric,get_cur_time() - start_execution_ts);
+
+            result
         })
     }
 }

@@ -14,6 +14,8 @@ mod collect {
     use super::*;
     use std::collections::HashMap;
     use serde_json::Value;
+    use api::anoncreds;
+    use indy_sys::WalletHandle;
 
     #[test]
     fn test_metrics_schema() {
@@ -145,4 +147,5 @@ mod collect {
     fn config(name: &str) -> String {
         json!({ "id": name }).to_string()
     }
+
 }

@@ -12,6 +12,10 @@ use libc::c_char;
 
 use std::ptr;
 use crate::domain::ledger::attrib::Endpoint;
+use std::rc::Rc;
+use crate::services::metrics::MetricsService;
+use crate::utils::time::get_cur_time;
+use crate::services::metrics::command_metrics::CommandMetric;
 
 
 /// Creates keys (signing and encryption keys) for a new
@@ -70,12 +74,16 @@ pub  extern fn indy_create_and_store_my_did(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::CreateAndStoreMyDid(
             wallet_handle,
             did_info,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let (err, did, verkey) = prepare_result_2!(result, String::new(), String::new());
                 trace!("indy_create_and_store_my_did: did: {:?}, verkey: {:?}", did, verkey);
                 let did = ctypes::string_to_cstring(did);
                 let verkey = ctypes::string_to_cstring(verkey);
-                cb(command_handle, err, did.as_ptr(), verkey.as_ptr())
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err, did.as_ptr(), verkey.as_ptr());
+                metrics_service.cmd_callback(CommandMetric::DidCommandCreateAndStoreMyDid,get_cur_time() - start_execution_ts);
+
+                result
             }),
         )));
 
@@ -135,7 +143,7 @@ pub  extern fn indy_replace_keys_start(command_handle: CommandHandle,
             wallet_handle,
             key_info,
             did,
-            boxed_callback_string!("indy_replace_keys_start", cb, command_handle)
+            boxed_callback_string!("indy_replace_keys_start", cb, command_handle, CommandMetric::DidCommandReplaceKeysStart)
         )));
 
     let res = prepare_result!(result);
@@ -180,10 +188,14 @@ pub  extern fn indy_replace_keys_apply(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::ReplaceKeysApply(
             wallet_handle,
             did,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_replace_keys_apply:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::DidCommandReplaceKeysApply,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -237,10 +249,14 @@ pub  extern fn indy_store_their_did(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::StoreTheirDid(
             wallet_handle,
             identity_json,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_store_their_did:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::DidCommandStoreTheirDid,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -302,7 +318,7 @@ pub extern fn indy_key_for_did(command_handle: CommandHandle,
             pool_handle,
             wallet_handle,
             did,
-            boxed_callback_string!("indy_key_for_did", cb, command_handle)
+            boxed_callback_string!("indy_key_for_did", cb, command_handle, CommandMetric::DidCommandKeyForDid)
         )));
 
     let res = prepare_result!(result);
@@ -358,7 +374,7 @@ pub extern fn indy_key_for_local_did(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::KeyForLocalDid(
             wallet_handle,
             did,
-            boxed_callback_string!("indy_key_for_local_did", cb, command_handle)
+            boxed_callback_string!("indy_key_for_local_did", cb, command_handle, CommandMetric::DidCommandKeyForLocalDid)
         )));
 
     let res = prepare_result!(result);
@@ -413,10 +429,14 @@ pub extern fn indy_set_endpoint_for_did(command_handle: CommandHandle,
             wallet_handle,
             did,
             endpoint,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_set_endpoint_for_did:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::DidCommandSetEndpointForDid,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -468,13 +488,17 @@ pub extern fn indy_get_endpoint_for_did(command_handle: CommandHandle,
             wallet_handle,
             pool_handle,
             did,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let (err, address, transport_vk) = prepare_result_2!(result, String::new(), None);
                 trace!("indy_get_endpoint_for_did: address: {:?}, transport_vk: {:?}", address, transport_vk);
                 let address = ctypes::string_to_cstring(address);
                 let transport_vk = transport_vk.map(ctypes::string_to_cstring);
-                cb(command_handle, err, address.as_ptr(),
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err, address.as_ptr(),
                    transport_vk.as_ref().map(|vk| vk.as_ptr()).unwrap_or(ptr::null()));
+                metrics_service.cmd_callback(CommandMetric::DidCommandGetEndpointForDid,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -524,10 +548,14 @@ pub extern fn indy_set_did_metadata(command_handle: CommandHandle,
             wallet_handle,
             did,
             metadata,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_set_did_metadata:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::DidCommandSetDidMetadata,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -575,7 +603,7 @@ pub extern fn indy_get_did_metadata(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::GetDidMetadata(
             wallet_handle,
             did,
-            boxed_callback_string!("indy_get_did_metadata", cb, command_handle))));
+            boxed_callback_string!("indy_get_did_metadata", cb, command_handle, CommandMetric::DidCommandGetDidMetadata))));
 
     let res = prepare_result!(result);
 
@@ -627,7 +655,7 @@ pub extern fn indy_get_my_did_with_meta(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::GetMyDidWithMeta(
             wallet_handle,
             my_did,
-            boxed_callback_string!("indy_get_my_did_with_meta", cb, command_handle)
+            boxed_callback_string!("indy_get_my_did_with_meta", cb, command_handle, CommandMetric::DidCommandGetMyDidWithMeta)
         )));
 
     let res = prepare_result!(result);
@@ -674,7 +702,7 @@ pub extern fn indy_list_my_dids_with_meta(command_handle: CommandHandle,
     let result = CommandExecutor::instance()
         .send(Command::Did(DidCommand::ListMyDidsWithMeta(
             wallet_handle,
-            boxed_callback_string!("indy_list_my_dids_with_meta", cb, command_handle)
+            boxed_callback_string!("indy_list_my_dids_with_meta", cb, command_handle, CommandMetric::DidCommandListMyDidsWithMeta)
         )));
 
     let res = prepare_result!(result);
@@ -721,7 +749,7 @@ pub  extern fn indy_abbreviate_verkey(command_handle: CommandHandle,
         .send(Command::Did(DidCommand::AbbreviateVerkey(
             did,
             full_verkey,
-            boxed_callback_string!("indy_abbreviate_verkey", cb, command_handle)
+            boxed_callback_string!("indy_abbreviate_verkey", cb, command_handle, CommandMetric::DidCommandAbbreviateVerkey)
         )));
 
     let res = prepare_result!(result);
@@ -774,7 +802,7 @@ pub extern fn indy_qualify_did(command_handle: CommandHandle,
             wallet_handle,
             did,
             method,
-            boxed_callback_string!("indy_qualify_did", cb, command_handle)
+            boxed_callback_string!("indy_qualify_did", cb, command_handle, CommandMetric::DidCommandQualifyDid)
         )));
 
     let res = prepare_result!(result);

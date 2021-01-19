@@ -8,6 +8,10 @@ use indy_utils::ctypes;
 use crate::services::payments::{RequesterInfo, Fees};
 use crate::domain::crypto::did::DidValue;
 use indy_api_types::validation::Validatable;
+use std::rc::Rc;
+use crate::services::metrics::MetricsService;
+use crate::utils::time::get_cur_time;
+use crate::services::metrics::command_metrics::CommandMetric;
 
 /// Create the payment address for this payment method.
 ///
@@ -437,8 +441,10 @@ pub extern fn indy_register_payment_method(command_handle: CommandHandle,
                 PaymentsCommand::RegisterMethod(
                     payment_method,
                     cbs,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, result.into());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandRegisterMethod, get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -493,7 +499,7 @@ pub extern fn indy_create_payment_address(command_handle: CommandHandle,
                     wallet_handle,
                     payment_method,
                     config,
-                    boxed_callback_string!("indy_create_payment_address", cb, command_handle)
+                    boxed_callback_string!("indy_create_payment_address", cb, command_handle, CommandMetric::PaymentsCommandCreateAddress)
                 )
             ));
 
@@ -529,7 +535,7 @@ pub extern fn indy_list_payment_addresses(command_handle: CommandHandle,
             Command::Payments(
                 PaymentsCommand::ListAddresses(
                     wallet_handle,
-                    boxed_callback_string!("indy_list_payment_address", cb, command_handle)
+                    boxed_callback_string!("indy_list_payment_address", cb, command_handle, CommandMetric::PaymentsCommandListAddresses)
                 )
             )
         );
@@ -605,12 +611,14 @@ pub extern fn indy_add_request_fees(command_handle: CommandHandle,
                     inputs_json,
                     outputs_json,
                     extra,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
                         let (err, req_with_fees_json, payment_method) = prepare_result_2!(result, String::new(), String::new());
                         trace!("indy_add_request_fees: req_with_fees_json: {:?}, payment_method: {:?}", req_with_fees_json, payment_method);
                         let req_with_fees_json = ctypes::string_to_cstring(req_with_fees_json);
                         let payment_method = ctypes::string_to_cstring(payment_method);
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, err, req_with_fees_json.as_ptr(), payment_method.as_ptr());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandAddRequestFees,get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -656,7 +664,7 @@ pub extern fn indy_parse_response_with_fees(command_handle: CommandHandle,
                 PaymentsCommand::ParseResponseWithFees(
                     payment_method,
                     resp_json,
-                    boxed_callback_string!("indy_parse_response_with_fees", cb, command_handle))));
+                    boxed_callback_string!("indy_parse_response_with_fees", cb, command_handle, CommandMetric::PaymentsCommandParseResponseWithFees))));
     let res = prepare_result!(result);
 
     trace!("indy_parse_response_with_fees: <<< res: {:?}", res);
@@ -701,12 +709,14 @@ pub extern fn indy_build_get_payment_sources_request(command_handle: CommandHand
                     submitter_did,
                     payment_address,
                     None,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
                         let (err, get_sources_txn_json, payment_method) = prepare_result_2!(result, String::new(), String::new());
                         trace!("indy_build_get_payment_sources_request: get_sources_txn_json: {:?}, payment_method: {:?}", get_sources_txn_json, payment_method);
                         let get_sources_txn_json = ctypes::string_to_cstring(get_sources_txn_json);
                         let payment_method = ctypes::string_to_cstring(payment_method);
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, err, get_sources_txn_json.as_ptr(), payment_method.as_ptr());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandBuildGetPaymentSourcesRequest, get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -753,11 +763,13 @@ pub extern fn indy_parse_get_payment_sources_response(command_handle: CommandHan
                 PaymentsCommand::ParseGetPaymentSourcesResponse(
                     payment_method,
                     resp_json,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
                         let (err, sources_json, _) = prepare_result_2!(result, String::new(), -1);
                         trace!("indy_parse_get_payment_sources_response: sources_json: {:?}", sources_json);
                         let sources_json = ctypes::string_to_cstring(sources_json);
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, err, sources_json.as_ptr());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandParseGetPaymentSourcesResponse, get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -824,12 +836,14 @@ pub extern fn indy_build_payment_req(command_handle: CommandHandle,
                     inputs_json,
                     outputs_json,
                     extra,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
                         let (err, payment_req_json, payment_method) = prepare_result_2!(result, String::new(), String::new());
                         trace!("indy_build_payment_req: payment_req_json: {:?}, payment_method: {:?}", payment_req_json, payment_method);
                         let payment_req_json = ctypes::string_to_cstring(payment_req_json);
                         let payment_method = ctypes::string_to_cstring(payment_method);
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, err, payment_req_json.as_ptr(), payment_method.as_ptr());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandBuildPaymentReq,get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -875,7 +889,7 @@ pub extern fn indy_parse_payment_response(command_handle: CommandHandle,
                 PaymentsCommand::ParsePaymentResponse(
                     payment_method,
                     resp_json,
-                    boxed_callback_string!("indy_parse_payment_response", cb, command_handle))));
+                    boxed_callback_string!("indy_parse_payment_response", cb, command_handle, CommandMetric::PaymentsCommandParsePaymentResponse))));
 
     let res = prepare_result!(result);
 
@@ -944,7 +958,7 @@ pub extern fn indy_prepare_payment_extra_with_acceptance_data(command_handle: Co
                 taa_digest,
                 mechanism,
                 time,
-                boxed_callback_string!("indy_prepare_payment_extra_with_acceptance_data", cb, command_handle)
+                boxed_callback_string!("indy_prepare_payment_extra_with_acceptance_data", cb, command_handle, CommandMetric::PaymentsCommandAppendTxnAuthorAgreementAcceptanceToExtra)
             )));
 
     let res = prepare_result!(result);
@@ -997,12 +1011,14 @@ pub extern fn indy_build_mint_req(command_handle: CommandHandle,
                     submitter_did,
                     outputs_json,
                     extra,
-                    Box::new(move |result| {
+                    Box::new(move |result, metrics_service: Rc<MetricsService>| {
                         let (err, mint_req_json, payment_method) = prepare_result_2!(result, String::new(), String::new());
                         trace!("indy_build_mint_req: mint_req_json: {:?}, payment_method: {:?}", mint_req_json, payment_method);
                         let mint_req_json = ctypes::string_to_cstring(mint_req_json);
                         let payment_method = ctypes::string_to_cstring(payment_method);
+                        let start_execution_ts = get_cur_time();
                         cb(command_handle, err, mint_req_json.as_ptr(), payment_method.as_ptr());
+                        metrics_service.cmd_callback(CommandMetric::PaymentsCommandBuildMintReq,get_cur_time() - start_execution_ts);
                     }))
             ));
 
@@ -1053,7 +1069,7 @@ pub extern fn indy_build_set_txn_fees_req(command_handle: CommandHandle,
                     submitter_did,
                     payment_method,
                     fees_json,
-                    boxed_callback_string!("indy_build_set_txn_fees_req", cb, command_handle))));
+                    boxed_callback_string!("indy_build_set_txn_fees_req", cb, command_handle, CommandMetric::PaymentsCommandBuildSetTxnFeesReq))));
 
     let res = prepare_result!(result);
 
@@ -1094,7 +1110,7 @@ pub extern fn indy_build_get_txn_fees_req(command_handle: CommandHandle,
                     wallet_handle,
                     submitter_did,
                     payment_method,
-                    boxed_callback_string!("indy_build_get_txn_fees_req", cb, command_handle))));
+                    boxed_callback_string!("indy_build_get_txn_fees_req", cb, command_handle, CommandMetric::PaymentsCommandBuildGetTxnFeesReq))));
 
     let res = prepare_result!(result);
 
@@ -1137,7 +1153,7 @@ pub extern fn indy_parse_get_txn_fees_response(command_handle: CommandHandle,
                 PaymentsCommand::ParseGetTxnFeesResponse(
                     payment_method,
                     resp_json,
-                    boxed_callback_string!("indy_parse_get_txn_fees_response", cb, command_handle))));
+                    boxed_callback_string!("indy_parse_get_txn_fees_response", cb, command_handle, CommandMetric::PaymentsCommandParseGetTxnFeesResponse))));
 
     let res = prepare_result!(result);
 
@@ -1179,12 +1195,14 @@ pub extern fn indy_build_verify_payment_req(command_handle: CommandHandle,
                 wallet_handle,
                 submitter_did,
                 receipt,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let (err, verify_txn_json, payment_method) = prepare_result_2!(result, String::new(), String::new());
                     trace!("indy_build_verify_payment_req: verify_txn_json: {:?}, payment_method: {:?}", verify_txn_json, payment_method);
                     let verify_txn_json = ctypes::string_to_cstring(verify_txn_json);
                     let payment_method = ctypes::string_to_cstring(payment_method);
+                    let start_execution_ts = get_cur_time();
                     cb(command_handle, err, verify_txn_json.as_ptr(), payment_method.as_ptr());
+                    metrics_service.cmd_callback(CommandMetric::PaymentsCommandBuildVerifyPaymentReq,get_cur_time() - start_execution_ts);
                 })
             )));
 
@@ -1231,7 +1249,7 @@ pub extern fn indy_parse_verify_payment_response(command_handle: CommandHandle,
             PaymentsCommand::ParseVerifyPaymentResponse(
                 payment_method,
                 resp_json,
-                boxed_callback_string!("indy_parse_verify_payment_response", cb, command_handle)
+                boxed_callback_string!("indy_parse_verify_payment_response", cb, command_handle, CommandMetric::PaymentsCommandParseVerifyPaymentResponse)
             )));
 
     let result = prepare_result!(result);
@@ -1296,7 +1314,7 @@ pub extern fn indy_get_request_info(command_handle: CommandHandle,
                 get_auth_rule_response_json,
                 requester_info_json,
                 fees_json,
-                boxed_callback_string!("indy_get_request_info", cb, command_handle)
+                boxed_callback_string!("indy_get_request_info", cb, command_handle, CommandMetric::PaymentsCommandGetRequestInfo)
             )));
 
     let result = prepare_result!(result);
@@ -1347,11 +1365,15 @@ pub extern fn indy_sign_with_address(command_handle: CommandHandle,
             PaymentsCommand::SignWithAddressReq(wallet_handle,
                                                 address,
                                                 message_raw,
-                                                Box::new(move |result| {
+                                                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                                                     let (err, signature) = prepare_result_1!(result, Vec::new());
                                                     trace!("indy_sign_with_address: signature: {:?}", signature);
                                                     let (signature_raw, signature_len) = ctypes::vec_to_pointer(&signature);
-                                                    cb(command_handle, err, signature_raw, signature_len)
+                                                    let start_execution_ts = get_cur_time();
+                                                    let result = cb(command_handle, err, signature_raw, signature_len);
+                                                    metrics_service.cmd_callback(CommandMetric::PaymentsCommandSignWithAddressReq,get_cur_time() - start_execution_ts);
+
+                                                    result
                                         }))
         ));
 
@@ -1408,10 +1430,14 @@ pub extern fn indy_verify_with_address(command_handle: CommandHandle,
             address,
             message_raw,
             signature_raw,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let (err, valid) = prepare_result_1!(result, false);
                 trace!("indy_verify_with_address: valid: {:?}", valid);
-                cb(command_handle, err, valid)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err, valid);
+                metrics_service.cmd_callback(CommandMetric::PaymentsCommandVerifyWithAddressReq,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 

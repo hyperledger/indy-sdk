@@ -19,6 +19,7 @@ use indy_wallet::{RecordOptions, SearchOptions, WalletService};
 use indy_api_types::{WalletHandle, PoolHandle, CommandHandle};
 use indy_utils::next_command_handle;
 use rust_base58::{FromBase58, ToBase58};
+use crate::services::metrics::MetricsService;
 
 pub enum DidCommand {
     CreateAndStoreMyDid(
@@ -29,54 +30,54 @@ pub enum DidCommand {
         WalletHandle,
         KeyInfo, // key info
         DidValue, // did
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ReplaceKeysApply(
         WalletHandle,
         DidValue, // my did
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     StoreTheirDid(
         WalletHandle,
         TheirDidInfo, // their did info json
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetMyDidWithMeta(
         WalletHandle,
         DidValue, // my did
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ListMyDidsWithMeta(
         WalletHandle,
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     KeyForDid(
         PoolHandle, // pool handle
         WalletHandle,
         DidValue, // did (my or their)
-        Box<dyn Fn(IndyResult<String/*key*/>) + Send>),
+        Box<dyn Fn(IndyResult<String/*key*/>, Rc<MetricsService>) + Send>),
     KeyForLocalDid(
         WalletHandle,
         DidValue, // did (my or their)
-        Box<dyn Fn(IndyResult<String/*key*/>) + Send>),
+        Box<dyn Fn(IndyResult<String/*key*/>, Rc<MetricsService>) + Send>),
     SetEndpointForDid(
         WalletHandle,
         DidValue, // did
         Endpoint, // endpoint address and optional verkey
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetEndpointForDid(
         WalletHandle,
         PoolHandle, // pool handle
         DidValue, // did
-        Box<dyn Fn(IndyResult<(String, Option<String>)>) + Send>),
+        Box<dyn Fn(IndyResult<(String, Option<String>)>, Rc<MetricsService>) + Send>),
     SetDidMetadata(
         WalletHandle,
         DidValue, // did
         String, // metadata
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetDidMetadata(
         WalletHandle,
         DidValue, // did
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     AbbreviateVerkey(
         DidValue, // did
         String, // verkey
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     // Internal commands
     GetNymAck(
         WalletHandle,
@@ -94,17 +95,17 @@ pub enum DidCommand {
         WalletHandle,
         DidValue, // did
         DidMethod, // method
-        Box<dyn Fn(IndyResult<String /*full qualified did*/>) + Send>,
+        Box<dyn Fn(IndyResult<String /*full qualified did*/>, Rc<MetricsService>) + Send>,
     ),
 }
 
 macro_rules! ensure_their_did {
-    ($self_:ident, $wallet_handle:ident, $pool_handle:ident, $their_did:ident, $deferred_cmd:expr, $cb:ident) => (
+    ($self_:ident, $wallet_handle:ident, $pool_handle:ident, $their_did:ident, $deferred_cmd:expr, $cb:ident, $metrics:expr) => (
             match $self_._wallet_get_their_did($wallet_handle, &$their_did) {
                 Ok(val) => val,
                 // No their their_did present in the wallet. Defer this command until it is fetched from ledger.
             Err(ref err) if err.kind() == IndyErrorKind::WalletItemNotFound  => return $self_._fetch_their_did_from_ledger($wallet_handle, $pool_handle, &$their_did, $deferred_cmd),
-                Err(err) => return $cb(Err(err)),
+                Err(err) => return $cb(Err(err), $metrics),
             }
         );
 }
@@ -113,17 +114,20 @@ pub struct DidCommandExecutor {
     wallet_service: Rc<WalletService>,
     crypto_service: Rc<CryptoService>,
     ledger_service: Rc<LedgerService>,
+    metrics_service: Rc<MetricsService>,
     deferred_commands: RefCell<HashMap<CommandHandle, DidCommand>>,
 }
 
 impl DidCommandExecutor {
     pub fn new(wallet_service: Rc<WalletService>,
                crypto_service: Rc<CryptoService>,
-               ledger_service: Rc<LedgerService>) -> DidCommandExecutor {
+               ledger_service: Rc<LedgerService>,
+               metrics_service: Rc<MetricsService>) -> DidCommandExecutor {
         DidCommandExecutor {
             wallet_service,
             crypto_service,
             ledger_service,
+            metrics_service,
             deferred_commands: RefCell::new(HashMap::new()),
         }
     }
@@ -132,27 +136,27 @@ impl DidCommandExecutor {
         match command {
             DidCommand::CreateAndStoreMyDid(wallet_handle, my_did_info, cb) => {
                 debug!("CreateAndStoreMyDid command received");
-                cb(self.create_and_store_my_did(wallet_handle, &my_did_info));
+                cb(self.create_and_store_my_did(wallet_handle, &my_did_info), self.metrics_service.clone());
             }
             DidCommand::ReplaceKeysStart(wallet_handle, key_info, did, cb) => {
                 debug!("ReplaceKeysStart command received");
-                cb(self.replace_keys_start(wallet_handle, &key_info, &did));
+                cb(self.replace_keys_start(wallet_handle, &key_info, &did), self.metrics_service.clone());
             }
             DidCommand::ReplaceKeysApply(wallet_handle, did, cb) => {
                 debug!("ReplaceKeysApply command received");
-                cb(self.replace_keys_apply(wallet_handle, &did));
+                cb(self.replace_keys_apply(wallet_handle, &did), self.metrics_service.clone());
             }
             DidCommand::StoreTheirDid(wallet_handle, their_did_info, cb) => {
                 debug!("StoreTheirDid command received");
-                cb(self.store_their_did(wallet_handle, &their_did_info));
+                cb(self.store_their_did(wallet_handle, &their_did_info), self.metrics_service.clone());
             }
             DidCommand::GetMyDidWithMeta(wallet_handle, my_did, cb) => {
                 debug!("GetMyDidWithMeta command received");
-                cb(self.get_my_did_with_meta(wallet_handle, &my_did))
+                cb(self.get_my_did_with_meta(wallet_handle, &my_did), self.metrics_service.clone())
             }
             DidCommand::ListMyDidsWithMeta(wallet_handle, cb) => {
                 debug!("ListMyDidsWithMeta command received");
-                cb(self.list_my_dids_with_meta(wallet_handle));
+                cb(self.list_my_dids_with_meta(wallet_handle), self.metrics_service.clone());
             }
             DidCommand::KeyForDid(pool_handle, wallet_handle, did, cb) => {
                 debug!("KeyForDid command received");
@@ -160,11 +164,11 @@ impl DidCommandExecutor {
             }
             DidCommand::KeyForLocalDid(wallet_handle, did, cb) => {
                 debug!("KeyForLocalDid command received");
-                cb(self.key_for_local_did(wallet_handle, &did));
+                cb(self.key_for_local_did(wallet_handle, &did), self.metrics_service.clone());
             }
             DidCommand::SetEndpointForDid(wallet_handle, did, endpoint, cb) => {
                 debug!("SetEndpointForDid command received");
-                cb(self.set_endpoint_for_did(wallet_handle, &did, &endpoint));
+                cb(self.set_endpoint_for_did(wallet_handle, &did, &endpoint), self.metrics_service.clone());
             }
             DidCommand::GetEndpointForDid(wallet_handle, pool_handle, did, cb) => {
                 debug!("GetEndpointForDid command received");
@@ -172,15 +176,15 @@ impl DidCommandExecutor {
             }
             DidCommand::SetDidMetadata(wallet_handle, did, metadata, cb) => {
                 debug!("SetDidMetadata command received");
-                cb(self.set_did_metadata(wallet_handle, &did, metadata));
+                cb(self.set_did_metadata(wallet_handle, &did, metadata), self.metrics_service.clone());
             }
             DidCommand::GetDidMetadata(wallet_handle, did, cb) => {
                 debug!("GetDidMetadata command received");
-                cb(self.get_did_metadata(wallet_handle, &did));
+                cb(self.get_did_metadata(wallet_handle, &did), self.metrics_service.clone());
             }
             DidCommand::AbbreviateVerkey(did, verkey, cb) => {
                 debug!("AbbreviateVerkey command received");
-                cb(self.abbreviate_verkey(&did, verkey));
+                cb(self.abbreviate_verkey(&did, verkey), self.metrics_service.clone());
             }
             DidCommand::GetNymAck(wallet_handle, did, result, deferred_cmd_id) => {
                 debug!("GetNymAck command received");
@@ -192,7 +196,7 @@ impl DidCommandExecutor {
             }
             DidCommand::QualifyDid(wallet_handle, did, method, cb) => {
                 debug!("QualifyDid command received");
-                cb(self.qualify_did(wallet_handle, &did, &method));
+                cb(self.qualify_did(wallet_handle, &did, &method), self.metrics_service.clone());
             }
         };
     }
@@ -371,16 +375,16 @@ impl DidCommandExecutor {
                    pool_handle: PoolHandle,
                    wallet_handle: WalletHandle,
                    did: DidValue,
-                   cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+                   cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         debug!("key_for_did >>> pool_handle: {:?}, wallet_handle: {:?}, did: {:?}", pool_handle, wallet_handle, did);
 
-        try_cb!(self.crypto_service.validate_did(&did), cb);
+        try_cb!(self.crypto_service.validate_did(&did), cb, self.metrics_service.clone());
 
         // Look to my did
         match self._wallet_get_my_did(wallet_handle, &did) {
-            Ok(my_did) => return cb(Ok(my_did.verkey)),
+            Ok(my_did) => return cb(Ok(my_did.verkey), self.metrics_service.clone()),
             Err(ref err) if err.kind() == IndyErrorKind::WalletItemNotFound => {}
-            Err(err) => return cb(Err(err))
+            Err(err) => return cb(Err(err), self.metrics_service.clone())
         };
 
         // look to their did
@@ -393,13 +397,13 @@ impl DidCommandExecutor {
                                               wallet_handle,
                                               did.clone(),
                                               cb),
-                                           cb);
+                                           cb, self.metrics_service.clone());
 
         let res = their_did.verkey;
 
         debug!("key_for_did <<< res: {:?}", res);
 
-        cb(Ok(res))
+        cb(Ok(res), self.metrics_service.clone())
     }
 
     fn key_for_local_did(&self,
@@ -451,16 +455,16 @@ impl DidCommandExecutor {
                             wallet_handle: WalletHandle,
                             pool_handle: PoolHandle,
                             did: DidValue,
-                            cb: Box<dyn Fn(IndyResult<(String, Option<String>)>) + Send>) {
+                            cb: Box<dyn Fn(IndyResult<(String, Option<String>)>, Rc<MetricsService>) + Send>) {
         debug!("get_endpoint_for_did >>> wallet_handle: {:?}, pool_handle: {:?}, did: {:?}", wallet_handle, pool_handle, did);
 
-        try_cb!(self.crypto_service.validate_did(&did), cb);
+        try_cb!(self.crypto_service.validate_did(&did), cb, self.metrics_service.clone());
 
         let endpoint =
             self.wallet_service.get_indy_object::<Endpoint>(wallet_handle, &did.0, &RecordOptions::id_value());
 
         match endpoint {
-            Ok(endpoint) => cb(Ok((endpoint.ha, endpoint.verkey))),
+            Ok(endpoint) => cb(Ok((endpoint.ha, endpoint.verkey)), self.metrics_service.clone()),
             Err(ref err) if err.kind() == IndyErrorKind::WalletItemNotFound => self._fetch_attrib_from_ledger(wallet_handle,
                                                                                                               pool_handle,
                                                                                                               &did,
@@ -469,7 +473,7 @@ impl DidCommandExecutor {
                                                                                                                   pool_handle,
                                                                                                                   did.clone(),
                                                                                                                   cb)),
-            Err(err) => cb(Err(err)),
+            Err(err) => cb(Err(err), self.metrics_service.clone()),
         };
     }
 
@@ -686,22 +690,22 @@ impl DidCommandExecutor {
     fn _call_error_cb(&self, command: DidCommand, err: IndyError) {
         match command {
             DidCommand::CreateAndStoreMyDid(_, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             DidCommand::ReplaceKeysStart(_, _, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             DidCommand::ReplaceKeysApply(_, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             DidCommand::StoreTheirDid(_, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             DidCommand::KeyForDid(_, _, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             DidCommand::GetEndpointForDid(_, _, _, cb) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
             }
             _ => {}
         }
@@ -722,7 +726,7 @@ impl DidCommandExecutor {
             .send(Command::Ledger(LedgerCommand::SubmitRequest(
                 pool_handle,
                 get_nym_request,
-                Box::new(move |result| {
+                Box::new(move |result, _| {
                     CommandExecutor::instance()
                         .send(Command::Did(DidCommand::GetNymAck(
                             wallet_handle,
@@ -748,7 +752,7 @@ impl DidCommandExecutor {
             .send(Command::Ledger(LedgerCommand::SubmitRequest(
                 pool_handle,
                 get_attrib_request,
-                Box::new(move |result| {
+                Box::new(move |result, _| {
                     CommandExecutor::instance()
                         .send(Command::Did(DidCommand::GetAttribAck(
                             wallet_handle,

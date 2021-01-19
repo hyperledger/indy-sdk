@@ -19,24 +19,25 @@ use crate::domain::crypto::did::DidValue;
 
 use indy_utils::next_command_handle;
 use crate::commands::BoxedCallbackStringStringSend;
+use crate::services::metrics::MetricsService;
 
 pub enum PaymentsCommand {
     RegisterMethod(
         String, //type
         PaymentsMethodCBs, //method callbacks
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     CreateAddress(
         WalletHandle,
         String, //type
         String, //config
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CreateAddressAck(
         CommandHandle,
         WalletHandle,
         IndyResult<String /* address */>),
     ListAddresses(
         WalletHandle,
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     AddRequestFees(
         WalletHandle,
         Option<DidValue>, //submitter did
@@ -51,7 +52,7 @@ pub enum PaymentsCommand {
     ParseResponseWithFees(
         String, //type
         String, //response
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ParseResponseWithFeesAck(
         CommandHandle, //handle
         IndyResult<String>),
@@ -67,7 +68,7 @@ pub enum PaymentsCommand {
     ParseGetPaymentSourcesResponse(
         String, //type
         String, //response
-        Box<dyn Fn(IndyResult<(String, i64)>) + Send>),
+        Box<dyn Fn(IndyResult<(String, i64)>, Rc<MetricsService>) + Send>),
     ParseGetPaymentSourcesResponseAck(
         CommandHandle,
         IndyResult<(String, i64)>),
@@ -84,7 +85,7 @@ pub enum PaymentsCommand {
     ParsePaymentResponse(
         String, //payment_method
         String, //response
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ParsePaymentResponseAck(
         CommandHandle,
         IndyResult<String>),
@@ -95,7 +96,7 @@ pub enum PaymentsCommand {
         Option<String>, // hash
         String, // acceptance mechanism type
         u64, // time of acceptance
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     BuildMintReq(
         WalletHandle,
         Option<DidValue>, //submitter did
@@ -110,7 +111,7 @@ pub enum PaymentsCommand {
         Option<DidValue>, //submitter did
         String, //method
         String, //fees
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     BuildSetTxnFeesReqAck(
         CommandHandle,
         IndyResult<String>),
@@ -118,14 +119,14 @@ pub enum PaymentsCommand {
         WalletHandle,
         Option<DidValue>, //submitter did
         String, //method
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     BuildGetTxnFeesReqAck(
         CommandHandle,
         IndyResult<String>),
     ParseGetTxnFeesResponse(
         String, //method
         String, //response
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ParseGetTxnFeesResponseAck(
         CommandHandle,
         IndyResult<String>),
@@ -140,7 +141,7 @@ pub enum PaymentsCommand {
     ParseVerifyPaymentResponse(
         String, //payment_method
         String, //resp_json
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     ParseVerifyPaymentResponseAck(
         CommandHandle,
         IndyResult<String>),
@@ -148,12 +149,12 @@ pub enum PaymentsCommand {
         String, // get auth rule response json
         RequesterInfo, //requester info
         Fees, //fees
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     SignWithAddressReq(
         WalletHandle,
         String, //address
         Vec<u8>, //message
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>),
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>),
     SignWithAddressAck(
         CommandHandle,
         IndyResult<Vec<u8>>),
@@ -161,7 +162,7 @@ pub enum PaymentsCommand {
         String, //address
         Vec<u8>, //message
         Vec<u8>, //signature
-        Box<dyn Fn(IndyResult<bool>) + Send>),
+        Box<dyn Fn(IndyResult<bool>, Rc<MetricsService>) + Send>),
     VerifyWithAddressAck(
         CommandHandle,
         IndyResult<bool>)
@@ -172,19 +173,21 @@ pub struct PaymentsCommandExecutor {
     wallet_service: Rc<WalletService>,
     crypto_service: Rc<CryptoService>,
     ledger_service: Rc<LedgerService>,
-    pending_callbacks_str: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<String>) + Send>>>,
-    pending_callbacks_str_i64: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<(String, i64)>) + Send>>>,
-    pending_array_callbacks: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<Vec<u8>>) + Send>>>,
-    pending_bool_callbacks: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<bool>) + Send>>>,
+    metrics_service: Rc<MetricsService>,
+    pending_callbacks_str: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<String>, Rc<MetricsService>)>>>,
+    pending_callbacks_str_i64: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<(String, i64)>, Rc<MetricsService>)>>>,
+    pending_array_callbacks: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>)>>>,
+    pending_bool_callbacks: RefCell<HashMap<i32, Box<dyn Fn(IndyResult<bool>, Rc<MetricsService>)>>>,
 }
 
 impl PaymentsCommandExecutor {
-    pub fn new(payments_service: Rc<PaymentsService>, wallet_service: Rc<WalletService>, crypto_service: Rc<CryptoService>, ledger_service: Rc<LedgerService>) -> PaymentsCommandExecutor {
+    pub fn new(payments_service: Rc<PaymentsService>, wallet_service: Rc<WalletService>, crypto_service: Rc<CryptoService>, ledger_service: Rc<LedgerService>, metrics_service: Rc<MetricsService>) -> PaymentsCommandExecutor {
         PaymentsCommandExecutor {
             payments_service,
             wallet_service,
             crypto_service,
             ledger_service,
+            metrics_service,
             pending_callbacks_str: RefCell::new(HashMap::new()),
             pending_callbacks_str_i64: RefCell::new(HashMap::new()),
             pending_array_callbacks: RefCell::new(HashMap::new()),
@@ -192,11 +195,11 @@ impl PaymentsCommandExecutor {
         }
     }
 
-    pub fn execute(&self, command: PaymentsCommand) {
+    pub fn execute<'a>(&'a self, command: PaymentsCommand) {
         match command {
             PaymentsCommand::RegisterMethod(type_, method_cbs, cb) => {
                 debug!(target: "payments_command_executor", "RegisterMethod command received");
-                cb(self.register_method(&type_, method_cbs));
+                cb(self.register_method(&type_, method_cbs), self.metrics_service.clone());
             }
             PaymentsCommand::CreateAddress(wallet_handle, type_, config, cb) => {
                 debug!(target: "payments_command_executor", "CreateAddress command received");
@@ -265,7 +268,8 @@ impl PaymentsCommandExecutor {
                                                                         version.as_ref().map(String::as_str),
                                                                         taa_digest.as_ref().map(String::as_str),
                                                                         &mechanism,
-                                                                        time));
+                                                                        time),
+                    self.metrics_service.clone());
             }
             PaymentsCommand::BuildMintReq(wallet_handle, submitter_did, outputs, extra, cb) => {
                 debug!(target: "payments_command_executor", "BuildMintReq command received");
@@ -317,7 +321,7 @@ impl PaymentsCommandExecutor {
             }
             PaymentsCommand::GetRequestInfo(get_auth_rule_response_json, requester_info, fees_json, cb) => {
                 debug!(target: "payments_command_executor", "GetRequestInfo command received");
-                cb(self.get_request_info(&get_auth_rule_response_json, requester_info, &fees_json));
+                cb(self.get_request_info(&get_auth_rule_response_json, requester_info, &fees_json), self.metrics_service.clone());
 	        },
             PaymentsCommand::SignWithAddressReq(wallet_handle, address, message, cb) => {
                 debug!(target: "payments_command_executor", "SignWithAddressReq command received");
@@ -349,11 +353,11 @@ impl PaymentsCommandExecutor {
         res
     }
 
-    fn create_address(&self, wallet_handle: WalletHandle, type_: &str, config: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn create_address(&self, wallet_handle: WalletHandle, type_: &str, config: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("create_address >>> wallet_handle: {:?}, type_: {:?}, config: {:?}", wallet_handle, type_, config);
 
         match self.wallet_service.check(wallet_handle).map_err(map_err_err!()) {
-            Err(err) => return cb(Err(err)),
+            Err(err) => return cb(Err(err), self.metrics_service.clone()),
             _ => ()
         };
         self._process_method_str(cb, &|i| self.payments_service.create_address(i, wallet_handle, type_, config));
@@ -375,7 +379,7 @@ impl PaymentsCommandExecutor {
         trace!("create_address_ack <<<");
     }
 
-    fn list_addresses(&self, wallet_handle: WalletHandle, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn list_addresses(&self, wallet_handle: WalletHandle, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("list_addresses >>> wallet_handle: {:?}", wallet_handle);
 
         match self.wallet_service.search_records(wallet_handle, &self.wallet_service.add_prefix("PaymentAddress"), "{}", &RecordOptions::id_value()) {
@@ -385,16 +389,16 @@ impl PaymentsCommandExecutor {
                 while let Ok(Some(payment_address)) = search.fetch_next_record() {
                     match payment_address.get_value() {
                         Some(value) => list_addresses.push(value.to_string()),
-                        None => cb(Err(err_msg(IndyErrorKind::InvalidState, "Record value not found")))
+                        None => cb(Err(err_msg(IndyErrorKind::InvalidState, "Record value not found")), self.metrics_service.clone())
                     }
                 }
 
                 let json_string = serde_json::to_string(&list_addresses)
                     .to_indy(IndyErrorKind::InvalidState, "Cannot deserialize List of Payment Addresses");
 
-                cb(json_string);
+                cb(json_string, self.metrics_service.clone());
             }
-            Err(err) => cb(Err(err))
+            Err(err) => cb(Err(err), self.metrics_service.clone())
         }
         trace!("list_addresses <<<");
     }
@@ -404,7 +408,7 @@ impl PaymentsCommandExecutor {
                wallet_handle, submitter_did, req, inputs, outputs, extra);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -422,12 +426,12 @@ impl PaymentsCommandExecutor {
             Ok(type_) => {
                 let type_copy = type_.to_string();
                 self._process_method_str(
-                    Box::new(move |result| cb(result.map(|e| (e, type_.to_string())))),
+                    Box::new(move |result, metrics_service| cb(result.map(|e| (e, type_.to_string())), metrics_service)),
                     &|i| self.payments_service.add_request_fees(i, &type_copy, wallet_handle, submitter_did, req, inputs, outputs, extra),
                 );
             }
             Err(error) => {
-                cb(Err(error))
+                cb(Err(error), self.metrics_service.clone())
             }
         };
         trace!("add_request_fees <<<");
@@ -439,7 +443,7 @@ impl PaymentsCommandExecutor {
         trace!("add_request_fees_ack <<<");
     }
 
-    fn parse_response_with_fees(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn parse_response_with_fees(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("parse_response_with_fees >>> type_: {:?}, response: {:?}", type_, response);
         self._process_method_str(cb, &|i| self.payments_service.parse_response_with_fees(i, type_, response));
         trace!("parse_response_with_fees <<<");
@@ -451,11 +455,11 @@ impl PaymentsCommandExecutor {
         trace!("parse_response_with_fees_ack <<<");
     }
 
-    fn build_get_payment_sources_request(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, payment_address: &str, next: Option<i64>, cb: BoxedCallbackStringStringSend) {
+    fn build_get_payment_sources_request<'a>(&'a self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, payment_address: &str, next: Option<i64>, cb: BoxedCallbackStringStringSend) {
         trace!("build_get_payment_sources_request >>> wallet_handle: {:?}, submitter_did: {:?}, payment_address: {:?}", wallet_handle, submitter_did, payment_address);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -463,14 +467,14 @@ impl PaymentsCommandExecutor {
         let method = match self.payments_service.parse_method_from_payment_address(payment_address) {
             Ok(method) => method,
             Err(err) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
                 return;
             }
         };
         let method_copy = method.to_string();
 
         self._process_method_str(
-            Box::new(move |get_sources_txn_json| cb(get_sources_txn_json.map(|s| (s, method.to_string())))),
+            Box::new(move |get_sources_txn_json, metrics_service: Rc<MetricsService>| cb(get_sources_txn_json.map(|s| (s, method.to_string())), metrics_service)),
             &|i| self.payments_service.build_get_payment_sources_request(i, &method_copy, wallet_handle, submitter_did, payment_address, next),
         );
         trace!("build_get_payment_sources_request <<<");
@@ -482,7 +486,7 @@ impl PaymentsCommandExecutor {
         trace!("build_get_payment_sources_request_ack <<<");
     }
 
-    fn parse_get_payment_sources_response(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<(String, i64)>) + Send>) {
+    fn parse_get_payment_sources_response(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<(String, i64)>, Rc<MetricsService>) + Send>) {
         trace!("parse_get_payment_sources_response >>> response: {:?}", response);
         self._process_method_str_i64(cb, &|i| self.payments_service.parse_get_payment_sources_response(i, type_, response));
         trace!("parse_get_payment_sources_response <<<");
@@ -494,11 +498,11 @@ impl PaymentsCommandExecutor {
         trace!("parse_get_payment_sources_response_ack <<<");
     }
 
-    fn build_payment_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, inputs: &str, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
+    fn build_payment_req<'a>(&'a self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, inputs: &str, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
         trace!("build_payment_req >>> wallet_handle: {:?}, submitter_did: {:?}, inputs: {:?}, outputs: {:?}, extra: {:?}", wallet_handle, submitter_did, inputs, outputs, extra);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -511,12 +515,12 @@ impl PaymentsCommandExecutor {
             Ok(type_) => {
                 let type_copy = type_.to_string();
                 self._process_method_str(
-                    Box::new(move |result| cb(result.map(|s| (s, type_.to_string())))),
+                    Box::new(move |result, metrics_service| cb(result.map(|s| (s, type_.to_string())), metrics_service)),
                     &|i| self.payments_service.build_payment_req(i, &type_copy, wallet_handle, submitter_did, inputs, outputs, extra),
                 );
             }
             Err(error) => {
-                cb(Err(error))
+                cb(Err(error), self.metrics_service.clone())
             }
         }
         trace!("build_payment_req <<<");
@@ -553,7 +557,7 @@ impl PaymentsCommandExecutor {
         trace!("build_payment_req_ack <<<");
     }
 
-    fn parse_payment_response(&self, payment_method: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn parse_payment_response(&self, payment_method: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("parse_payment_response >>> response: {:?}", response);
         self._process_method_str(cb, &|i| self.payments_service.parse_payment_response(i, payment_method, response));
         trace!("parse_payment_response <<<");
@@ -565,11 +569,11 @@ impl PaymentsCommandExecutor {
         trace!("parse_payment_response_ack <<<");
     }
 
-    fn build_mint_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
+    fn build_mint_req<'a>(&'a self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, outputs: &str, extra: Option<&str>, cb: BoxedCallbackStringStringSend) {
         trace!("build_mint_req >>> wallet_handle: {:?}, submitter_did: {:?}, outputs: {:?}, extra: {:?}", wallet_handle, submitter_did, outputs, extra);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -578,11 +582,11 @@ impl PaymentsCommandExecutor {
             Ok(type_) => {
                 let type_copy = type_.to_string();
                 self._process_method_str(
-                    Box::new(move |result| cb(result.map(|s| (s, type_.to_string())))),
+                    Box::new(move |result, metrics_service| cb(result.map(|s| (s, type_.to_string())), metrics_service)),
                     &|i| self.payments_service.build_mint_req(i, &type_copy, wallet_handle, submitter_did, outputs, extra),
                 );
             }
-            Err(error) => cb(Err(error))
+            Err(error) => cb(Err(error), self.metrics_service.clone())
         }
         trace!("build_mint_req <<<");
     }
@@ -593,11 +597,11 @@ impl PaymentsCommandExecutor {
         trace!("build_mint_req_ack <<<");
     }
 
-    fn build_set_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, fees: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn build_set_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, fees: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("build_set_txn_fees_req >>> wallet_handle: {:?}, submitter_did: {:?}, type_: {:?}, fees: {:?}", wallet_handle, submitter_did, type_, fees);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -605,7 +609,7 @@ impl PaymentsCommandExecutor {
         match serde_json::from_str::<HashMap<String, i64>>(fees) {
             Err(err) => {
                 error!("Cannot deserialize Fees: {:?}", err);
-                cb(Err(err.to_indy(IndyErrorKind::InvalidStructure, "Cannot deserialize Fees")))
+                cb(Err(err.to_indy(IndyErrorKind::InvalidStructure, "Cannot deserialize Fees")), self.metrics_service.clone())
             }
             _ => self._process_method_str(cb, &|i| self.payments_service.build_set_txn_fees_req(i, type_, wallet_handle, submitter_did, fees)),
         };
@@ -618,11 +622,11 @@ impl PaymentsCommandExecutor {
         trace!("build_set_txn_fees_req_ack <<<");
     }
 
-    fn build_get_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn build_get_txn_fees_req(&self, wallet_handle: WalletHandle, submitter_did: Option<&DidValue>, type_: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("build_get_txn_fees_req >>> wallet_handle: {:?}, submitter_did: {:?}, type_: {:?}", wallet_handle, submitter_did, type_);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -637,7 +641,7 @@ impl PaymentsCommandExecutor {
         trace!("build_get_txn_fees_req_ack <<<");
     }
 
-    fn parse_get_txn_fees_response(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn parse_get_txn_fees_response(&self, type_: &str, response: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("parse_get_txn_fees_response >>> response: {:?}", response);
         self._process_method_str(cb, &|i| self.payments_service.parse_get_txn_fees_response(i, type_, response));
         trace!("parse_get_txn_fees_response <<<");
@@ -653,7 +657,7 @@ impl PaymentsCommandExecutor {
         trace!("build_verify_payment_request >>> wallet_handle: {:?}, submitter_did: {:?}, receipt: {:?}", wallet_handle, submitter_did, receipt);
         if let Some(ref did) = submitter_did {
             match self.crypto_service.validate_did(did).map_err(map_err_err!()) {
-                Err(err) => return cb(Err(err)),
+                Err(err) => return cb(Err(err), self.metrics_service.clone()),
                 _ => ()
             }
         }
@@ -661,13 +665,13 @@ impl PaymentsCommandExecutor {
         let method = match self.payments_service.parse_method_from_payment_address(receipt) {
             Ok(method) => method,
             Err(err) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
                 return;
             }
         };
         let method_copy = method.to_string();
         self._process_method_str(
-            Box::new(move |result| cb(result.map(|s| (s, method.to_string())))),
+            Box::new(move |result, metrics_service| cb(result.map(|s| (s, method.to_string())), metrics_service)),
             &|i| self.payments_service.build_verify_payment_req(i, &method_copy, wallet_handle, submitter_did, receipt),
         );
         trace!("build_verify_payment_request <<<");
@@ -679,7 +683,7 @@ impl PaymentsCommandExecutor {
         trace!("build_verify_payment_request_ack <<<");
     }
 
-    fn parse_verify_payment_response(&self, type_: &str, resp_json: &str, cb: Box<dyn Fn(IndyResult<String>) + Send>) {
+    fn parse_verify_payment_response(&self, type_: &str, resp_json: &str, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>) {
         trace!("parse_verify_payment_response >>> response: {:?}", resp_json);
         self._process_method_str(cb, &|i| self.payments_service.parse_verify_payment_response(i, type_, resp_json));
         trace!("parse_verify_payment_response <<<");
@@ -691,19 +695,19 @@ impl PaymentsCommandExecutor {
         trace!("parse_verify_payment_response_ack <<<");
     }
 
-    fn sign_with_address(&self, wallet_handle: WalletHandle, address: &str, message: &[u8], cb: Box<dyn Fn(IndyResult<Vec<u8>>) + Send>) {
+    fn sign_with_address(&self, wallet_handle: WalletHandle, address: &str, message: &[u8], cb: Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>) {
         trace!("sign_with_address >>> address: {:?}, message: {:?}", address, hex::encode(message));
         let method = match self.payments_service.parse_method_from_payment_address(address) {
             Ok(method) => method,
             Err(err) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
                 return;
             }
         };
         let cmd_handle = next_command_handle();
 
         if let Err(err) = self.payments_service.sign_with_address(cmd_handle, &method, wallet_handle, address, message) {
-            cb(Err(err));
+            cb(Err(err), self.metrics_service.clone());
         } else {
             self.pending_array_callbacks.borrow_mut().insert(cmd_handle, cb);
         }
@@ -712,19 +716,19 @@ impl PaymentsCommandExecutor {
     fn sign_with_address_ack(&self, command_handle: CommandHandle, result: IndyResult<Vec<u8>>) {
         trace!("sign_with_address_ack >>> result: {:?}", result);
         match self.pending_array_callbacks.borrow_mut().remove(&command_handle) {
-            Some(cb) => cb(result),
+            Some(cb) => cb(result, self.metrics_service.clone()),
             None => error!("Can't process PaymentsCommand::SignWithAddressAck for handle {} with result {:?} - appropriate callback not found!", command_handle, result)
         };
         trace!("sign_with_address_ack <<<");
     }
 
-    fn verify_with_address(&self, address: &str, message: &[u8], signature: &[u8], cb: Box<dyn Fn(IndyResult<bool>) + Send>) {
+    fn verify_with_address(&self, address: &str, message: &[u8], signature: &[u8], cb: Box<dyn Fn(IndyResult<bool>, Rc<MetricsService>) + Send>) {
         trace!("sign_with_address >>> address: {:?}, message: {:?}, signature: {:?}", address, hex::encode(message), hex::encode(signature));
 
         let method = match self.payments_service.parse_method_from_payment_address(address) {
             Ok(method) => method,
             Err(err) => {
-                cb(Err(err));
+                cb(Err(err), self.metrics_service.clone());
                 return;
             }
         };
@@ -732,7 +736,7 @@ impl PaymentsCommandExecutor {
         let cmd_handle = next_command_handle();
 
         if let Err(err) = self.payments_service.verify_with_address(cmd_handle, &method, address, message, signature) {
-            cb(Err(err))
+            cb(Err(err), self.metrics_service.clone())
         } else {
             self.pending_bool_callbacks.borrow_mut().insert(cmd_handle, cb);
         }
@@ -741,7 +745,7 @@ impl PaymentsCommandExecutor {
     fn verify_with_address_ack(&self, command_handle: CommandHandle, result: IndyResult<bool>) {
         trace!("verify_with_address_ack >>> result: {:?}", result);
         match self.pending_bool_callbacks.borrow_mut().remove(&command_handle) {
-            Some(cb) => cb(result),
+            Some(cb) => cb(result, self.metrics_service.clone()),
             None => error!("Can't process PaymentsCommand::VerifyWithAddressAck for handle {} with result {:?} - appropriate callback not found!", command_handle, result)
         };
         trace!("verify_with_address_ack <<<");
@@ -749,25 +753,25 @@ impl PaymentsCommandExecutor {
 
     // HELPERS
 
-    fn _process_method_str(&self, cb: Box<dyn Fn(IndyResult<String>) + Send>,
+    fn _process_method_str(&self, cb: Box<dyn Fn(IndyResult<String>, Rc<MetricsService>)>,
                            method: &dyn Fn(CommandHandle) -> IndyResult<()>) {
         let cmd_handle = next_command_handle();
         match method(cmd_handle) {
             Ok(()) => {
                 self.pending_callbacks_str.borrow_mut().insert(cmd_handle, cb);
             }
-            Err(err) => cb(Err(err))
+            Err(err) => cb(Err(err), self.metrics_service.clone())
         }
     }
 
-    fn _process_method_str_i64(&self, cb: Box<dyn Fn(IndyResult<(String, i64)>) + Send>,
+    fn _process_method_str_i64(&self, cb: Box<dyn Fn(IndyResult<(String, i64)>, Rc<MetricsService>) + Send>,
                            method: &dyn Fn(CommandHandle) -> IndyResult<()>) {
         let cmd_handle = next_command_handle();
         match method(cmd_handle) {
             Ok(()) => {
                 self.pending_callbacks_str_i64.borrow_mut().insert(cmd_handle, cb);
             }
-            Err(err) => cb(Err(err))
+            Err(err) => cb(Err(err), self.metrics_service.clone())
         }
     }
 
@@ -778,7 +782,7 @@ impl PaymentsCommandExecutor {
     fn _common_ack_str(&self, cmd_handle: CommandHandle, result: IndyResult<String>, name: &str) {
         match self.pending_callbacks_str.borrow_mut().remove(&cmd_handle) {
             Some(cb) => {
-                cb(result)
+                cb(result, self.metrics_service.clone())
             }
             None => error!("Can't process PaymentsCommand::{} for handle {} with result {:?} - appropriate callback not found!",
                            name, cmd_handle, result),
@@ -792,7 +796,7 @@ impl PaymentsCommandExecutor {
     fn _common_ack_str_i64(&self, cmd_handle: CommandHandle, result: IndyResult<(String, i64)>, name: &str) {
         match self.pending_callbacks_str_i64.borrow_mut().remove(&cmd_handle) {
             Some(cb) => {
-                cb(result)
+                cb(result, self.metrics_service.clone())
             }
             None => error!("Can't process PaymentsCommand::{} for handle {:?} with result {:?} - appropriate callback not found!",
                            name, cmd_handle, result),

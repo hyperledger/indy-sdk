@@ -12,6 +12,7 @@ use indy_utils::crypto::base64;
 use indy_utils::crypto::chacha20poly1305_ietf;
 use crate::domain::crypto::combo_box::ComboBox;
 use indy_api_types::WalletHandle;
+use crate::services::metrics::MetricsService;
 
 pub const PROTECTED_HEADER_ENC: &str = "xchacha20poly1305_ietf";
 pub const PROTECTED_HEADER_TYP: &str = "JWM/1.0";
@@ -22,82 +23,85 @@ pub enum CryptoCommand {
     CreateKey(
         WalletHandle,
         KeyInfo, // key info
-        Box<dyn Fn(IndyResult<String /*verkey*/>) + Send>,
+        Box<dyn Fn(IndyResult<String /*verkey*/>, Rc<MetricsService>) + Send>,
     ),
     SetKeyMetadata(
         WalletHandle,
         String, // verkey
         String, // metadata
-        Box<dyn Fn(IndyResult<()>) + Send>,
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>,
     ),
     GetKeyMetadata(
         WalletHandle,
         String, // verkey
-        Box<dyn Fn(IndyResult<String>) + Send>,
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>,
     ),
     CryptoSign(
         WalletHandle,
         String,  // my vk
         Vec<u8>, // msg
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
     CryptoVerify(
         String,  // their vk
         Vec<u8>, // msg
         Vec<u8>, // signature
-        Box<dyn Fn(IndyResult<bool>) + Send>,
+        Box<dyn Fn(IndyResult<bool>, Rc<MetricsService>) + Send>,
     ),
     AuthenticatedEncrypt(
         WalletHandle,
         String,  // my vk
         String,  // their vk
         Vec<u8>, // msg
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
     AuthenticatedDecrypt(
         WalletHandle,
         String,  // my vk
         Vec<u8>, // encrypted msg
-        Box<dyn Fn(IndyResult<(String, Vec<u8>)>) + Send>,
+        Box<dyn Fn(IndyResult<(String, Vec<u8>)>, Rc<MetricsService>) + Send>,
     ),
     AnonymousEncrypt(
         String,  // their vk
         Vec<u8>, // msg
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
     AnonymousDecrypt(
         WalletHandle,
         String,  // my vk
         Vec<u8>, // msg
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
     PackMessage(
         Vec<u8>, // plaintext message
         Vec<String>,  // list of receiver's keys
         Option<String>,  // senders verkey
         WalletHandle,
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
     UnpackMessage(
         JWE,
         WalletHandle,
-        Box<dyn Fn(IndyResult<Vec<u8>>) + Send>,
+        Box<dyn Fn(IndyResult<Vec<u8>>, Rc<MetricsService>) + Send>,
     ),
 }
 
 pub struct CryptoCommandExecutor {
     wallet_service: Rc<WalletService>,
     crypto_service: Rc<CryptoService>,
+    metrics_service: Rc<MetricsService>,
 }
 
 impl CryptoCommandExecutor {
     pub fn new(
         wallet_service: Rc<WalletService>,
         crypto_service: Rc<CryptoService>,
+        metrics_service: Rc<MetricsService>,
     ) -> CryptoCommandExecutor {
         CryptoCommandExecutor {
             wallet_service,
             crypto_service,
+            metrics_service,
         }
     }
 
@@ -105,47 +109,47 @@ impl CryptoCommandExecutor {
         match command {
             CryptoCommand::CreateKey(wallet_handle, key_info, cb) => {
                 debug!("CreateKey command received");
-                cb(self.create_key(wallet_handle, &key_info));
+                cb(self.create_key(wallet_handle, &key_info), self.metrics_service.clone());
             }
             CryptoCommand::SetKeyMetadata(wallet_handle, verkey, metadata, cb) => {
                 debug!("SetKeyMetadata command received");
-                cb(self.set_key_metadata(wallet_handle, &verkey, &metadata));
+                cb(self.set_key_metadata(wallet_handle, &verkey, &metadata), self.metrics_service.clone());
             }
             CryptoCommand::GetKeyMetadata(wallet_handle, verkey, cb) => {
                 debug!("GetKeyMetadata command received");
-                cb(self.get_key_metadata(wallet_handle, &verkey));
+                cb(self.get_key_metadata(wallet_handle, &verkey), self.metrics_service.clone());
             }
             CryptoCommand::CryptoSign(wallet_handle, my_vk, msg, cb) => {
                 debug!("CryptoSign command received");
-                cb(self.crypto_sign(wallet_handle, &my_vk, &msg));
+                cb(self.crypto_sign(wallet_handle, &my_vk, &msg), self.metrics_service.clone());
             }
             CryptoCommand::CryptoVerify(their_vk, msg, signature, cb) => {
                 debug!("CryptoVerify command received");
-                cb(self.crypto_verify(&their_vk, &msg, &signature));
+                cb(self.crypto_verify(&their_vk, &msg, &signature), self.metrics_service.clone());
             }
             CryptoCommand::AuthenticatedEncrypt(wallet_handle, my_vk, their_vk, msg, cb) => {
                 debug!("AuthenticatedEncrypt command received");
-                cb(self.authenticated_encrypt(wallet_handle, &my_vk, &their_vk, &msg));
+                cb(self.authenticated_encrypt(wallet_handle, &my_vk, &their_vk, &msg), self.metrics_service.clone());
             }
             CryptoCommand::AuthenticatedDecrypt(wallet_handle, my_vk, encrypted_msg, cb) => {
                 debug!("AuthenticatedDecrypt command received");
-                cb(self.authenticated_decrypt(wallet_handle, &my_vk, &encrypted_msg));
+                cb(self.authenticated_decrypt(wallet_handle, &my_vk, &encrypted_msg), self.metrics_service.clone());
             }
             CryptoCommand::AnonymousEncrypt(their_vk, msg, cb) => {
                 debug!("AnonymousEncrypt command received");
-                cb(self.anonymous_encrypt(&their_vk, &msg));
+                cb(self.anonymous_encrypt(&their_vk, &msg), self.metrics_service.clone());
             }
             CryptoCommand::AnonymousDecrypt(wallet_handle, my_vk, encrypted_msg, cb) => {
                 debug!("AnonymousDecrypt command received");
-                cb(self.anonymous_decrypt(wallet_handle, &my_vk, &encrypted_msg));
+                cb(self.anonymous_decrypt(wallet_handle, &my_vk, &encrypted_msg), self.metrics_service.clone());
             }
             CryptoCommand::PackMessage(message, receivers, sender_vk, wallet_handle, cb) => {
                 debug!("PackMessage command received");
-                cb(self.pack_msg(message, receivers, sender_vk, wallet_handle));
+                cb(self.pack_msg(message, receivers, sender_vk, wallet_handle), self.metrics_service.clone());
             }
             CryptoCommand::UnpackMessage(jwe_json, wallet_handle, cb) => {
                 debug!("UnpackMessage command received");
-                cb(self.unpack_msg(jwe_json, wallet_handle));
+                cb(self.unpack_msg(jwe_json, wallet_handle), self.metrics_service.clone());
             }
         };
     }

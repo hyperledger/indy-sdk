@@ -8,6 +8,10 @@ use indy_utils::ctypes;
 
 use serde_json;
 use libc::c_char;
+use crate::services::metrics::MetricsService;
+use std::rc::Rc;
+use crate::utils::time::get_cur_time;
+use crate::services::metrics::command_metrics::CommandMetric;
 
 /// Create a new non-secret record in the wallet
 ///
@@ -54,10 +58,14 @@ pub extern fn indy_add_wallet_record(command_handle: CommandHandle,
                 id,
                 value,
                 tags_json,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_add_wallet_record:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandAddRecord,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -99,10 +107,14 @@ pub extern fn indy_update_wallet_record_value(command_handle: CommandHandle,
                 type_,
                 id,
                 value,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_update_wallet_record_value:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandUpdateRecordValue,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -153,10 +165,14 @@ pub extern fn indy_update_wallet_record_tags(command_handle: CommandHandle,
                 type_,
                 id,
                 tags_json,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_update_wallet_record_tags:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandUpdateRecordTags,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -209,10 +225,14 @@ pub extern fn indy_add_wallet_record_tags(command_handle: CommandHandle,
                 type_,
                 id,
                 tags_json,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_add_wallet_record_tags:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandAddRecordTags,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -255,10 +275,14 @@ pub extern fn indy_delete_wallet_record_tags(command_handle: CommandHandle,
                 type_,
                 id,
                 tag_names_json,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_delete_wallet_record_tags:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandDeleteRecordTags,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -296,10 +320,14 @@ pub extern fn indy_delete_wallet_record(command_handle: CommandHandle,
                 wallet_handle,
                 type_,
                 id,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_delete_wallet_record:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandDeleteRecord,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -355,7 +383,7 @@ pub  extern fn indy_get_wallet_record(command_handle: CommandHandle,
                 type_,
                 id,
                 options_json,
-                boxed_callback_string!("indy_get_wallet_record", cb, command_handle)
+                boxed_callback_string!("indy_get_wallet_record", cb, command_handle, CommandMetric::NonSecretsCommandGetRecord)
             )));
 
     let res = prepare_result!(result);
@@ -417,10 +445,14 @@ pub  extern fn indy_open_wallet_search(command_handle: CommandHandle,
                 type_,
                 query_json,
                 options_json,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let (err, handle) = prepare_result_1!(result, INVALID_SEARCH_HANDLE);
                     trace!("indy_open_wallet_search: handle: {:?}", handle);
-                    cb(command_handle, err, handle)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err, handle);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandOpenSearch,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 
@@ -470,7 +502,7 @@ pub  extern fn indy_fetch_wallet_search_next_records(command_handle: CommandHand
                 wallet_handle,
                 wallet_search_handle,
                 count,
-                boxed_callback_string!("indy_fetch_wallet_search_next_records", cb, command_handle)
+                boxed_callback_string!("indy_fetch_wallet_search_next_records", cb, command_handle, CommandMetric::NonSecretsCommandFetchSearchNextRecords)
             )));
 
     let res = prepare_result!(result);
@@ -498,10 +530,14 @@ pub  extern fn indy_close_wallet_search(command_handle: CommandHandle,
         .send(Command::NonSecrets(
             NonSecretsCommand::CloseSearch(
                 wallet_search_handle,
-                Box::new(move |result| {
+                Box::new(move |result, metrics_service: Rc<MetricsService>| {
                     let err = prepare_result!(result);
                     trace!("indy_close_wallet_search:");
-                    cb(command_handle, err)
+                    let start_execution_ts = get_cur_time();
+                    let result = cb(command_handle, err);
+                    metrics_service.cmd_callback(CommandMetric::NonSecretsCommandCloseSearch,get_cur_time() - start_execution_ts);
+
+                    result
                 })
             )));
 

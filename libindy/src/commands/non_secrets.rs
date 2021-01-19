@@ -7,6 +7,7 @@ use indy_api_types::errors::prelude::*;
 use indy_wallet::{RecordOptions, SearchOptions, WalletRecord, WalletSearch, WalletService};
 use indy_utils::next_search_handle;
 use indy_api_types::{WalletHandle, SearchHandle};
+use crate::services::metrics::MetricsService;
 
 
 pub enum NonSecretsCommand {
@@ -15,58 +16,60 @@ pub enum NonSecretsCommand {
               String, // id
               String, // value
               Option<Tags>, //tags
-              Box<dyn Fn(IndyResult<()>) + Send>),
+              Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     UpdateRecordValue(WalletHandle,
                       String, // type
                       String, // id
                       String, // value
-                      Box<dyn Fn(IndyResult<()>) + Send>),
+                      Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     UpdateRecordTags(WalletHandle,
                      String, // type
                      String, // id
                      Tags, //tags
-                     Box<dyn Fn(IndyResult<()>) + Send>),
+                     Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     AddRecordTags(WalletHandle,
                   String, // type
                   String, // id
                   Tags, //tags
-                  Box<dyn Fn(IndyResult<()>) + Send>),
+                  Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     DeleteRecordTags(WalletHandle,
                      String, // type
                      String, // id
                      String, //tag names json
-                     Box<dyn Fn(IndyResult<()>) + Send>),
+                     Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     DeleteRecord(WalletHandle,
                  String, // type
                  String, // id
-                 Box<dyn Fn(IndyResult<()>) + Send>),
+                 Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetRecord(WalletHandle,
               String, // type
               String, // id
               String, // options json
-              Box<dyn Fn(IndyResult<String>) + Send>),
+              Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     OpenSearch(WalletHandle,
                String, // type
                String, // query json
                String, // options json
-               Box<dyn Fn(IndyResult<SearchHandle>) + Send>),
+               Box<dyn Fn(IndyResult<SearchHandle>, Rc<MetricsService>) + Send>),
     FetchSearchNextRecords(WalletHandle,
                            SearchHandle, // wallet search handle
                            usize, // count
-                           Box<dyn Fn(IndyResult<String>) + Send>),
+                           Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CloseSearch(SearchHandle, // wallet search handle
-                Box<dyn Fn(IndyResult<()>) + Send>),
+                Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
 }
 
 pub struct NonSecretsCommandExecutor {
     wallet_service: Rc<WalletService>,
+    metrics_service: Rc<MetricsService>,
     searches: RefCell<HashMap<SearchHandle, Box<WalletSearch>>>,
 }
 
 impl NonSecretsCommandExecutor {
-    pub fn new(wallet_service: Rc<WalletService>) -> NonSecretsCommandExecutor {
+    pub fn new(wallet_service: Rc<WalletService>, metrics_service: Rc<MetricsService>) -> NonSecretsCommandExecutor {
         NonSecretsCommandExecutor {
             wallet_service,
+            metrics_service,
             searches: RefCell::new(HashMap::new()),
         }
     }
@@ -75,43 +78,43 @@ impl NonSecretsCommandExecutor {
         match command {
             NonSecretsCommand::AddRecord(handle, type_, id, value, tags, cb) => {
                 debug!(target: "non_secrets_command_executor", "AddRecord command received");
-                cb(self.add_record(handle, &type_, &id, &value, tags.as_ref()));
+                cb(self.add_record(handle, &type_, &id, &value, tags.as_ref()), self.metrics_service.clone());
             }
             NonSecretsCommand::UpdateRecordValue(handle, type_, id, value, cb) => {
                 debug!(target: "non_secrets_command_executor", "UpdateRecordValue command received");
-                cb(self.update_record_value(handle, &type_, &id, &value));
+                cb(self.update_record_value(handle, &type_, &id, &value), self.metrics_service.clone());
             }
             NonSecretsCommand::UpdateRecordTags(handle, type_, id, tags, cb) => {
                 debug!(target: "non_secrets_command_executor", "UpdateRecordTags command received");
-                cb(self.update_record_tags(handle, &type_, &id, &tags));
+                cb(self.update_record_tags(handle, &type_, &id, &tags), self.metrics_service.clone());
             }
             NonSecretsCommand::AddRecordTags(handle, type_, id, tags, cb) => {
                 debug!(target: "non_secrets_command_executor", "AddRecordTags command received");
-                cb(self.add_record_tags(handle, &type_, &id, &tags));
+                cb(self.add_record_tags(handle, &type_, &id, &tags), self.metrics_service.clone());
             }
             NonSecretsCommand::DeleteRecordTags(handle, type_, id, tags_names_json, cb) => {
                 debug!(target: "non_secrets_command_executor", "DeleteRecordTags command received");
-                cb(self.delete_record_tags(handle, &type_, &id, &tags_names_json));
+                cb(self.delete_record_tags(handle, &type_, &id, &tags_names_json), self.metrics_service.clone());
             }
             NonSecretsCommand::DeleteRecord(handle, type_, id, cb) => {
                 debug!(target: "non_secrets_command_executor", "DeleteRecord command received");
-                cb(self.delete_record(handle, &type_, &id));
+                cb(self.delete_record(handle, &type_, &id), self.metrics_service.clone());
             }
             NonSecretsCommand::GetRecord(handle, type_, id, options_json, cb) => {
                 debug!(target: "non_secrets_command_executor", "GetRecord command received");
-                cb(self.get_record(handle, &type_, &id, &options_json));
+                cb(self.get_record(handle, &type_, &id, &options_json), self.metrics_service.clone());
             }
             NonSecretsCommand::OpenSearch(handle, type_, query_json, options_json, cb) => {
                 debug!(target: "non_secrets_command_executor", "OpenSearch command received");
-                cb(self.open_search(handle, &type_, &query_json, &options_json));
+                cb(self.open_search(handle, &type_, &query_json, &options_json), self.metrics_service.clone());
             }
             NonSecretsCommand::FetchSearchNextRecords(wallet_handle, wallet_search_handle, count, cb) => {
                 debug!(target: "non_secrets_command_executor", "SearchNextRecords command received");
-                cb(self.fetch_search_next_records(wallet_handle, wallet_search_handle, count));
+                cb(self.fetch_search_next_records(wallet_handle, wallet_search_handle, count), self.metrics_service.clone());
             }
             NonSecretsCommand::CloseSearch(wallet_search_handle, cb) => {
                 debug!(target: "non_secrets_command_executor", "CloseSearch command received");
-                cb(self.close_search(wallet_search_handle));
+                cb(self.close_search(wallet_search_handle), self.metrics_service.clone());
             }
         };
     }

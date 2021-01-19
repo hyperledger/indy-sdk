@@ -14,7 +14,7 @@ libc = "*"
 log = "0.4.8"
 owning_ref = "0.4"
 rmp-serde = "0.13.7"
-rusqlite = "0.20" # Make sure rusqlite for android is also bumped with this. Rusqlite for android is at the bottom of this document.
+rusqlite = "0.24" # Make sure rusqlite for android is also bumped with this. Rusqlite for android is at the bottom of this document.
 rust-base58 = "0.0.4"
 serde = "1.0.99"
 serde_json = "1.0.40"
@@ -26,4 +26,4 @@ rand = "0.7.0"
 lazy_static = "1.3"
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-rusqlite = { version = "0.20", features=["bundled"] }
+rusqlite = { version = "0.24", features=["bundled"] }

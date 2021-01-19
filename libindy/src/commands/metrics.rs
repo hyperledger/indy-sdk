@@ -16,7 +16,7 @@ const PENDING_FOR_IMPORT_WALLETS_COUNT: &str = "pending_for_import";
 const PENDING_FOR_OPEN_WALLETS_COUNT: &str = "pending_for_open";
 
 pub enum MetricsCommand {
-    CollectMetrics(Box<dyn Fn(IndyResult<String>) + Send>),
+    CollectMetrics(Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
 }
 
 pub struct MetricsCommandExecutor {
@@ -39,7 +39,7 @@ impl MetricsCommandExecutor {
         match command {
             MetricsCommand::CollectMetrics(cb) => {
                 debug!(target: "metrics_command_executor", "CollectMetrics command received");
-                cb(self.collect());
+                cb(self.collect(), self.metrics_service.clone());
             }
         };
     }

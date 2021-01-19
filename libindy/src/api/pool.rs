@@ -9,6 +9,10 @@ use indy_api_types::validation::Validatable;
 
 use serde_json;
 use libc::c_char;
+use std::rc::Rc;
+use crate::services::metrics::MetricsService;
+use crate::utils::time::get_cur_time;
+use crate::services::metrics::command_metrics::CommandMetric;
 
 /// Creates a new local pool ledger configuration that can be used later to connect pool nodes.
 ///
@@ -44,10 +48,14 @@ pub extern fn indy_create_pool_ledger_config(command_handle: CommandHandle,
         .send(Command::Pool(PoolCommand::Create(
             config_name,
             config,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_create_pool_ledger_config:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandCreate, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -106,10 +114,14 @@ pub extern fn indy_open_pool_ledger(command_handle: CommandHandle,
         .send(Command::Pool(PoolCommand::Open(
             config_name,
             config,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let (err, pool_handle) = prepare_result_1!(result, INVALID_POOL_HANDLE);
                 trace!("indy_open_pool_ledger: pool_handle: {:?}", pool_handle);
-                cb(command_handle, err, pool_handle)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err, pool_handle);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandOpen,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -145,10 +157,14 @@ pub extern fn indy_refresh_pool_ledger(command_handle: CommandHandle,
     let result = CommandExecutor::instance()
         .send(Command::Pool(PoolCommand::Refresh(
             handle,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_refresh_pool_ledger:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandRefresh, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -179,7 +195,7 @@ pub extern fn indy_list_pools(command_handle: CommandHandle,
     trace!("indy_list_pools: entities >>>");
 
     let result = CommandExecutor::instance()
-        .send(Command::Pool(PoolCommand::List(boxed_callback_string!("indy_list_pools", cb, command_handle))));
+        .send(Command::Pool(PoolCommand::List(boxed_callback_string!("indy_list_pools", cb, command_handle, CommandMetric::PoolCommandList))));
 
     let res = prepare_result!(result);
 
@@ -213,10 +229,14 @@ pub extern fn indy_close_pool_ledger(command_handle: CommandHandle,
     let result = CommandExecutor::instance()
         .send(Command::Pool(PoolCommand::Close(
             handle,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_close_pool_ledger:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandClose, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -253,10 +273,14 @@ pub extern fn indy_delete_pool_ledger_config(command_handle: CommandHandle,
     let result = CommandExecutor::instance()
         .send(Command::Pool(PoolCommand::Delete(
             config_name,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_delete_pool_ledger_config:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandDelete, get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 
@@ -299,10 +323,14 @@ pub extern fn indy_set_protocol_version(command_handle: CommandHandle,
         .send(Command::Pool(
             PoolCommand::SetProtocolVersion(
             protocol_version,
-            Box::new(move |result| {
+            Box::new(move |result, metrics_service: Rc<MetricsService>| {
                 let err = prepare_result!(result);
                 trace!("indy_set_protocol_version:");
-                cb(command_handle, err)
+                let start_execution_ts = get_cur_time();
+                let result = cb(command_handle, err);
+                metrics_service.cmd_callback(CommandMetric::PoolCommandSetProtocolVersion,get_cur_time() - start_execution_ts);
+
+                result
             })
         )));
 

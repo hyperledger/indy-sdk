@@ -32,12 +32,13 @@ use crate::utils::wql::Query;
 use super::tails::SDKTailsAccessor;
 use indy_api_types::{WalletHandle, SearchHandle};
 use crate::commands::BoxedCallbackStringStringSend;
+use crate::services::metrics::MetricsService;
 
 pub enum ProverCommand {
     CreateMasterSecret(
         WalletHandle,
         Option<String>, // master secret id
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CreateCredentialRequest(
         WalletHandle,
         DidValue, // prover did
@@ -50,11 +51,11 @@ pub enum ProverCommand {
         CredentialDefinitionId, // credential definition id
         Option<CredentialAttrTagPolicy>, // credential attr tag policy
         bool, // retroactive
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetCredentialAttrTagPolicy(
         WalletHandle,
         CredentialDefinitionId, // credential definition id
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     StoreCredential(
         WalletHandle,
         Option<String>, // credential id
@@ -62,47 +63,47 @@ pub enum ProverCommand {
         Credential, // credentials
         CredentialDefinition, // credential definition
         Option<RevocationRegistryDefinition>, // revocation registry definition
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     GetCredentials(
         WalletHandle,
         Option<String>, // filter json
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     GetCredential(
         WalletHandle,
         String, // credential id
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     DeleteCredential(
         WalletHandle,
         String, // credential id
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     SearchCredentials(
         WalletHandle,
         Option<String>, // query json
-        Box<dyn Fn(IndyResult<(SearchHandle, usize)>) + Send>),
+        Box<dyn Fn(IndyResult<(SearchHandle, usize)>, Rc<MetricsService>) + Send>),
     FetchCredentials(
         SearchHandle,
         usize, // count
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CloseCredentialsSearch(
         SearchHandle,
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     GetCredentialsForProofReq(
         WalletHandle,
         ProofRequest, // proof request
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     SearchCredentialsForProofReq(
         WalletHandle,
         ProofRequest, // proof request
         Option<ProofRequestExtraQuery>, // extra query
-        Box<dyn Fn(IndyResult<SearchHandle>) + Send>),
+        Box<dyn Fn(IndyResult<SearchHandle>, Rc<MetricsService>) + Send>),
     FetchCredentialForProofReq(
         SearchHandle,
         String, // item referent
         usize, // count
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CloseCredentialsSearchForProofReq(
         SearchHandle,
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     CreateProof(
         WalletHandle,
         ProofRequest, // proof request
@@ -111,14 +112,14 @@ pub enum ProverCommand {
         Schemas, // schemas
         CredentialDefinitions, // credential defs
         RevocationStates, // revocation states
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     CreateRevocationState(
         i32, // blob storage reader handle
         RevocationRegistryDefinition, // revocation registry definition
         RevocationRegistryDelta, // revocation registry delta
         u64, //timestamp
         String, //credential revocation id
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     UpdateRevocationState(
         i32, // tails reader _handle
         RevocationState, // revocation state
@@ -126,7 +127,7 @@ pub enum ProverCommand {
         RevocationRegistryDelta, // revocation registry delta
         u64, //timestamp
         String, //credential revocation id
-        Box<dyn Fn(IndyResult<String>) + Send>)
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>)
 }
 
 struct SearchForProofRequest {
@@ -152,6 +153,7 @@ pub struct ProverCommandExecutor {
     wallet_service: Rc<WalletService>,
     crypto_service: Rc<CryptoService>,
     blob_storage_service: Rc<BlobStorageService>,
+    metrics_service: Rc<MetricsService>,
     searches: RefCell<HashMap<SearchHandle, Box<WalletSearch>>>,
     searches_for_proof_requests: RefCell<HashMap<SearchHandle, Box<HashMap<String, SearchForProofRequest>>>>,
 }
@@ -160,12 +162,14 @@ impl ProverCommandExecutor {
     pub fn new(anoncreds_service: Rc<AnoncredsService>,
                wallet_service: Rc<WalletService>,
                crypto_service: Rc<CryptoService>,
-               blob_storage_service: Rc<BlobStorageService>) -> ProverCommandExecutor {
+               blob_storage_service: Rc<BlobStorageService>,
+               metrics_service: Rc<MetricsService>) -> ProverCommandExecutor {
         ProverCommandExecutor {
             anoncreds_service,
             wallet_service,
             crypto_service,
             blob_storage_service,
+            metrics_service,
             searches: RefCell::new(HashMap::new()),
             searches_for_proof_requests: RefCell::new(HashMap::new()),
         }
@@ -175,68 +179,69 @@ impl ProverCommandExecutor {
         match command {
             ProverCommand::CreateMasterSecret(wallet_handle, master_secret_id, cb) => {
                 debug!(target: "prover_command_executor", "CreateMasterSecret command received");
-                cb(self.create_master_secret(wallet_handle, master_secret_id.as_ref().map(String::as_str)));
+                cb(self.create_master_secret(wallet_handle, master_secret_id.as_ref().map(String::as_str)), self.metrics_service.clone());
             }
             ProverCommand::CreateCredentialRequest(wallet_handle, prover_did, credential_offer,
                                                    credential_def, master_secret_name, cb) => {
                 debug!(target: "prover_command_executor", "CreateCredentialRequest command received");
                 cb(self.create_credential_request(wallet_handle, &prover_did, &credential_offer,
-                                                  &CredentialDefinitionV1::from(credential_def), &master_secret_name));
+                                                  &CredentialDefinitionV1::from(credential_def), &master_secret_name), self.metrics_service.clone());
             }
             ProverCommand::SetCredentialAttrTagPolicy(wallet_handle, cred_def_id, catpol, retroactive, cb) => {
                 debug!(target: "prover_command_executor", "SetCredentialAttrTagPolicy command received");
-                cb(self.set_credential_attr_tag_policy(wallet_handle, &cred_def_id, catpol.as_ref(), retroactive));
+                cb(self.set_credential_attr_tag_policy(wallet_handle, &cred_def_id, catpol.as_ref(), retroactive), self.metrics_service.clone());
             }
             ProverCommand::GetCredentialAttrTagPolicy(wallet_handle, cred_def_id, cb) => {
                 debug!(target: "prover_command_executor", "GetCredentialAttrTagPolicy command received");
-                cb(self.get_credential_attr_tag_policy(wallet_handle, &cred_def_id));
+                cb(self.get_credential_attr_tag_policy(wallet_handle, &cred_def_id), self.metrics_service.clone());
             }
             ProverCommand::StoreCredential(wallet_handle, cred_id, cred_req_metadata, mut cred, cred_def, rev_reg_def, cb) => {
                 debug!(target: "prover_command_executor", "StoreCredential command received");
                 cb(self.store_credential(wallet_handle, cred_id.as_ref().map(String::as_str),
                                          &cred_req_metadata, &mut cred,
                                          &CredentialDefinitionV1::from(cred_def),
-                                         rev_reg_def.map(RevocationRegistryDefinitionV1::from).as_ref()));
+                                         rev_reg_def.map(RevocationRegistryDefinitionV1::from).as_ref()),
+                    self.metrics_service.clone());
             }
             ProverCommand::GetCredentials(wallet_handle, filter_json, cb) => {
                 debug!(target: "prover_command_executor", "GetCredentials command received");
-                cb(self.get_credentials(wallet_handle, filter_json.as_ref().map(String::as_str)));
+                cb(self.get_credentials(wallet_handle, filter_json.as_ref().map(String::as_str)), self.metrics_service.clone());
             }
             ProverCommand::GetCredential(wallet_handle, cred_id, cb) => {
                 debug!(target: "prover_command_executor", "GetCredential command received");
-                cb(self.get_credential(wallet_handle, &cred_id));
+                cb(self.get_credential(wallet_handle, &cred_id), self.metrics_service.clone());
             }
             ProverCommand::DeleteCredential(wallet_handle, cred_id, cb) => {
                 debug!(target: "prover_command_executor", "DeleteCredential command received");
-                cb(self.delete_credential(wallet_handle, &cred_id));
+                cb(self.delete_credential(wallet_handle, &cred_id), self.metrics_service.clone());
             }
             ProverCommand::SearchCredentials(wallet_handle, query_json, cb) => {
                 debug!(target: "prover_command_executor", "SearchCredentials command received");
-                cb(self.search_credentials(wallet_handle, query_json.as_ref().map(String::as_str)));
+                cb(self.search_credentials(wallet_handle, query_json.as_ref().map(String::as_str)), self.metrics_service.clone());
             }
             ProverCommand::FetchCredentials(search_handle, count, cb) => {
                 debug!(target: "prover_command_executor", "FetchCredentials command received");
-                cb(self.fetch_credentials(search_handle, count));
+                cb(self.fetch_credentials(search_handle, count), self.metrics_service.clone());
             }
             ProverCommand::CloseCredentialsSearch(search_handle, cb) => {
                 debug!(target: "prover_command_executor", "CloseCredentialsSearch command received");
-                cb(self.close_credentials_search(search_handle));
+                cb(self.close_credentials_search(search_handle), self.metrics_service.clone());
             }
             ProverCommand::GetCredentialsForProofReq(wallet_handle, proof_req, cb) => {
                 debug!(target: "prover_command_executor", "GetCredentialsForProofReq command received");
-                cb(self.get_credentials_for_proof_req(wallet_handle, &proof_req));
+                cb(self.get_credentials_for_proof_req(wallet_handle, &proof_req), self.metrics_service.clone());
             }
             ProverCommand::SearchCredentialsForProofReq(wallet_handle, proof_req, extra_query, cb) => {
                 debug!(target: "prover_command_executor", "SearchCredentialsForProofReq command received");
-                cb(self.search_credentials_for_proof_req(wallet_handle, &proof_req, extra_query.as_ref()));
+                cb(self.search_credentials_for_proof_req(wallet_handle, &proof_req, extra_query.as_ref()), self.metrics_service.clone());
             }
             ProverCommand::FetchCredentialForProofReq(search_handle, item_ref, count, cb) => {
                 debug!(target: "prover_command_executor", "FetchCredentialForProofReq command received");
-                cb(self.fetch_credential_for_proof_request(search_handle, &item_ref, count));
+                cb(self.fetch_credential_for_proof_request(search_handle, &item_ref, count), self.metrics_service.clone());
             }
             ProverCommand::CloseCredentialsSearchForProofReq(search_handle, cb) => {
                 debug!(target: "prover_command_executor", "CloseCredentialsSearchForProofReq command received");
-                cb(self.close_credentials_search_for_proof_req(search_handle));
+                cb(self.close_credentials_search_for_proof_req(search_handle), self.metrics_service.clone());
             }
             ProverCommand::CreateProof(wallet_handle, proof_req, requested_credentials, master_secret_name,
                                        schemas, cred_defs, rev_states, cb) => {
@@ -244,15 +249,16 @@ impl ProverCommandExecutor {
                 cb(self.create_proof(wallet_handle, &proof_req, &requested_credentials, &master_secret_name,
                                      &schemas_map_to_schemas_v1_map(schemas),
                                      &cred_defs_map_to_cred_defs_v1_map(cred_defs),
-                                     &rev_states));
+                                     &rev_states),
+                   self.metrics_service.clone());
             }
             ProverCommand::CreateRevocationState(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, cred_rev_id, cb) => {
                 debug!(target: "prover_command_executor", "CreateRevocationState command received");
-                cb(self.create_revocation_state(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                cb(self.create_revocation_state(blob_storage_reader_handle, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id), self.metrics_service.clone());
             }
             ProverCommand::UpdateRevocationState(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, cred_rev_id, cb) => {
                 debug!(target: "prover_command_executor", "UpdateRevocationState command received");
-                cb(self.update_revocation_state(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id));
+                cb(self.update_revocation_state(blob_storage_reader_handle, rev_state, rev_reg_def, rev_reg_delta, timestamp, &cred_rev_id), self.metrics_service.clone());
             }
         };
     }

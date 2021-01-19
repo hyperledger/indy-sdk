@@ -17,6 +17,7 @@ use crate::services::anoncreds::helpers::to_unqualified;
 use indy_api_types::errors::prelude::*;
 
 use std::rc::Rc;
+use crate::services::metrics::MetricsService;
 
 pub enum AnoncredsCommand {
     Issuer(IssuerCommand),
@@ -24,7 +25,7 @@ pub enum AnoncredsCommand {
     Verifier(VerifierCommand),
     ToUnqualified(
         String, // entity
-        Box<dyn Fn(IndyResult<String>) + Send>)
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>)
 }
 
 pub struct AnoncredsCommandExecutor {
@@ -38,15 +39,16 @@ impl AnoncredsCommandExecutor {
                blob_storage_service: Rc<BlobStorageService>,
                pool_service: Rc<PoolService>,
                wallet_service: Rc<WalletService>,
-               crypto_service: Rc<CryptoService>) -> AnoncredsCommandExecutor {
+               crypto_service: Rc<CryptoService>,
+               metrics_service: Rc<MetricsService>) -> AnoncredsCommandExecutor {
         AnoncredsCommandExecutor {
             issuer_command_cxecutor: IssuerCommandExecutor::new(
                 anoncreds_service.clone(), pool_service.clone(),
-                blob_storage_service.clone(), wallet_service.clone(), crypto_service.clone()),
+                blob_storage_service.clone(), wallet_service.clone(), crypto_service.clone(), metrics_service.clone()),
             prover_command_cxecutor: ProverCommandExecutor::new(
-                anoncreds_service.clone(), wallet_service.clone(), crypto_service.clone(), blob_storage_service.clone()),
+                anoncreds_service.clone(), wallet_service.clone(), crypto_service.clone(), blob_storage_service.clone(), metrics_service.clone()),
             verifier_command_cxecutor: VerifierCommandExecutor::new(
-                anoncreds_service.clone()),
+                anoncreds_service.clone(), metrics_service.clone()),
         }
     }
 
@@ -66,7 +68,7 @@ impl AnoncredsCommandExecutor {
             }
             AnoncredsCommand::ToUnqualified(entity, cb) => {
                 debug!("ToUnqualified command received");
-                cb(to_unqualified(&entity));
+                cb(to_unqualified(&entity), self.issuer_command_cxecutor.metrics_service.clone());
             }
         };
     }

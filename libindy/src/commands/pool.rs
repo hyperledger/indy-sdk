@@ -7,50 +7,53 @@ use crate::domain::pool::{PoolConfig, PoolOpenConfig};
 use indy_api_types::errors::prelude::*;
 use crate::services::pool::PoolService;
 use indy_api_types::{PoolHandle, CommandHandle};
+use crate::services::metrics::MetricsService;
 
 pub enum PoolCommand {
     Create(
         String, // name
         Option<PoolConfig>, // config
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     Delete(
         String, // name
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     Open(
         String, // name
         Option<PoolOpenConfig>, // config
-        Box<dyn Fn(IndyResult<PoolHandle>) + Send>),
+        Box<dyn Fn(IndyResult<PoolHandle>, Rc<MetricsService>) + Send>),
     OpenAck(
         CommandHandle, // cmd id
         PoolHandle, // pool handle
         IndyResult<()>),
-    List(Box<dyn Fn(IndyResult<String>) + Send>),
+    List(Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     Close(
         PoolHandle, // pool handle
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     CloseAck(CommandHandle,
              IndyResult<()>),
     Refresh(
         PoolHandle, // pool handle
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     RefreshAck(CommandHandle,
                IndyResult<()>),
     SetProtocolVersion(
         usize, // protocol version
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
 }
 
 pub struct PoolCommandExecutor {
     pool_service: Rc<PoolService>,
-    close_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<()>)>>>,
-    refresh_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<()>)>>>,
-    open_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<PoolHandle>)>>>,
+    metrics_service: Rc<MetricsService>,
+    close_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<()>, Rc<MetricsService>)>>>,
+    refresh_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<()>, Rc<MetricsService>)>>>,
+    open_callbacks: RefCell<HashMap<CommandHandle, Box<dyn Fn(IndyResult<PoolHandle>, Rc<MetricsService>)>>>,
 }
 
 impl PoolCommandExecutor {
-    pub fn new(pool_service: Rc<PoolService>) -> PoolCommandExecutor {
+    pub fn new(pool_service: Rc<PoolService>, metrics_service: Rc<MetricsService>) -> PoolCommandExecutor {
         PoolCommandExecutor {
             pool_service,
+            metrics_service,
             close_callbacks: RefCell::new(HashMap::new()),
             refresh_callbacks: RefCell::new(HashMap::new()),
             open_callbacks: RefCell::new(HashMap::new()),
@@ -61,11 +64,11 @@ impl PoolCommandExecutor {
         match command {
             PoolCommand::Create(name, config, cb) => {
                 debug!(target: "pool_command_executor", "Create command received");
-                cb(self.create(&name, config));
+                cb(self.create(&name, config), self.metrics_service.clone());
             }
             PoolCommand::Delete(name, cb) => {
                 debug!(target: "pool_command_executor", "Delete command received");
-                cb(self.delete(&name));
+                cb(self.delete(&name), self.metrics_service.clone());
             }
             PoolCommand::Open(name, config, cb) => {
                 debug!(target: "pool_command_executor", "Open command received");
@@ -77,7 +80,7 @@ impl PoolCommandExecutor {
                     Ok(mut cbs) => {
                         match cbs.remove(&handle) {
                             Some(cb) => {
-                                cb(result.and_then(|_| self.pool_service.add_open_pool(pool_id)))
+                                cb(result.and_then(|_| self.pool_service.add_open_pool(pool_id)), self.metrics_service.clone())
                             }
                             None => {
                                 error!("Can't process PoolCommand::OpenAck for handle {:?} with result {:?} - appropriate callback not found!", handle, result);
@@ -89,7 +92,7 @@ impl PoolCommandExecutor {
             }
             PoolCommand::List(cb) => {
                 debug!(target: "pool_command_executor", "List command received");
-                cb(self.list());
+                cb(self.list(), self.metrics_service.clone());
             }
             PoolCommand::Close(handle, cb) => {
                 debug!(target: "pool_command_executor", "Close command received");
@@ -100,7 +103,7 @@ impl PoolCommandExecutor {
                 match self.close_callbacks.try_borrow_mut() {
                     Ok(mut cbs) => {
                         match cbs.remove(&handle) {
-                            Some(cb) => cb(result.map_err(IndyError::from)),
+                            Some(cb) => cb(result.map_err(IndyError::from), self.metrics_service.clone()),
                             None => {
                                 error!("Can't process PoolCommand::CloseAck for handle {:?} with result {:?} - appropriate callback not found!", handle, result);
                             }
@@ -118,7 +121,7 @@ impl PoolCommandExecutor {
                 match self.refresh_callbacks.try_borrow_mut() {
                     Ok(mut cbs) => {
                         match cbs.remove(&handle) {
-                            Some(cb) => cb(result),
+                            Some(cb) => cb(result, self.metrics_service.clone()),
                             None => {
                                 error!("Can't process PoolCommand::RefreshAck for handle {:?} with result {:?} - appropriate callback not found!",
                                        handle, result);
@@ -130,7 +133,7 @@ impl PoolCommandExecutor {
             }
             PoolCommand::SetProtocolVersion(protocol_version, cb) => {
                 debug!(target: "pool_command_executor", "SetProtocolVersion command received");
-                cb(self.set_protocol_version(protocol_version));
+                cb(self.set_protocol_version(protocol_version), self.metrics_service.clone());
             }
         };
     }
@@ -155,7 +158,7 @@ impl PoolCommandExecutor {
         Ok(())
     }
 
-    fn open(&self, name: &str, config: Option<PoolOpenConfig>, cb: Box<dyn Fn(IndyResult<PoolHandle>) + Send>) {
+    fn open(&self, name: &str, config: Option<PoolOpenConfig>, cb: Box<dyn Fn(IndyResult<PoolHandle>, Rc<MetricsService>) + Send>) {
         debug!("open >>> name: {:?}, config: {:?}", name, config);
 
         let result = self.pool_service.open(name, config)
@@ -166,7 +169,7 @@ impl PoolCommandExecutor {
                 }
             });
         match result {
-            Err(err) => { cb(Err(err)); }
+            Err(err) => { cb(Err(err), self.metrics_service.clone()); }
             Ok((mut cbs, handle)) => { cbs.insert(handle, cb); /* TODO check if map contains same key */ }
         };
 
@@ -185,7 +188,7 @@ impl PoolCommandExecutor {
         Ok(res)
     }
 
-    fn close(&self, pool_handle: PoolHandle, cb: Box<dyn Fn(IndyResult<()>) + Send>) {
+    fn close(&self, pool_handle: PoolHandle, cb: Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>) {
         debug!("close >>> handle: {:?}", pool_handle);
 
         let result = self.pool_service.close(pool_handle)
@@ -196,14 +199,14 @@ impl PoolCommandExecutor {
                 }
             });
         match result {
-            Err(err) => { cb(Err(err)); }
+            Err(err) => { cb(Err(err), self.metrics_service.clone()); }
             Ok((mut cbs, cmd_id)) => { cbs.insert(cmd_id, cb); /* TODO check if map contains same key */ }
         };
 
         debug!("close <<<");
     }
 
-    fn refresh(&self, handle: PoolHandle, cb: Box<dyn Fn(IndyResult<()>) + Send>) {
+    fn refresh(&self, handle: PoolHandle, cb: Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>) {
         debug!("refresh >>> handle: {:?}", handle);
 
         let result = self.pool_service.refresh(handle)
@@ -214,7 +217,7 @@ impl PoolCommandExecutor {
                 }
             });
         match result {
-            Err(err) => { cb(Err(err)); }
+            Err(err) => { cb(Err(err), self.metrics_service.clone()); }
             Ok((mut cbs, handle)) => { cbs.insert(handle, cb); /* TODO check if map contains same key */ }
         };
 

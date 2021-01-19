@@ -16,7 +16,7 @@ libc = "0.2.66"
 log = "0.4.8"
 openssl = {version = "0.10", optional = true}
 rust-base58 = {version = "0.0.4", optional = true}
-rusqlite = {version = "0.20", optional = true}  # Make sure rusqlite for android is also bumped with this. Rusqlite for android is at the bottom of this document.
+rusqlite = {version = "0.24", optional = true}  # Make sure rusqlite for android is also bumped with this. Rusqlite for android is at the bottom of this document.
 serde = "1.0.99"
 serde_json = "1.0.40"
 serde_derive = "1.0.99"
@@ -28,4 +28,4 @@ optional = true
 features = ["logger"]
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-rusqlite = { version = "0.20", features=["bundled"], optional = true }
+rusqlite = { version = "0.24", features=["bundled"], optional = true }

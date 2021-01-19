@@ -7,41 +7,44 @@ use std::rc::Rc;
 use std::str;
 use indy_api_types::WalletHandle;
 use crate::domain::crypto::did::DidValue;
+use crate::services::metrics::MetricsService;
 
 
 pub enum PairwiseCommand {
     PairwiseExists(
         WalletHandle,
         DidValue, // their_did
-        Box<dyn Fn(IndyResult<bool>) + Send>),
+        Box<dyn Fn(IndyResult<bool>, Rc<MetricsService>) + Send>),
     CreatePairwise(
         WalletHandle,
         DidValue, // their_did
         DidValue, // my_did
         Option<String>, // metadata
-        Box<dyn Fn(IndyResult<()>) + Send>),
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>),
     ListPairwise(
         WalletHandle,
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     GetPairwise(
         WalletHandle,
         DidValue, // their_did
-        Box<dyn Fn(IndyResult<String>) + Send>),
+        Box<dyn Fn(IndyResult<String>, Rc<MetricsService>) + Send>),
     SetPairwiseMetadata(
         WalletHandle,
         DidValue, // their_did
         Option<String>, // metadata
-        Box<dyn Fn(IndyResult<()>) + Send>)
+        Box<dyn Fn(IndyResult<()>, Rc<MetricsService>) + Send>)
 }
 
 pub struct PairwiseCommandExecutor {
-    wallet_service: Rc<WalletService>
+    wallet_service: Rc<WalletService>,
+    metrics_service: Rc<MetricsService>
 }
 
 impl PairwiseCommandExecutor {
-    pub fn new(wallet_service: Rc<WalletService>) -> PairwiseCommandExecutor {
+    pub fn new(wallet_service: Rc<WalletService>, metrics_service: Rc<MetricsService>) -> PairwiseCommandExecutor {
         PairwiseCommandExecutor {
-            wallet_service
+            wallet_service,
+            metrics_service
         }
     }
 
@@ -49,23 +52,23 @@ impl PairwiseCommandExecutor {
         match command {
             PairwiseCommand::PairwiseExists(wallet_handle, their_did, cb) => {
                 debug!(target: "pairwise_command_executor", "PairwiseExists command received");
-                cb(self.pairwise_exists(wallet_handle, &their_did));
+                cb(self.pairwise_exists(wallet_handle, &their_did), self.metrics_service.clone());
             }
             PairwiseCommand::CreatePairwise(wallet_handle, their_did, my_did, metadata, cb) => {
                 debug!(target: "pairwise_command_executor", "CreatePairwise command received");
-                cb(self.create_pairwise(wallet_handle, &their_did, &my_did, metadata.as_ref().map(String::as_str)));
+                cb(self.create_pairwise(wallet_handle, &their_did, &my_did, metadata.as_ref().map(String::as_str)), self.metrics_service.clone());
             }
             PairwiseCommand::ListPairwise(wallet_handle, cb) => {
                 debug!(target: "pairwise_command_executor", "ListPairwise command received");
-                cb(self.list_pairwise(wallet_handle));
+                cb(self.list_pairwise(wallet_handle), self.metrics_service.clone());
             }
             PairwiseCommand::GetPairwise(wallet_handle, their_did, cb) => {
                 debug!(target: "pairwise_command_executor", "GetPairwise command received");
-                cb(self.get_pairwise(wallet_handle, &their_did));
+                cb(self.get_pairwise(wallet_handle, &their_did), self.metrics_service.clone());
             }
             PairwiseCommand::SetPairwiseMetadata(wallet_handle, their_did, metadata, cb) => {
                 debug!(target: "pairwise_command_executor", "SetPairwiseMetadata command received");
-                cb(self.set_pairwise_metadata(wallet_handle, &their_did, metadata.as_ref().map(String::as_str)));
+                cb(self.set_pairwise_metadata(wallet_handle, &their_did, metadata.as_ref().map(String::as_str)), self.metrics_service.clone());
             }
         };
     }
