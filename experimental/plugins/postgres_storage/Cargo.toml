@@ -13,8 +13,7 @@ path = "src/lib.rs"
 crate-type = ["staticlib","rlib","cdylib"]
 
 [features]
-default = ["bn_openssl", "ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "base58_rust_base58", "base64_rust_base64", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "hash_openssl", "local_nodes_pool", "revocation_tests", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "memzero_sodium", "randombytes_sodium"]
-bn_openssl = ["openssl", "int_traits"]
+default = ["ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "base58_rust_base58", "base64_rust_base64", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "local_nodes_pool", "revocation_tests", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "memzero_sodium", "randombytes_sodium"]
 ed25519_sign_sodium = ["sodiumoxide"]
 ed25519_box_sodium = ["sodiumoxide"]
 sealedbox_sodium = ["sodiumoxide"]
@@ -23,7 +22,6 @@ base64_rust_base64 = ["base64"]
 xsalsa20_sodium = ["sodiumoxide"]
 chacha20poly1305_ietf_sodium = ["sodiumoxide"]
 pwhash_argon2i13_sodium = ["sodiumoxide"]
-hash_openssl = ["openssl"]
 local_nodes_pool = []
 revocation_tests = []
 sodium_static = []
@@ -46,7 +44,7 @@ hex = "0.2.0"
 libc = "0.2.60"
 log = "0.4.1"
 dirs = "1.0.4"
-openssl = { version = "=0.10.12", optional = true }
+openssl = "0.10.29"
 owning_ref = "0.3.3"
 rand = "0.3"
 rust-base58 = {version = "0.0.4", optional = true}
@@ -65,7 +63,7 @@ named_type = "0.1.3"
 named_type_derive = "0.1.3"
 byteorder = "1.3.2"
 log-panics = "2.0.0"
-postgres = "0.15.2"
+postgres-openssl = "0.3.0"
 r2d2 = "0.8.2"
 r2d2_postgres = "0.14.0"
 
@@ -74,3 +72,7 @@ version = "0.5.0"
 default-features = false
 features = ["v4"]
 
+[dependencies.postgres]
+version = "0.15.2"
+default-features = false 
+features = ["with-openssl"]

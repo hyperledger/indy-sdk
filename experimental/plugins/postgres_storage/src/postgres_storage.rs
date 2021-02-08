@@ -2,13 +2,18 @@ extern crate owning_ref;
 extern crate sodiumoxide;
 extern crate r2d2;
 extern crate r2d2_postgres;
+extern crate openssl;
+extern crate postgres_openssl;
 
 use ::std::sync::RwLock;
-
 use postgres;
 use self::r2d2_postgres::{TlsMode, PostgresConnectionManager};
 use serde_json;
+use std::path::Path;
 
+use self::postgres::tls::openssl::OpenSsl;
+use postgres::tls::openssl::openssl::ssl::{SslMethod, SslConnectorBuilder};
+use postgres::tls::openssl::openssl::x509::X509_FILETYPE_PEM;
 use self::owning_ref::OwningHandle;
 use std::rc::Rc;
 use std::time::Duration;
@@ -381,33 +386,69 @@ pub struct PostgresConfig {
     // default 5
     wallet_scheme: Option<WalletScheme>,   // default DatabasePerWallet
     database_name: Option<String>,   // default _WALLET_DB
+    ca_file: Option<String>,
+    certificate_chain_file: Option<String>,
+    private_key_file: Option<String>
+}
+
+fn ssl_config(config: &PostgresConfig) -> OpenSsl {
+    let mut builder = SslConnectorBuilder::new(SslMethod::tls()).unwrap();
+    // TODO: Do some proper error handling
+    if let Some(ca_file) = &config.ca_file {
+        builder.set_ca_file(Path::new(&ca_file)).unwrap();
+    }
+    if let Some(certificate_chain_file) = &config.certificate_chain_file {
+        builder.set_certificate_chain_file(Path::new(&certificate_chain_file)).unwrap();
+    }
+    if let Some(private_key_file) = &config.private_key_file {
+        builder.set_private_key_file(Path::new(&private_key_file), X509_FILETYPE_PEM).unwrap();
+    }
+
+    let mut ssl = OpenSsl::new().unwrap();
+    *ssl.connector_mut() = builder.build();
+    ssl
 }
 
 impl PostgresConfig {
-    fn tls(&self) -> postgres::TlsMode {
+    fn tls<'a>(&'a self, ssl_conf: &'a Option<OpenSsl>) -> postgres::TlsMode {
         match &self.tls {
             Some(tls) => match tls.as_ref() {
                 "None" => postgres::TlsMode::None,
                 // TODO add tls support for connecting to postgres db
-                //"Prefer" => postgres::TlsMode::Prefer(&postgres::Connection),
-                //"Require" => postgres::TlsMode::Require(&postgres::Connection),
+                "Prefer" => match ssl_conf {
+                    Some(conf) => postgres::TlsMode::Prefer(conf),
+                    None => postgres::TlsMode::None
+                },
+                "Require" => match ssl_conf {
+                    Some(conf) => postgres::TlsMode::Require(conf),
+                    None => postgres::TlsMode::None
+                },
                 _ => postgres::TlsMode::None
             },
             None => postgres::TlsMode::None
         }
     }
+
     fn r2d2_tls(&self) -> TlsMode {
+        let ssl_conf = Some(ssl_config(&self));
         match &self.tls {
             Some(tls) => match tls.as_ref() {
                 "None" => TlsMode::None,
                 // TODO add tls support for connecting to postgres db
-                //"Prefer" => TlsMode::Prefer(&postgres::Connection),
-                //"Require" => TlsMode::Require(&postgres::Connection),
+                "Prefer" => match ssl_conf {
+                    Some(conf) => TlsMode::Prefer(Box::new(conf)),
+                    None => TlsMode::None
+                },
+                "Require" => match ssl_conf {
+                    Some(conf) => TlsMode::Require(Box::new(conf)),
+                    None => TlsMode::None
+                },
                 _ => TlsMode::None
             },
             None => TlsMode::None
         }
     }
+
     /// Sets the maximum number of connections managed by the pool.
     fn max_connections(&self) -> u32 {
         match &self.max_connections {
@@ -485,14 +526,19 @@ trait WalletStrategy {
 
 pub struct PostgresStorageType {}
 
-struct DatabasePerWalletStrategy {}
+struct DatabasePerWalletStrategy {
+    ssl_config: Option<OpenSsl>
+}
 
-struct MultiWalletSingleTableStrategy {}
+struct MultiWalletSingleTableStrategy {
+    ssl_config: Option<OpenSsl>
+}
 
 struct MultiWalletMultiTableStrategy {}
 
 struct MultiWalletSingleTableStrategySharedPool {
-    pool: r2d2::Pool<PostgresConnectionManager>
+    pool: r2d2::Pool<PostgresConnectionManager>,
+    ssl_config: Option<OpenSsl>
 }
 
 
@@ -508,7 +554,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategySharedPool {
         let url_base = PostgresStorageType::_admin_postgres_url(&config, &credentials);
         let url = PostgresStorageType::_postgres_url(_WALLETS_DB, &config, &credentials);
 
-        let conn = postgres::Connection::connect(&url_base[..], postgres::TlsMode::None)?;
+        let conn = postgres::Connection::connect(&url_base[..], config.tls(&self.ssl_config))?;
 
         if let Err(error) = conn.execute(&_CREATE_WALLETS_DATABASE, &[]) {
             if error.code() != Some(&postgres::error::DUPLICATE_DATABASE) {
@@ -522,7 +568,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategySharedPool {
         }
         conn.finish()?;
 
-        let conn = match postgres::Connection::connect(&url[..], postgres::TlsMode::None) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -543,7 +589,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategySharedPool {
         // insert metadata
         let url = PostgresStorageType::_postgres_url(_WALLETS_DB, &config, &credentials);
 
-        let conn = match postgres::Connection::connect(&url[..], postgres::TlsMode::None) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -603,7 +649,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategySharedPool {
     fn delete_wallet(&self, id: &str, config: &PostgresConfig, credentials: &PostgresCredentials) -> Result<(), WalletStorageError> {
         let url = PostgresStorageType::_postgres_url(&_WALLETS_DB, &config, &credentials);
 
-        let conn = match postgres::Connection::connect(&url[..], postgres::TlsMode::None) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -661,7 +707,7 @@ impl WalletStrategy for DatabasePerWalletStrategy {
         let url = PostgresStorageType::_postgres_url(id, &config, &credentials);
 
         debug!("connecting to postgres, url_base: {:?}", url_base);
-        let conn = postgres::Connection::connect(&url_base[..], config.tls())?;
+        let conn = postgres::Connection::connect(&url_base[..], config.tls(&self.ssl_config))?;
 
         debug!("creating wallets DB");
         let create_db_sql = str::replace(_CREATE_WALLET_DATABASE, "$1", id);
@@ -674,7 +720,7 @@ impl WalletStrategy for DatabasePerWalletStrategy {
         conn.finish()?;
 
         debug!("connecting to wallet as user");
-        let conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -716,7 +762,7 @@ impl WalletStrategy for DatabasePerWalletStrategy {
         let url = PostgresStorageType::_postgres_url(id, &config, &credentials);
 
         // don't need a connection, but connect just to verify we can
-        let _conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let _conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(_) => return Err(WalletStorageError::NotFound)
         };
@@ -749,7 +795,7 @@ impl WalletStrategy for DatabasePerWalletStrategy {
         let url_base = PostgresStorageType::_admin_postgres_url(&config, &credentials);
         let url = PostgresStorageType::_postgres_url(id, &config, &credentials);
 
-        match postgres::Connection::connect(&url[..], config.tls()) {
+        match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => {
                 for sql in &_DROP_SCHEMA {
                     match conn.execute(sql, &[]) {
@@ -763,7 +809,7 @@ impl WalletStrategy for DatabasePerWalletStrategy {
             Err(_) => return Err(WalletStorageError::NotFound)
         };
 
-        let conn = postgres::Connection::connect(url_base, config.tls())?;
+        let conn = postgres::Connection::connect(url_base, config.tls(&self.ssl_config))?;
         let drop_db_sql = str::replace(_DROP_WALLET_DATABASE, "$1", id);
         let ret = match conn.execute(&drop_db_sql, &[]) {
             Ok(_) => Ok(()),
@@ -783,6 +829,8 @@ impl WalletStrategy for DatabasePerWalletStrategy {
         None
     }
 }
+
+
 
 
 // determine additional query parameters based on wallet strategy
@@ -821,7 +869,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategy {
         let url = PostgresStorageType::_postgres_url(wallet_db_name, &config, &credentials);
         debug!("postgres_url: {:?}", url);
         debug!("connecting to postgres, url_base: {:?}", url_base);
-        let conn = postgres::Connection::connect(&url_base[..], config.tls())?;
+        let conn = postgres::Connection::connect(&url_base[..], config.tls(&self.ssl_config))?;
 
         debug!("creating wallets DB");
         let create_db_sql: String = str::replace(_CREATE_WALLET_DATABASE, "$1", wallet_db_name);
@@ -841,7 +889,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategy {
         conn.finish()?;
 
         debug!("connecting to wallet storage");
-        let conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 debug!("error connecting to wallet storage, Error: {}", error);
@@ -869,7 +917,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategy {
         // insert metadata
         let url = PostgresStorageType::_postgres_url(wallet_db_name, &config, &credentials);
 
-        let conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -899,7 +947,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategy {
         let url = PostgresStorageType::_postgres_url(wallet_db_name, &config, &credentials);
 
         // don't need a connection, but connect just to verify we can
-        let conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(_) => return Err(WalletStorageError::NotFound)
         };
@@ -947,7 +995,7 @@ impl WalletStrategy for MultiWalletSingleTableStrategy {
         debug!("wallet_db_name: {:?}", wallet_db_name);
         let url = PostgresStorageType::_postgres_url(wallet_db_name, &config, &credentials);
 
-        let conn = match postgres::Connection::connect(&url[..], config.tls()) {
+        let conn = match postgres::Connection::connect(&url[..], config.tls(&self.ssl_config)) {
             Ok(conn) => conn,
             Err(error) => {
                 return Err(WalletStorageError::IOError(format!("Error occurred while connecting to wallet schema: {}", error)));
@@ -1020,7 +1068,8 @@ impl WalletStrategy for MultiWalletMultiTableStrategy {
 }
 
 lazy_static! {
-    static ref SELECTED_STRATEGY: RwLock<Box<dyn WalletStrategy + Send + Sync>> = RwLock::new(Box::new(DatabasePerWalletStrategy{}));
+    static ref SELECTED_STRATEGY: RwLock<Box<dyn WalletStrategy + Send + Sync>> = RwLock::new(Box::new(DatabasePerWalletStrategy{ ssl_config: None }));
+    static ref INITIALIZED: RwLock<bool>= RwLock::new(false);
 }
 
 impl PostgresStorageType {
@@ -1800,6 +1849,17 @@ fn get_wallet_strategy_qualifier() -> Option<String> {
     read_strategy.as_ref().query_qualifier()
 }
 
+fn set_initialized() {
+    if !get_initialized() {
+        let mut write_init = INITIALIZED.write().unwrap();
+        *write_init = true;
+    }
+}
+
+fn get_initialized() -> bool {
+    *INITIALIZED.read().unwrap()
+}
+
 
 impl WalletStorageType for PostgresStorageType {
     ///
@@ -1826,6 +1886,9 @@ impl WalletStorageType for PostgresStorageType {
     ///  * `IOError(..)` - Deletion of the file form the file-system failed
     ///
     fn init_storage(&self, config: Option<&str>, credentials: Option<&str>) -> Result<(), WalletStorageError> {
+        if get_initialized() {
+            return Ok(());
+        }
         let config = config
             .map(serde_json::from_str::<PostgresConfig>)
             .map_or(Ok(None), |v| v.map(Some))
@@ -1844,15 +1907,16 @@ impl WalletStorageType for PostgresStorageType {
             None => return Err(WalletStorageError::ConfigError)
         };
 
+        let ssl_config = Some(ssl_config(&config));
         match config.wallet_scheme {
             Some(scheme) => match scheme {
                 WalletScheme::DatabasePerWallet => {
                     debug!("Initialising postgresql using DatabasePerWallet strategy.");
-                    set_wallet_strategy(Box::new(DatabasePerWalletStrategy {}));
+                    set_wallet_strategy(Box::new(DatabasePerWalletStrategy { ssl_config: ssl_config }));
                 }
                 WalletScheme::MultiWalletSingleTable => {
                     debug!("Initialising postgresql using MultiWalletSingleTable strategy.");
-                    set_wallet_strategy(Box::new(MultiWalletSingleTableStrategy {}));
+                    set_wallet_strategy(Box::new(MultiWalletSingleTableStrategy { ssl_config: ssl_config }));
                 }
                 WalletScheme::MultiWalletMultiTable => {
                     debug!("Initialising postgresql using MultiWalletMultiTable strategy.");
@@ -1870,17 +1934,19 @@ impl WalletStorageType for PostgresStorageType {
                     }
                     debug!("Initialising postgresql using MultiWalletSingleTableSharedPool strategy.");
                     let pool = create_connection_pool(&config, &credentials)?;
-                    set_wallet_strategy(Box::new(MultiWalletSingleTableStrategySharedPool { pool }));
+                    set_wallet_strategy(Box::new(MultiWalletSingleTableStrategySharedPool { ssl_config: ssl_config, pool }));
                 }
             },
             None => {
                 debug!("Initialising postgresql but strategy was not specified in storage \
                         configuration. Using DatabasePerWallet strategy by default.");
-                set_wallet_strategy(Box::new(DatabasePerWalletStrategy {}));
+                set_wallet_strategy(Box::new(DatabasePerWalletStrategy { ssl_config: ssl_config }));
             }
         };
         let r1 = SELECTED_STRATEGY.read().unwrap();
-        r1.as_ref().init_storage(&config, &credentials)
+        let res = r1.as_ref().init_storage(&config, &credentials);
+        set_initialized();
+        res
     }
 
     ///
@@ -1958,6 +2024,7 @@ impl WalletStorageType for PostgresStorageType {
     ///  * `IOError("Error occurred while inserting the keys...")` - Insertion of keys failed
     ///
     fn create_storage(&self, id: &str, config: Option<&str>, credentials: Option<&str>, metadata: &[u8]) -> Result<(), WalletStorageError> {
+        self.init_storage(config, credentials)?;
         let config = config
             .map(serde_json::from_str::<PostgresConfig>)
             .map_or(Ok(None), |v| v.map(Some))
@@ -2009,6 +2076,7 @@ impl WalletStorageType for PostgresStorageType {
     ///  * `IOError("IO error during storage operation:...")` - Failed connection or SQL query
     ///
     fn open_storage(&self, id: &str, config: Option<&str>, credentials: Option<&str>) -> Result<Box<PostgresStorage>, WalletStorageError> {
+        self.init_storage(config, credentials)?;
         let config = config
             .map(serde_json::from_str::<PostgresConfig>)
             .map_or(Ok(None), |v| v.map(Some))
