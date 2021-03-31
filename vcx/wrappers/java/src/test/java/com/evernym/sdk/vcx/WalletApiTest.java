@@ -31,14 +31,14 @@ public class WalletApiTest {
     @Test
     @DisplayName("create a record")
     void createRecord() throws VcxException, ExecutionException, InterruptedException {
-        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value));
+        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value, ""));
         assert (recordHandle != 0);
     }
 
     @Test
     @DisplayName("get a record")
     void getRecord() throws VcxException, ExecutionException, InterruptedException {
-        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value));
+        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value, ""));
         String recordValue = TestHelper.getResultFromFuture(WalletApi.getRecordWallet(type,id,""));
         assert (recordValue.contains(value));
     }
@@ -46,7 +46,7 @@ public class WalletApiTest {
     @Test
     @DisplayName("update a record")
     void updateRecord() throws VcxException, ExecutionException, InterruptedException {
-        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value));
+        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value, ""));
         int updatedRecordHandle = TestHelper.getResultFromFuture(WalletApi.updateRecordWallet(type,id,"new"));
         assert (updatedRecordHandle != 0);
     }
@@ -54,7 +54,7 @@ public class WalletApiTest {
     @Test
     @DisplayName("delete a record")
     void deleteRecord() throws VcxException, ExecutionException, InterruptedException {
-        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value));
+        int recordHandle = TestHelper.getResultFromFuture(WalletApi.addRecordWallet(type,id,value, ""));
         int deleteRecordHandle = TestHelper.getResultFromFuture(WalletApi.deleteRecordWallet(type,id));
         assert (deleteRecordHandle != 0);
     }

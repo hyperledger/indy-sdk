@@ -189,9 +189,10 @@ extern void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_h
            completion:(void (^)(NSError *error))completion;
 
 - (void)addRecordWallet:(NSString *)recordType
-            recordId:(NSString *)recordId
-            recordValue:(NSString *) recordValue
-           completion:(void (^)(NSError *error))completion;
+               recordId:(NSString *)recordId
+            recordValue:(NSString *)recordValue
+               tagsJson:(NSString *)tagsJson
+             completion:(void (^)(NSError *error))completion;
 
 - (void)updateRecordWallet:(NSString *)recordType
               withRecordId:(NSString *)recordId
@@ -200,11 +201,39 @@ extern void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_h
 
 - (void)getRecordWallet:(NSString *)recordType
                recordId:(NSString *)recordId
-             completion:(void (^)(NSError *error, NSString *walletValue))completion;
+            optionsJson:(NSString *)optionsJson
+             completion:(void (^)(NSError *error, NSString* walletValue))completion;
 
 - (void)deleteRecordWallet:(NSString *)recordType
             recordId:(NSString *)recordId
            completion:(void (^)(NSError *error))completion;
+
+- (void)addRecordTagsWallet:(NSString *)recordType
+                   recordId:(NSString *)recordId
+                   tagsJson:(NSString *) tagsJson
+                 completion:(void (^)(NSError *error))completion;
+
+- (void)updateRecordTagsWallet:(NSString *)recordType
+                      recordId:(NSString *)recordId
+                      tagsJson:(NSString *) tagsJson
+                    completion:(void (^)(NSError *error))completion;
+
+- (void)deleteRecordTagsWallet:(NSString *)recordType
+                      recordId:(NSString *)recordId
+                  tagNamesJson:(NSString *)tagNamesJson
+                    completion:(void (^)(NSError *error))completion;
+
+- (void)openSearchWallet:(NSString *)recordType
+               queryJson:(NSString *)queryJson
+             optionsJson:(NSString *)optionsJson
+              completion:(void (^)(NSError *error, NSInteger searchHandle))completion;
+
+- (void)searchNextRecordsWallet:(NSInteger)searchHandle
+                          count:(int)count
+                     completion:(void (^)(NSError *error, NSString* records))completion;
+
+- (void)closeSearchWallet:(NSInteger)searchHandle
+               completion:(void (^)(NSError *error))completion;
 
 - (void) proofGetRequests:(NSInteger)connectionHandle
               completion:(void (^)(NSError *error, NSString *requests))completion;

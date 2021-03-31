@@ -543,7 +543,7 @@ public abstract class LibVcx {
         public int vcx_wallet_import(int command_handle, String config, Callback cb);
 
         /** Add a record into wallet */
-        public int vcx_wallet_add_record(int command_handle, String recordType, String recordId, String recordValue, String recordTag, Callback cb);
+        public int vcx_wallet_add_record(int command_handle, String recordType, String recordId, String recordValue, String tagsJson, Callback cb);
 
         /** Delete a record from wallet */
         public int vcx_wallet_delete_record(int command_handle, String recordType, String recordId, Callback cb);
@@ -553,6 +553,26 @@ public abstract class LibVcx {
 
         /** Update a record in wallet */
         public int vcx_wallet_update_record_value(int command_handle, String recordType, String recordId, String recordValue, Callback cb);
+
+        /** Add record tags to a record */
+        public int vcx_wallet_add_record_tags(int command_handle, String recordType, String recordId, String tagsJson, Callback cb);
+
+        /** Update record tags in a record */
+        public int vcx_wallet_update_record_tags(int command_handle, String recordType, String recordId, String tagsJson, Callback cb);
+
+        /** Delete record tags from a record */
+        public int vcx_wallet_delete_record_tags(int command_handle, String recordType, String recordId, String tagNamesJson, Callback cb);
+
+
+        /** Opens a wallet search handle */
+        public int vcx_wallet_open_search(int command_handle, String recordType, String queryJson, String optionsJson, Callback cb);
+
+        /** Fetch next records for wallet search */
+        public int vcx_wallet_search_next_records(int command_handle, int search_handle, int count, Callback cb);
+
+        /** Close a search */
+        public int vcx_wallet_close_search(int command_handle, int search_handle, Callback cb);
+
 
         /** Set wallet handle manually */
         public int vcx_wallet_set_handle(int handle);

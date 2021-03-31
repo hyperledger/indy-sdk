@@ -906,15 +906,19 @@ void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_handle,
 
 - (void)addRecordWallet:(NSString *)recordType
                recordId:(NSString *)recordId
-            recordValue:(NSString *) recordValue
+            recordValue:(NSString *)recordValue
+               tagsJson:(NSString *)tagsJson
              completion:(void (^)(NSError *error))completion {
    vcx_error_t ret;
    vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+   if (!tagsJson.length) tagsJson = @"{}";
+   
    const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
    const char * record_id = [recordId cStringUsingEncoding:NSUTF8StringEncoding];
    const char * record_value =[recordValue cStringUsingEncoding:NSUTF8StringEncoding];
-   const char * record_tag = "{}";
-    ret = vcx_wallet_add_record(handle, record_type, record_id, record_value, record_tag, VcxWrapperCommonCallback);
+   const char * tags_json =[tagsJson cStringUsingEncoding:NSUTF8StringEncoding];
+   
+    ret = vcx_wallet_add_record(handle, record_type, record_id, record_value, tags_json, VcxWrapperCommonCallback);
 
    if( ret != 0 )
    {
@@ -927,14 +931,17 @@ void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_handle,
 }
 
 - (void)getRecordWallet:(NSString *)recordType
-            recordId:(NSString *)recordId
+               recordId:(NSString *)recordId
+            optionsJson:(NSString *)optionsJson
              completion:(void (^)(NSError *error, NSString* walletValue))completion {
    vcx_error_t ret;
    vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+    
+   if (!optionsJson.length) optionsJson = @"{}";
    const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
    const char * record_id = [recordId cStringUsingEncoding:NSUTF8StringEncoding];
-   const char * record_tag = "{}";
-    ret = vcx_wallet_get_record(handle, record_type, record_id, record_tag, VcxWrapperCommonStringCallback);
+   const char * options_json = [optionsJson cStringUsingEncoding:NSUTF8StringEncoding];
+    ret = vcx_wallet_get_record(handle, record_type, record_id, options_json, VcxWrapperCommonStringCallback);
 
    if( ret != 0 )
    {
@@ -991,6 +998,133 @@ void VcxWrapperCommonNumberStringCallback(vcx_command_handle_t xcommand_handle,
             completion([NSError errorFromVcxError: ret]);
         });
     }
+}
+
+- (void)addRecordTagsWallet:(NSString *)recordType
+               recordId:(NSString *)recordId
+            tagsJson:(NSString *) tagsJson
+             completion:(void (^)(NSError *error))completion {
+   vcx_error_t ret;
+   vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+   const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * record_id = [recordId cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * tags_json =[tagsJson cStringUsingEncoding:NSUTF8StringEncoding];
+    
+    ret = vcx_wallet_add_record_tags(handle, record_type, record_id, tags_json, VcxWrapperCommonCallback);
+
+   if( ret != 0 )
+   {
+       [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+       dispatch_async(dispatch_get_main_queue(), ^{
+           completion([NSError errorFromVcxError: ret]);
+       });
+   }
+}
+
+- (void)updateRecordTagsWallet:(NSString *)recordType
+              recordId:(NSString *)recordId
+           tagsJson:(NSString *) tagsJson
+            completion:(void (^)(NSError *error))completion {
+    vcx_error_t ret;
+    vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+    const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
+    const char * record_id = [recordId cStringUsingEncoding:NSUTF8StringEncoding];
+    const char * tags_json =[tagsJson cStringUsingEncoding:NSUTF8StringEncoding];
+
+    ret = vcx_wallet_update_record_tags(handle, record_type, record_id, tags_json, VcxWrapperCommonCallback);
+
+    if( ret != 0 )
+    {
+        [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion([NSError errorFromVcxError: ret]);
+        });
+    }
+}
+
+- (void)deleteRecordTagsWallet:(NSString *)recordType
+            recordId:(NSString *)recordId
+            tagNamesJson:(NSString *)tagNamesJson
+           completion:(void (^)(NSError *error))completion {
+   vcx_error_t ret;
+   vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+   const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * record_id = [recordId cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * tag_names_json = [tagNamesJson cStringUsingEncoding:NSUTF8StringEncoding];
+    
+   ret = vcx_wallet_delete_record_tags(handle, record_type, record_id, tag_names_json,  VcxWrapperCommonCallback);
+
+   if( ret != 0 )
+   {
+       [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+       dispatch_async(dispatch_get_main_queue(), ^{
+           completion([NSError errorFromVcxError: ret]);
+       });
+   }
+}
+
+- (void)openSearchWallet:(NSString *)recordType
+               queryJson:(NSString *)queryJson
+            optionsJson:(NSString *)optionsJson
+             completion:(void (^)(NSError *error, NSInteger searchHandle))completion {
+   vcx_error_t ret;
+   vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+    
+   if (!queryJson.length) queryJson = @"{}";
+   if (!optionsJson.length) optionsJson = @"{}";
+    
+   const char * record_type =[recordType cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * query_json = [queryJson cStringUsingEncoding:NSUTF8StringEncoding];
+   const char * options_json =[optionsJson cStringUsingEncoding:NSUTF8StringEncoding];
+    
+    ret = vcx_wallet_open_search(handle, record_type, query_json, options_json, VcxWrapperCommonHandleCallback);
+
+   if( ret != 0 )
+   {
+       [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+       dispatch_async(dispatch_get_main_queue(), ^{
+           completion([NSError errorFromVcxError: ret], 0);
+       });
+   }
+}
+
+- (void)searchNextRecordsWallet:(NSInteger)searchHandle
+              count:(int)count
+            completion:(void (^)(NSError *error, NSString* records))completion {
+    vcx_error_t ret;
+    vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+
+    ret = vcx_wallet_search_next_records(handle, searchHandle, count, VcxWrapperCommonStringCallback);
+
+    if( ret != 0 )
+    {
+        [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion([NSError errorFromVcxError: ret], nil);
+        });
+    }
+}
+
+- (void)closeSearchWallet:(NSInteger)searchHandle
+           completion:(void (^)(NSError *error))completion {
+   vcx_error_t ret;
+   vcx_command_handle_t handle = [[VcxCallbacks sharedInstance] createCommandHandleFor:completion];
+    
+   ret = vcx_wallet_close_search(handle, searchHandle, VcxWrapperCommonCallback);
+
+   if( ret != 0 )
+   {
+       [[VcxCallbacks sharedInstance] deleteCommandHandleFor: handle];
+
+       dispatch_async(dispatch_get_main_queue(), ^{
+           completion([NSError errorFromVcxError: ret]);
+       });
+   }
 }
 
 - (void)proofGetRequests:(NSInteger)connectionHandle
