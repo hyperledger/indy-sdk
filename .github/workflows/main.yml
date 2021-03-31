@@ -1,0 +1,365 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. 
+on: [push, pull_request]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  github-actions-info:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - run: echo $GITHUB_REPOSITORY
+      - run: echo $GITHUB_ACTOR
+      - run: echo $GITHUB_REF
+      - run: echo $GITHUB_HEAD_REF
+      - run: echo $GITHUB_BASE_REF
+      - run: echo $GITHUB_WORKSPACE
+      - run: echo $GITHUB_EVENT_NAME
+      - run: echo $GITHUB_RUN_NUMBER
+      - run: echo $GITHUB_RUN_ID
+      - run: echo $DOCKER_BUILDKIT
+      - run: docker --version
+
+  build-image-indypool:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo $REF_HASH
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Ref hash print
+        run: echo $REF_HASH
+      - name: Try to pull image
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH || true
+      - name: Build indy_pool
+        run: |
+          set -x
+          docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH --build-arg pool_ip=127.0.0.1 -f ci/indy-pool.dockerfile -t indy_pool:$REF_HASH .
+          docker tag indy_pool:$REF_HASH docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH && docker push docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH || true
+
+  build-image-ubuntu16-libindy:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Try to pull image
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH || true
+      - name: Building docker image
+        run: |
+          set -x
+          docker image ls
+          echo "DOCKER_BUILDKIT=$DOCKER_BUILDKIT"
+          echo "Remote image to be used as layer cache:"
+          docker image inspect docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH
+          docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH \
+                       -f "libindy.Dockerfile" \
+                       -t ubuntu16-libindy:$REF_HASH \
+                       .
+
+          echo "Locally built image"
+          docker image inspect ubuntu16-libindy:$REF_HASH
+          docker image ls
+
+          docker tag ubuntu16-libindy:$REF_HASH \
+                     docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH
+          docker push docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH || true
+
+
+  build-image-ubuntu16-libvcx:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-libvcx
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH || true
+      - name: Building docker image
+        run: |
+          set -x
+          docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH \
+                       -f "libvcx.Dockerfile" \
+                       -t ubuntu16-libvcx:$REF_HASH \
+                       .
+          docker tag ubuntu16-libvcx:$REF_HASH \
+                     docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH
+          docker push docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH || true
+
+  build-image-ubuntu16-vcxagency:
+    runs-on: ubuntu-16.04
+    needs: [build-image-ubuntu16-libindy]
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-vcxagency
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH || true
+      - name: Pull image ubuntu16-libindy
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH
+      - name: Building docker image
+        run: |
+          set -x
+          docker build --build-arg BUILDKIT_INLINE_CACHE=1 \
+                       --build-arg BASE_IMAGE_LIBINDY="docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH" \
+                       --cache-from docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH \
+                       -f "vcxagency.Dockerfile" \
+                       -t ubuntu16-vcxagency:$REF_HASH \
+                       .
+          docker tag ubuntu16-vcxagency:$REF_HASH \
+                     docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH
+          docker push docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH || true
+
+
+#
+#  ██      ██ ██████  ██ ███    ██ ██████  ██    ██ 
+#  ██      ██ ██   ██ ██ ████   ██ ██   ██  ██  ██  
+#  ██      ██ ██████  ██ ██ ██  ██ ██   ██   ████  
+#  ██      ██ ██   ██ ██ ██  ██ ██ ██   ██    ██  
+#  ███████ ██ ██████  ██ ██   ████ ██████     ██ 
+#                                               
+
+  test-libindy:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    needs: [build-image-indypool, build-image-ubuntu16-libindy]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-libindy
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH || true
+      - name: Pull image indy_pool
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH || true
+      - name: Run libindy unit tests in Docker
+        run: |
+          set -x
+          docker run -d --name indylocalhost \
+                        --network host \
+                        docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH
+
+          docker run --rm -i --name libindy-tests \
+                              --network host \
+                              docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH \
+                              bash -c '(cd $HOME/indy-sdk/libindy && RUST_TEST_THREADS=1 TEST_POOL_IP=127.0.0.1 cargo test --release)'
+
+  test-libindy-wrapper-rust:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    needs: [build-image-indypool, build-image-ubuntu16-libindy]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-libindy
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH || true
+      - name: Pull image indy_pool
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH || true
+      - name: Run tests
+        run: |
+          set -x
+          docker run -d --name indylocalhost \
+                        --network host \
+                        docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH
+
+          docker run --rm -i --name libindy-tests \
+                              --network host \
+                              docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libindy:$REF_HASH \
+                              bash -c '(cd $HOME/indy-sdk/wrappers/rust && RUST_TEST_THREADS=1 TEST_POOL_IP=127.0.0.1 cargo test --release)'
+
+
+
+
+  #
+  #  ██      ██ ██████  ██    ██  ██████ ██   ██ 
+  #  ██      ██ ██   ██ ██    ██ ██       ██ ██  
+  #  ██      ██ ██████  ██    ██ ██        ███  
+  #  ██      ██ ██   ██  ██  ██  ██       ██ ██ 
+  #  ███████ ██ ██████    ████    ██████ ██   ██ 
+  #
+
+  test-vcxagency:
+    runs-on: ubuntu-16.04
+    needs: [build-image-ubuntu16-vcxagency]
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-vcxagency
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH || true
+      - name: Building docker image
+        run: |
+          set -x
+          docker run --rm -i --name libindy-tests \
+                              --network host \
+                              docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH \
+                              bash -c '(cd $HOME/indy-sdk/vcx/dummy-cloud-agent && RUST_TEST_THREADS=1 TEST_POOL_IP=127.0.0.1 cargo test)'
+
+
+  test-libvcx:
+    runs-on: ubuntu-16.04
+    env:
+      DOCKER_BUILDKIT: 1
+    needs: [build-image-indypool, build-image-ubuntu16-libvcx, build-image-ubuntu16-vcxagency]
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+      - name: Docker setup
+        run: |
+          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - name: Pull image ubuntu16-libvcx
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH || true
+      - name: Pull image indy_pool
+        run: |
+          set -x
+          docker pull docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH || true
+      - name: Run libindy unit tests in Docker
+        run: |
+          set -x
+          docker run -d --name indylocalhost \
+                        --network host \
+                        docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH
+
+          docker run -d --name vcxagency \
+                        --network host \
+                        docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-vcxagency:$REF_HASH
+
+          docker run --rm -i --name libindy-tests \
+                              --network host \
+                              docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/ubuntu16-libvcx:$REF_HASH \
+                              bash -c '(cd $HOME/indy-sdk/vcx/libvcx &&  RUST_TEST_THREADS=1 TEST_POOL_IP=127.0.0.1 cargo test --release)'
+
+
+
+
+
+
+#
+#
+#  build-libindy-run-unittests:
+#    needs: build-image-indypool
+#    runs-on: ubuntu-16.04
+#    steps:
+#      - name: Check cargo version
+#        run: |
+#          cargo --version
+#          rustc --version
+#      - name: Docker setup
+#        run: |
+#          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY | awk '{print tolower($0)}')
+#          REF_HASH=`echo -n "$GITHUB_REF-$GITHUB_ACTOR" | shasum | cut -f1 -d" "`
+#          echo ::set-env name=REF_HASH::$(echo $REF_HASH)
+#          echo ${{ secrets.PACKAGES_ACCESS_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+#      - name: Run indy pool
+#        run: |
+#          echo "Run pool image cached from previous dependent 'build-pool-image' workflow"
+#          docker run -d --name indylocalhost -p 9701-9708:9701-9708 -d docker.pkg.github.com/$GITHUB_REPOSITORY_LOWERCASE/indy_pool:$REF_HASH
+#          sleep 2
+#          docker ps -a
+#      - name: Git checkout
+#        uses: actions/checkout@v2
+#      - name: "Install libsodium"
+#        run: |
+#          cd /tmp && \
+#          curl https://download.libsodium.org/libsodium/releases/libsodium-1.0.18.tar.gz | tar -xz && \
+#          cd /tmp/libsodium-1.0.18 && \
+#          ./configure --disable-shared && \
+#          sudo make && \
+#          sudo make install
+#      - name: Install dependencies
+#        run: |
+#          sudo apt-get update && sudo apt-get install -y libzmq3-dev
+#      - name: Build libindy
+#        run: |
+#          pwd
+#          cd libindy
+#          cargo build
+#      - name: Run libindy unit tests
+#        run: |
+#          cd libindy
+#          RUST_TEST_THREADS=1 TEST_POOL_IP=127.0.0.1 cargo test
+
+#  run-pool-image:
+#    needs: build-pool-image
+#    runs-on: ubuntu-16.04
+#    steps:
+#      - name: Building docker image
+#        run: |
+#          echo "Run pool image cached from previous dependent 'build-pool-image' workflow"
+#          docker image ls
+#          docker run --name indylocalhost -p 9701-9708:9701-9708 -d indy_pool:$REF_HASH
