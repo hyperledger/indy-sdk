@@ -1,12 +1,10 @@
 FROM libindy-test
 # to see base image for this one see this file: libindy/ci/ubuntu.dockerfile. It is build in CI/CD pipelines
 ENV ANDROID_BUILD_FOLDER=/tmp/android_build
-ENV ANDROID_SDK=${ANDROID_BUILD_FOLDER}/sdk
-ENV ANDROID_SDK_ROOT=${ANDROID_SDK}
-ENV ANDROID_HOME=${ANDROID_SDK}
-ENV TOOLCHAIN_PREFIX=${ANDROID_BUILD_FOLDER}/toolchains/linux
-ENV ANDROID_NDK_ROOT=${TOOLCHAIN_PREFIX}/android-ndk-r20
-ENV PATH=${PATH}:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin
+ENV ANDROID_SDK_ROOT=${ANDROID_BUILD_FOLDER}/sdk
+ENV ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/22.1.7171670
+ENV TOOLCHAIN_PREFIX=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64
+ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin
 
 COPY android.prepare.sh .
 COPY setup.android.env.sh .

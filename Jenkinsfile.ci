@@ -264,6 +264,7 @@ def androidTesting() {
     env_name = "android_on_linux"
     network_name = "pool_network"
     linuxModuleTesting("ci/android.dockerfile ci", env_name, network_name, this.&linuxAndroidOnEmulatorTesting, "android", "android", ["libindy": 'ci/ubuntu.dockerfile ci'])
+    linuxModuleTesting("ci/android.dockerfile ci", env_name, network_name, this.&linuxAndroidWrapperTesting, "android", "android", ["libindy": 'ci/ubuntu.dockerfile ci'])
 }
 
 def iosTesting() {
@@ -624,12 +625,16 @@ def linuxAndroidOnEmulatorTesting(env_name, network_name, testEnv) {
     sh 'chmod -R 777 libindy/*.sh'
 
     def emu_arch = "x86"
+    def arch_tripple = "i686-linux-android"
 
     testEnv.inside("--network=${network_name}") {
         for (directory in ["libindy", "libnullpay", "vcx/libvcx"]) {
             echo "${env_name} ${directory} Test: Test on ${emu_arch} emulator"
             sh "cd ${directory} && ./android.test.sh ${emu_arch}"
         }
+
+        sh "mkdir -p wrappers/android/src/main/jniLibs/${emu_arch}/ cp target/${t}/release/libindy.so wrappers/android/src/main/jniLibs/${emu_arch}/"
+        stash includes: 'wrappers/android/src/main/jniLibs/${emu_arch}/libindy.so', name: "LibindyAndroidSO${env_name}"
     }
 }
 
@@ -754,6 +759,18 @@ def linuxRustTesting(env_name, network_name, testEnv) {
 
             echo "${env_name} Indy Rust wrupper Test: Run tests"
             sh 'LD_LIBRARY_PATH=./:${LD_LIBRARY_PATH} RUST_BACKTRACE=1 RUST_LOG=indy::=debug,zmq=trace RUST_TEST_THREADS=1 TEST_POOL_IP=10.0.0.2 cargo test'
+        }
+    }
+}
+
+def linuxAndroidWrapperTesting(env_name, network_name, testEnv) {
+    unstash name: "LibindyAndroidSO${env_name}"
+
+    dir('wrappers/android') {
+        testEnv.inside("--network=${network_name}") {
+            echo "${env_name} Libindy Test: Test android wrapper"
+
+            sh "./android.test.sh"
         }
     }
 }

@@ -1,0 +1,28 @@
+pluginManagement {
+    repositories {
+        google().mavenContent {
+            includeGroupByRegex("androidx.*")
+            includeGroupByRegex("com\\.google\\.android.*")
+            includeGroupByRegex("com\\.google\\.gms.*")
+            includeGroupByRegex("com\\.google\\.firebase.*")
+            includeGroupByRegex("com\\.android.*")
+            includeGroupByRegex("android\\.arch.*")
+        }
+        gradlePluginPortal()
+    }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.android.library") {
+                useModule("com.android.tools.build:gradle:4.1.0")
+            }
+        }
+    }
+
+    plugins {
+        id("com.android.library") version "4.1.0"
+        id("de.undercouch.download") version "4.1.1"
+    }
+}
+
+rootProject.name = 'libindy-android'

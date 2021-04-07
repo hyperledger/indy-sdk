@@ -6,14 +6,13 @@ if [ -z "${ANDROID_BUILD_FOLDER}" ]; then
     echo STDERR "e.g. x86 or arm"
     exit 1
 fi
-ANDROID_SDK=${ANDROID_BUILD_FOLDER}/sdk
-export ANDROID_SDK_ROOT=${ANDROID_SDK}
-export ANDROID_HOME=${ANDROID_SDK}
-export PATH=${PATH}:${ANDROID_HOME}/platform-tools
-export PATH=${PATH}:${ANDROID_HOME}/tools
-export PATH=${PATH}:${ANDROID_HOME}/tools/bin
+export ANDROID_SDK_ROOT=${ANDROID_BUILD_FOLDER}/sdk
+export ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/22.1.7171670
+export PATH=${PATH}:${ANDROID_SDK_ROOT}/platform-tools
+export PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin
+export PATH=${PATH}:${ANDROID_SDK_ROOT}/emulator
 
-mkdir -p ${ANDROID_SDK}
+mkdir -p ${ANDROID_SDK_ROOT}
 
 TARGET_ARCH=$1
 
@@ -48,42 +47,29 @@ delete_existing_avd(){
     avdmanager delete avd -n ${ABSOLUTE_ARCH}
 }
 
-download_emulator() {
-    curl -o emu.zip https://dl.google.com/android/repository/emulator-linux-5889189.zip
-}
-
 create_avd(){
 
     echo "${GREEN}Creating Android SDK${RESET}"
 
     yes | sdkmanager --licenses
 
-    if [ ! -d "${ANDROID_SDK}/emulator/" ] ; then
-        echo "yes" |
-              sdkmanager --no_https \
-                "emulator" \
-                "platform-tools" \
-                "platforms;android-24" \
-                "system-images;android-24;default;${ABI}"
-
-        # TODO hack to downgrade Android Emulator. Should be removed as soon as headless mode will be fixed.
-        mv /home/indy/emu.zip emu.zip
-        mv emulator emulator_backup
-        unzip emu.zip
-    else
-        echo "Skipping sdkmanager activity"
-    fi
+    echo "yes" |
+          sdkmanager --no_https \
+            "emulator" \
+            "platform-tools" \
+            "platforms;android-24" \
+            "system-images;android-24;default;${ABI}"
 
     echo "${BLUE}Creating android emulator${RESET}"
 
-        echo "no" |
-             avdmanager -v create avd \
-                --name ${ABSOLUTE_ARCH} \
-                --package "system-images;android-24;default;${ABI}" \
-                -f \
-                -c 1000M
+    echo "no" |
+         avdmanager -v create avd \
+            --name ${ABSOLUTE_ARCH} \
+            --package "system-images;android-24;default;${ABI}" \
+            -f \
+            -c 1000M
 
-        ANDROID_SDK_ROOT=${ANDROID_SDK} ANDROID_HOME=${ANDROID_SDK} ${ANDROID_HOME}/tools/emulator -avd ${ABSOLUTE_ARCH} -no-audio -no-window -no-snapshot -no-accel &
+    emulator -avd ${ABSOLUTE_ARCH} -no-audio -no-window -no-snapshot -no-accel &
 }
 
 download_and_unzip_if_missed() {
@@ -103,13 +89,26 @@ download_and_unzip_if_missed() {
 }
 
 download_sdk(){
-    pushd ${ANDROID_SDK}
-        download_and_unzip_if_missed "tools" "https://dl.google.com/android/repository/" "sdk-tools-linux-4333796.zip"
+    pushd ${ANDROID_SDK_ROOT}
+        download_and_unzip_if_missed "cmdline-tools" "https://dl.google.com/android/repository/" "commandlinetools-linux-6858069_latest.zip"
+
+        # Workaround for command line tool issue where it is in incorrect location
+        mv cmdline-tools cmdline-tools-tmp
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools-tmp/* cmdline-tools/latest
+        rm -R cmdline-tools-tmp
+
+        # Accept licanses
+        mkdir licenses
+        pushd licenses
+            # https://developer.android.com/studio/terms
+            echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> android-sdk-license
+        popd
     popd
 }
 
 recreate_avd(){
-    pushd ${ANDROID_SDK}
+    pushd ${ANDROID_SDK_ROOT}
         set +e
         delete_existing_avd
         set -e
@@ -117,6 +116,21 @@ recreate_avd(){
     popd
 }
 
+wait_for_emulator(){
+    echo "Emulator: Wait for emulator"
+    adb wait-for-device
+
+    echo "Emulator: Wait for boot"
+    while [ "`adb shell getprop sys.boot_completed | tr -d '\r' `" != "1" ] ;
+    do
+      echo "Emulator: Waiting for emulator to boot.."
+      sleep 5;
+    done
+
+    echo "Emulator: Unlock device"
+    adb shell input keyevent 82
+    echo "Emulator: Device ready"
+}
 
 generate_arch_flags(){
     if [ -z $1 ]; then
@@ -201,22 +215,7 @@ create_standalone_toolchain_and_rust_target(){
 
 
 download_and_setup_toolchain(){
-    if [ "$(uname)" == "Darwin" ]; then
-        export TOOLCHAIN_PREFIX=${ANDROID_BUILD_FOLDER}/toolchains/darwin
-        mkdir -p ${TOOLCHAIN_PREFIX}
-        pushd $TOOLCHAIN_PREFIX
-        echo "${GREEN}Resolving NDK for OSX${RESET}"
-        download_and_unzip_if_missed "android-ndk-r20" "https://dl.google.com/android/repository/" "android-ndk-r20-darwin-x86_64.zip"
-        popd
-    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        export TOOLCHAIN_PREFIX=${ANDROID_BUILD_FOLDER}/toolchains/linux
-        mkdir -p ${TOOLCHAIN_PREFIX}
-        pushd $TOOLCHAIN_PREFIX
-        echo "${GREEN}Resolving NDK for Linux${RESET}"
-        download_and_unzip_if_missed "android-ndk-r20" "https://dl.google.com/android/repository/" "android-ndk-r20-linux-x86_64.zip"
-        popd
-    fi
-    export ANDROID_NDK_ROOT=${TOOLCHAIN_PREFIX}/android-ndk-r20
+    sdkmanager "ndk;22.1.7171670"
 }
 
 

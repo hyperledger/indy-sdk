@@ -1,0 +1,141 @@
+plugins {
+    id("com.android.library")
+    id("maven-publish")
+    id("de.undercouch.download")
+}
+
+android {
+    compileSdkVersion = 30
+    buildToolsVersion = "30.0.2"
+
+    defaultConfig {
+        minSdkVersion(21)
+        targetSdkVersion(30)
+        versionCode = 1
+        versionName = "1.0"
+
+        ndk {
+            abiFilters "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
+        }
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    ndkVersion = "22.1.7171670"
+
+    buildFeatures {
+        buildConfig false
+        aidl false
+        renderScript false
+        resValues false
+        shaders false
+        // The rest are off by defaults
+    }
+
+    // TODO R8 obfuscation configuration
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'org.hyperledger.android'
+                artifactId = 'indy'
+                version = '1.16.0'
+            }
+        }
+
+        repositories {
+            // TODO set repository for deploy
+        }
+    }
+}
+
+
+repositories {
+    mavenCentral()
+    google()
+    jcenter()
+    maven { url "https://jitpack.io" }
+}
+
+dependencies {
+    api("org.slf4j:slf4j-api:1.7.30")
+    api("net.java.dev.jna:jna:5.6.0@aar")
+    api("org.apache.commons:commons-lang3:3.11")
+    api("net.sourceforge.streamsupport:android-retrofuture:1.7.2") {
+        because("We want to support api level 21.")
+    }
+
+    androidTestImplementation('com.github.bright:slf4android:0.1.6') {
+        transitive = true
+    }
+    androidTestImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.3.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.2")
+    androidTestImplementation("commons-io:commons-io:2.8.0")
+    androidTestImplementation("org.bitcoinj:bitcoinj-core:0.15.8")
+    androidTestImplementation("com.google.code.gson:gson:2.8.6")
+    androidTestImplementation("org.bouncycastle:bcprov-jdk15to18:1.66") {
+        because("Old versions include QTeslaKeyEncodingTests that is picked up by android test runner and executed.")
+    }
+}
+
+// TODO: move to buildSrc
+project.afterEvaluate {
+    def indyVersion = project.getProperty("indy.version")
+    def archs = [
+            [arch: "x86", urlArch: "x86"],
+            [arch: "x86_64", urlArch: "x86_64"],
+            [arch: "armeabi-v7a", urlArch: "armv7"],
+            [arch: "arm64-v8a", urlArch: "arm64"]]
+    def rootDownloadPath = project.hasProperty("externalDepsDownloadPath")
+            ? new File(project.getProperty("externalDepsDownloadPath"))
+            : new File(buildDir, "externalDeps")
+    def cacheEtagFile = new File(rootDownloadPath, "etag.json")
+
+    android.libraryVariants.forEach { variant ->
+
+        archs.forEach { a ->
+            def downloadTask = tasks.register("downloadNativeDeps${variant.name.capitalize()}-${a.arch}", Download) {
+                src "https://repo.sovrin.org/android/libindy/stable/${indyVersion}/libindy_android_${a.urlArch}_${indyVersion}.zip"
+                dest new File(rootDownloadPath, "/archive/${variant.name}/${a.arch}/indy${indyVersion}.zip")
+                onlyIfModified true
+                useETag true
+                cachedETagsFile cacheEtagFile
+            }
+
+            def extractDir = new File(rootDownloadPath, "/extracted/")
+            // TODO use configuration avoidance!
+            def extractTask = tasks.register("extractNativeDeps${variant.name.capitalize()}-${a.arch}", Copy) {
+                from zipTree(downloadTask.get().dest)
+                into extractDir
+                dependsOn downloadTask
+            }
+
+            // TODO: Migrate to JNI so we don't have to include libc++_shared.so in the library as it may cause issue for consumers.
+            //  https://android.googlesource.com/platform/ndk/+/refs/heads/master/docs/user/middleware_vendors.md#for-java-middleware-with-jni-libraries
+            def copyStdTask = tasks.register("copyStdLib${variant.name.capitalize()}-${a.arch}", Copy) {
+                from new File("${android.ndkDirectory}/sources/cxx-stl/llvm-libc++/libs/${a.arch}/libc++_shared.so")
+                into new File(rootDir, "/src/main/jniLibs/${a.arch}")
+            }
+
+            // TODO use configuration avoidance!
+            def copyTask = tasks.register("copyNativeDeps${variant.name.capitalize()}-${a.arch}", Copy) {
+                from new File(extractDir, "libindy_${a.urlArch}/lib/libindy.so")
+                into new File(rootDir, "/src/main/jniLibs/${a.arch}")
+                dependsOn extractTask
+            }
+
+            variant.getPreBuildProvider().configure {
+                dependsOn(copyStdTask)
+            }
+        }
+    }
+}
