@@ -820,6 +820,7 @@ mod tests {
 
     use self::rand::{thread_rng, Rng};
     use rand::distributions::{Alphanumeric, Standard};
+    use std::iter;
 
     impl PartialEq for StorageRecord {
         fn eq(&self, other: &StorageRecord) -> bool {
@@ -874,7 +875,11 @@ mod tests {
     }
 
     fn _random_string(len: usize) -> String {
-        thread_rng().sample_iter(&Alphanumeric).take(len).collect()
+        iter::repeat(())
+            .map(|()| thread_rng().sample(Alphanumeric))
+            .map(char::from)
+            .take(len)
+            .collect()
     }
 
     lazy_static!(

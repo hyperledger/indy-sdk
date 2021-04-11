@@ -18,6 +18,7 @@ use crate::utils::domain::ledger::nym::NymData;
 use crate::utils::domain::ledger::request::DEFAULT_LIBIDY_DID;
 use crate::utils::Setup;
 use crate::utils::types::*;
+use crate::utils::rand_utils::get_rand_string;
 
 use self::indy::ErrorCode;
 use self::rand::distributions::Alphanumeric;
@@ -2568,10 +2569,7 @@ mod high_cases {
         }
 
         fn _rand_string() -> String {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(30)
-                .collect()
+            get_rand_string(30)
         }
 
         fn _rand_version() -> String {

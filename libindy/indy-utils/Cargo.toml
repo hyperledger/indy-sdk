@@ -35,4 +35,4 @@ zeroize = "0.9.3"
 
 [dev-dependencies]
 rmp-serde = "0.13.7"
-rand = "0.7.0"
+rand = "0.8.0"

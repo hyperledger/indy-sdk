@@ -271,9 +271,14 @@ mod tests {
     use super::*;
     use rand::{thread_rng, Rng};
     use rand::distributions::Alphanumeric;
+    use std::iter;
 
     fn _random_string(len: usize) -> String {
-        thread_rng().sample_iter(&Alphanumeric).take(len).collect()
+        iter::repeat(())
+            .map(|()| thread_rng().sample(Alphanumeric))
+            .map(char::from)
+            .take(len)
+            .collect()
     }
 
     /// parse
