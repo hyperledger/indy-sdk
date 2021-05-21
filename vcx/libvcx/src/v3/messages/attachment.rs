@@ -1,5 +1,7 @@
 use std::str::from_utf8;
+use serde::{de, Serialize, Serializer, Deserialize, Deserializer};
 use serde_json;
+use serde_json::Value;
 
 use error::{VcxResult, VcxError, VcxErrorKind};
 
@@ -52,18 +54,43 @@ pub struct Json {
     data: AttachmentData,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AttachmentId {
-    #[serde(rename = "libindy-cred-offer-0")]
     CredentialOffer,
-    #[serde(rename = "libindy-cred-request-0")]
     CredentialRequest,
-    #[serde(rename = "libindy-cred-0")]
     Credential,
-    #[serde(rename = "libindy-request-presentation-0")]
     PresentationRequest,
-    #[serde(rename = "libindy-presentation-0")]
-    Presentation
+    Presentation,
+    Other(String),
+}
+
+impl Serialize for AttachmentId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        let value = match self {
+            AttachmentId::CredentialOffer => "libindy-cred-offer-0",
+            AttachmentId::CredentialRequest => "libindy-cred-request-0",
+            AttachmentId::Credential => "libindy-cred-0",
+            AttachmentId::PresentationRequest => "libindy-request-presentation-0",
+            AttachmentId::Presentation => "libindy-presentation-0",
+            AttachmentId::Other(type_) => type_,
+        };
+        Value::String(value.to_string()).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for AttachmentId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let value = Value::deserialize(deserializer).map_err(de::Error::custom)?;
+        match value.as_str() {
+            Some("libindy-cred-offer-0") => Ok(AttachmentId::CredentialOffer),
+            Some("libindy-cred-request-0") => Ok(AttachmentId::CredentialRequest),
+            Some("libindy-cred-0") => Ok(AttachmentId::Credential),
+            Some("libindy-request-presentation-0") => Ok(AttachmentId::PresentationRequest),
+            Some("libindy-presentation-0") => Ok(AttachmentId::Presentation),
+            Some(_type) => Ok(AttachmentId::Other(_type.to_string())),
+            _ => Err(de::Error::custom("Unexpected message type."))
+        }
+    }
 }
 
 impl Json {

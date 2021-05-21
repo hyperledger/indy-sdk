@@ -25,7 +25,7 @@ pub struct PayloadV1 {
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
 pub struct PayloadV12 {
     #[serde(rename = "@type")]
-    type_: PayloadTypeV2,
+    pub type_: PayloadTypeV2,
     #[serde(rename = "@msg")]
     pub msg: Value
 }
@@ -47,8 +47,8 @@ impl Payloads {
     // this will become a CommonError, because multiple types (Connection/Issuer Credential) use this function
     // Possibly this function moves out of this file.
     // On second thought, this should stick as a ConnectionError.
-    pub fn encrypt(my_vk: &str, their_vk: &str, data: &str, msg_type: PayloadKinds, thread: Option<Thread>) -> VcxResult<Vec<u8>> {
-        match ProtocolTypes::from(get_protocol_type()) {
+    pub fn encrypt(my_vk: &str, their_vk: &str, data: &str, msg_type: PayloadKinds, thread: Option<Thread>, version: &ProtocolTypes) -> VcxResult<Vec<u8>> {
+        match version {
             ProtocolTypes::V1 => {
                 let payload = PayloadV1 {
                     type_: PayloadTypes::build_v1(msg_type, "json"),
@@ -94,8 +94,20 @@ impl Payloads {
     pub fn decrypt(my_vk: &str, payload: &MessagePayload) -> VcxResult<(String, Option<Thread>)> {
         match payload {
             MessagePayload::V1(payload) => {
-                let payload = Payloads::decrypt_payload_v1(my_vk, payload)?;
-                Ok((payload.msg, None))
+                if let Ok(payload) = Payloads::decrypt_payload_v1(my_vk, payload) {
+                    Ok((payload.msg, None))
+                } else {
+                    let vec = to_u8(payload);
+                    let json: Value = serde_json::from_slice(&vec[..])
+                        .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidMessagePack, format!("Cannot deserialize MessagePayload: {}", err)))?;
+
+                    let payload = match Payloads::decrypt_payload_v12(&my_vk, &json)?.msg {
+                        serde_json::Value::String(_str) => _str,
+                        value => value.to_string()
+                    };
+
+                    Ok((payload, None))
+                }
             }
             MessagePayload::V2(payload) => {
                 let payload = Payloads::decrypt_payload_v2(my_vk, payload)?;
@@ -127,7 +139,7 @@ impl Payloads {
 
         let mut my_payload: PayloadV2 = serde_json::from_str(&message)
             .map_err(|err| {
-                error!("could not deserialize bundle with i8 or u8: {}", err);
+                error!("could not deserialize PayloadV2: {}", err);
                 VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot deserialize payload: {}", err))
             })?;
 
@@ -152,7 +164,7 @@ impl Payloads {
 
         let my_payload: PayloadV12 = serde_json::from_str(&message)
             .map_err(|err| {
-                error!("could not deserialize bundle with i8 or u8: {}", err);
+                error!("could not deserialize PayloadV12: {}", err);
                 VcxError::from_msg(VcxErrorKind::InvalidJson, format!("Cannot deserialize payload: {}", err))
             })?;
 

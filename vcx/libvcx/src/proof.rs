@@ -367,6 +367,7 @@ impl Proof {
             .agent_vk(&agent_info.pw_agent_vk()?)?
             .set_title(&title)?
             .set_detail(&title)?
+            .version(agent_info.version.clone())?
             .edge_agent_payload(&agent_info.my_pw_vk()?,
                                 &agent_info.their_pw_vk()?,
                                 &proof_request,

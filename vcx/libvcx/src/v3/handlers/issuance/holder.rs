@@ -21,7 +21,7 @@ use credential;
 pub struct HolderSM {
     state: HolderState,
     source_id: String,
-    thread_id: String
+    thread_id: String,
 }
 
 impl HolderSM {
@@ -46,7 +46,7 @@ impl HolderSM {
                     Status::Success => VcxStateType::VcxStateAccepted as u32,
                     _ => VcxStateType::VcxStateNone as u32,
                 }
-            },
+            }
         }
     }
 
@@ -187,6 +187,13 @@ impl HolderSM {
         match self.state {
             HolderState::Finished(_) => true,
             _ => false
+        }
+    }
+
+    pub fn get_credential_offer(&self) -> VcxResult<CredentialOffer> {
+        match self.state {
+            HolderState::OfferReceived(ref state) => Ok(state.offer.clone()),
+            _ => Err(VcxError::from_msg(VcxErrorKind::NotReady, "Cannot get credential: Credential Issuance is not finished yet"))
         }
     }
 

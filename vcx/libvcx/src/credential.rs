@@ -186,6 +186,7 @@ impl Credential {
         trace!("Credential::send_request >>> connection_handle: {}", connection_handle);
 
         let my_agent = get_agent_info()?.pw_info(connection_handle)?;
+        apply_agent_info(self, &my_agent);
 
         debug!("sending credential request {} via connection: {}", self.source_id, connection::get_source_id(connection_handle).unwrap_or_default());
 
@@ -204,6 +205,7 @@ impl Credential {
                 .msg_type(&RemoteMessageType::CredReq)?
                 .agent_did(&my_agent.pw_agent_did()?)?
                 .agent_vk(&my_agent.pw_agent_vk()?)?
+                .version(my_agent.version.clone())?
                 .edge_agent_payload(
                     &my_agent.my_pw_vk()?,
                     &my_agent.their_pw_vk()?,
@@ -215,7 +217,6 @@ impl Credential {
                 .send_secure()
                 .map_err(|err| err.extend(format!("{} could not send proof", self.source_id)))?;
 
-        apply_agent_info(self, &my_agent);
         self.msg_uid = Some(response.get_msg_uid()?);
         self.state = VcxStateType::VcxStateOfferSent;
 
@@ -314,7 +315,7 @@ impl Credential {
 
         let credential_offer = self.credential_offer.as_ref().ok_or(VcxError::from(VcxErrorKind::InvalidState))?;
         let credential_offer_json = serde_json::to_value(credential_offer)
-            .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidCredential, format!("Cannot deserialize CredentilOffer: {}", err)))?;
+            .map_err(|err| VcxError::from_msg(VcxErrorKind::InvalidCredential, format!("Cannot deserialize CredentialOffer: {}", err)))?;
 
         Ok(self.to_cred_offer_string(credential_offer_json))
     }
@@ -596,7 +597,15 @@ pub fn get_credential_offer(handle: u32) -> VcxResult<String> {
                 debug!("getting credential offer {}", obj.source_id);
                 obj.get_credential_offer()
             }
-            Credentials::V3(_) => Err(VcxError::from(VcxErrorKind::InvalidCredentialHandle)) // TODO: implement
+            Credentials::V3(ref obj) => {
+                let cred_offer = obj.get_credential_offer()?;
+                let cred_offer: CredentialOffer = cred_offer.try_into()?;
+
+                let cred_offer = json!({
+                    "credential_offer": cred_offer
+                });
+                return Ok(cred_offer.to_string());
+            }
         }
     })
 }

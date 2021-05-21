@@ -153,7 +153,7 @@ class DisclosedProof(VcxStateful):
         proof = DisclosedProof(source_id)
 
         c_source_id = c_char_p(source_id.encode('utf-8'))
-        c_msg_id = c_char_p(json.dumps(msg_id).encode('utf-8'))
+        c_msg_id = c_char_p(msg_id.encode('utf-8'))
         c_connection_handle = c_uint32(connection.handle)
 
         if not hasattr(DisclosedProof.create_with_msgid, "cb"):

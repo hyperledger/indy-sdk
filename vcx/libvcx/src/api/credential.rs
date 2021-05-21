@@ -320,6 +320,11 @@ pub extern fn vcx_credential_create_with_msgid(command_handle: CommandHandle,
     spawn(move || {
         match credential::credential_create_with_msgid(&source_id, connection_handle, &msg_id) {
             Ok((handle, offer_string)) => {
+                let offer_string = match credential::get_credential_offer(handle) {
+                    Ok(x) => x,
+                    Err(_) => offer_string,
+                };
+
                 let c_offer = CStringUtils::string_to_cstring(offer_string);
                 trace!("vcx_credential_create_with_offer_cb(command_handle: {}, source_id: {}, rc: {}, handle: {}) source_id: {}",
                        command_handle, source_id, error::SUCCESS.message, handle, source_id);

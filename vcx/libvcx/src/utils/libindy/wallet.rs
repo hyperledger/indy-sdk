@@ -226,6 +226,8 @@ pub fn export(wallet_handle: WalletHandle, path: &str, backup_key: &str) -> VcxR
 pub fn import(config: &str) -> VcxResult<()> {
     trace!("import >>> config {}", config);
 
+    ::settings::process_config_string(config, false)?;
+
     let restore_config = RestoreWalletConfigs::from_str(config)?;
 
     let config = settings::get_wallet_config(&restore_config.wallet_name, None, None);
@@ -334,7 +336,7 @@ pub mod tests {
 
         let import_config = json!({
             settings::CONFIG_WALLET_NAME: wallet_name.as_str(),
-            settings::CONFIG_WALLET_KEY: "new key",
+            settings::CONFIG_WALLET_KEY: "7dvfYSt5d1taSd6yJdpjq4emkwsPDDLYxkNFysFD2cZZ",
             settings::CONFIG_EXPORTED_WALLET_PATH: export_path.path,
             settings::CONFIG_WALLET_BACKUP_KEY: settings::DEFAULT_WALLET_BACKUP_KEY,
         }).to_string();
@@ -355,6 +357,8 @@ pub mod tests {
 
         delete_wallet(&wallet_name, None, None, None).unwrap();
 
+        ::settings::clear_config();
+
         let (type_, id, value) = _record();
 
         let import_config = json!({
@@ -365,6 +369,9 @@ pub mod tests {
         }).to_string();
 
         import(&import_config).unwrap();
+
+        settings::process_config_string(&import_config, false).unwrap();
+
         open_wallet(&wallet_name, None, None, None).unwrap();
 
         // If wallet was successfully imported, there will be an error trying to add this duplicate record

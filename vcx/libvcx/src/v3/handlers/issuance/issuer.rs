@@ -18,14 +18,19 @@ use connection;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IssuerSM {
     state: IssuerState,
-    source_id: String
+    source_id: String,
 }
 
 impl IssuerSM {
-    pub fn new(cred_def_id: &str, credential_data: &str, rev_reg_id: Option<String>, tails_file: Option<String>, source_id: &str) -> Self {
+    pub fn new(cred_def_id: &str, credential_data: &str, rev_reg_id: Option<String>,
+               tails_file: Option<String>, source_id: &str, credential_name: &str) -> Self {
         IssuerSM {
-            state: IssuerState::Initial(InitialState::new(cred_def_id, credential_data, rev_reg_id, tails_file)),
-            source_id: source_id.to_string()
+            state: IssuerState::Initial(InitialState::new(cred_def_id,
+                                                          credential_data,
+                                                          rev_reg_id,
+                                                          tails_file,
+                                                          Some(credential_name.to_string()))),
+            source_id: source_id.to_string(),
         }
     }
 
@@ -163,6 +168,10 @@ impl IssuerSM {
                 CredentialIssuanceMessage::CredentialInit(connection_handle) => {
                     let cred_offer = libindy_issuer_create_credential_offer(&state_data.cred_def_id)?;
                     let cred_offer_msg = CredentialOffer::create()
+                        .set_comment(format!("{} is offering you a credential: {}",
+                                             ::settings::get_config_value(::settings::CONFIG_INSTITUTION_NAME)?,
+                                             state_data.credential_name.clone().unwrap_or_default()
+                        ))
                         .set_offers_attach(&cred_offer)?;
                     let cred_offer_msg = _append_credential_preview(cred_offer_msg, &state_data.credential_json)?;
                     send_message(connection_handle, cred_offer_msg.to_a2a_message())?;
@@ -311,7 +320,7 @@ pub mod test {
     use v3::messages::issuance::credential_offer::tests::_credential_offer;
 
     fn _issuer_sm() -> IssuerSM {
-        IssuerSM::new("test", &json!({"name": "alice"}).to_string(), None, None, &source_id())
+        IssuerSM::new("test", &json!({"name": "alice"}).to_string(), None, None, &source_id(), "test")
     }
 
     impl IssuerSM {

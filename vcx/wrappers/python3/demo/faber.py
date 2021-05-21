@@ -50,7 +50,6 @@ async def main():
     config['institution_logo_url'] = 'http://robohash.org/234'
     config['genesis_path'] = 'docker.txn'
     config['payment_method'] = 'null'
-    config['protocol_type'] = '3.0'
 
     print("#2 Initialize libvcx with new configuration")
     await vcx_init_with_config(json.dumps(config))

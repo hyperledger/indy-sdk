@@ -98,7 +98,7 @@ impl TryInto<CredentialOfferV1> for CredentialOffer {
             from_did: String::new(),
             credential_attrs,
             schema_seq_no: 0,
-            claim_name: String::new(),
+            claim_name: self.comment,
             claim_id: String::new(),
             msg_ref_id: None,
             cred_def_id: indy_cred_offer["cred_def_id"].as_str().map(String::from).unwrap_or_default(),

@@ -3,6 +3,9 @@ import java.text.SimpleDateFormat
 apply plugin: 'java'
 group = 'com.evernym.sdk'
 
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 wrapper {
     distributionType = Wrapper.DistributionType.ALL
 }

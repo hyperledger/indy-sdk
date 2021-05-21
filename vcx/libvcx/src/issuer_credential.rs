@@ -236,6 +236,7 @@ impl IssuerCredential {
         }
 
         let agent_info = get_agent_info()?.pw_info(connection_handle)?;
+        apply_agent_info(self, &agent_info);
 
         let (payload, title) = self.generate_credential_offer_msg()?;
 
@@ -246,6 +247,7 @@ impl IssuerCredential {
                 .to(&agent_info.my_pw_did()?)?
                 .to_vk(&agent_info.my_pw_vk()?)?
                 .msg_type(&RemoteMessageType::CredOffer)?
+                .version(agent_info.version.clone())?
                 .edge_agent_payload(&agent_info.my_pw_vk()?,
                                     &agent_info.their_pw_vk()?,
                                     &payload,
@@ -260,7 +262,6 @@ impl IssuerCredential {
                 .send_secure()
                 .map_err(|err| err.extend("could not send credential offer"))?;
 
-        apply_agent_info(self, &agent_info);
         self.msg_uid = response.get_msg_uid()?;
         self.state = VcxStateType::VcxStateOfferSent;
 
@@ -299,6 +300,7 @@ impl IssuerCredential {
         self.verify_payment()?;
 
         let agent_info = get_agent_info()?.pw_info(connection_handle)?;
+        apply_agent_info(self, &agent_info);
 
         let data = self.generate_credential_msg(&agent_info.my_pw_did()?)?;
 
@@ -316,6 +318,7 @@ impl IssuerCredential {
             .to_vk(&agent_info.my_pw_vk()?)?
             .msg_type(&RemoteMessageType::Cred)?
             .status_code(&MessageStatusCode::Accepted)?
+            .version(agent_info.version.clone())?
             .edge_agent_payload(&agent_info.my_pw_vk()?,
                                 &agent_info.their_pw_vk()?,
                                 &data,
@@ -328,7 +331,6 @@ impl IssuerCredential {
             .send_secure()
             .map_err(|err| err.extend("could not send credential offer"))?;
 
-        apply_agent_info(self, &agent_info);
         self.msg_uid = response.get_msg_uid()?;
         self.state = VcxStateType::VcxStateAccepted;
 
@@ -757,7 +759,7 @@ pub fn send_credential_offer(handle: u32, connection_handle: u32) -> VcxResult<u
             IssuerCredentials::Pending(ref mut obj) => {
                 // if Aries connection is established --> Convert Pending object to Aries credential
                 if ::connection::is_v3_connection(connection_handle)? {
-                    let mut issuer = Issuer::create(obj.cred_def_handle, &obj.credential_attributes, &obj.source_id)?;
+                    let mut issuer = Issuer::create(obj.cred_def_handle, &obj.credential_attributes, &obj.source_id, &obj.credential_name)?;
                     issuer.send_credential_offer(connection_handle)?;
 
                     IssuerCredentials::V3(issuer)

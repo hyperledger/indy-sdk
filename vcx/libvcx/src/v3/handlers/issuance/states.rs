@@ -43,12 +43,13 @@ impl IssuerState {
 }
 
 impl InitialState {
-    pub fn new(cred_def_id: &str, credential_json: &str, rev_reg_id: Option<String>, tails_file: Option<String>) -> Self {
+    pub fn new(cred_def_id: &str, credential_json: &str, rev_reg_id: Option<String>, tails_file: Option<String>, credential_name: Option<String>) -> Self {
         InitialState {
             cred_def_id: cred_def_id.to_string(),
             credential_json: credential_json.to_string(),
             rev_reg_id,
-            tails_file
+            tails_file,
+            credential_name,
         }
     }
 }
@@ -59,6 +60,8 @@ pub struct InitialState {
     pub credential_json: String,
     pub rev_reg_id: Option<String>,
     pub tails_file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

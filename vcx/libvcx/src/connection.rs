@@ -410,7 +410,13 @@ impl Connection {
                 .to(&self.get_pw_did())?
                 .to_vk(&self.get_pw_verkey())?
                 .msg_type(&RemoteMessageType::Other(msg_options.msg_type.clone()))?
-                .edge_agent_payload(&self.get_pw_verkey(), &self.get_their_pw_verkey(), &message, PayloadKinds::Other(msg_options.msg_type.clone()), None)?
+                .version(self.version.clone())?
+                .edge_agent_payload(
+                    &self.get_pw_verkey(),
+                    &self.get_their_pw_verkey(),
+                    &message,
+                    PayloadKinds::Other(msg_options.msg_type.clone()),
+                    None)?
                 .agent_did(&self.get_agent_did())?
                 .agent_vk(&self.get_agent_verkey())?
                 .set_title(&msg_options.msg_title)?

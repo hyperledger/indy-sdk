@@ -468,6 +468,7 @@ impl DisclosedProof {
         );
 
         let agent_info = get_agent_info()?.pw_info(connection_handle)?;
+        apply_agent_info(self, &agent_info);
 
         let ref_msg_uid = self._prep_proof_reference(&agent_info)?;
 
@@ -479,11 +480,13 @@ impl DisclosedProof {
             .msg_type(&RemoteMessageType::Proof)?
             .agent_did(&agent_info.pw_agent_did()?)?
             .agent_vk(&agent_info.pw_agent_vk()?)?
+            .version(agent_info.version.clone())?
             .edge_agent_payload(&agent_info.my_pw_vk()?,
                                 &agent_info.their_pw_vk()?,
                                 &proof,
                                 PayloadKinds::Proof,
-                                self.thread.clone())
+                                self.thread.clone()
+            )
             .map_err(|err| VcxError::from_msg(
                 VcxErrorKind::GeneralConnectionError,
                 format!("Cannot encrypt payload: {}", err),
@@ -492,7 +495,6 @@ impl DisclosedProof {
             .send_secure()
             .map_err(|err| err.extend("Could not send proof"))?;
 
-        apply_agent_info(self, &agent_info);
         self.state = VcxStateType::VcxStateAccepted;
         Ok(error::SUCCESS.code_num)
     }
@@ -516,6 +518,7 @@ impl DisclosedProof {
         debug!("rejecting proof {} via connection: {}", self.source_id, connection::get_source_id(connection_handle).unwrap_or_default());
         // There feels like there's a much more rusty way to do the below.
         let agent_info = get_agent_info()?.pw_info(connection_handle)?;
+        apply_agent_info(self, &agent_info);
 
         let ref_msg_uid = self._prep_proof_reference(&agent_info)?;
 
@@ -527,6 +530,7 @@ impl DisclosedProof {
             .msg_type(&RemoteMessageType::Proof)?
             .agent_did(&agent_info.agency_did)?
             .agent_vk(&agent_info.pw_agent_vk()?)?
+            .version(agent_info.version.clone())?
             .edge_agent_payload(&agent_info.my_pw_vk()?,
                                 &agent_info.their_pw_vk()?,
                                 &proof_reject,
@@ -539,8 +543,6 @@ impl DisclosedProof {
             .ref_msg_id(Some(ref_msg_uid))?
             .send_secure()
             .map_err(|err| err.extend("Could not send proof reject"))?;
-
-        apply_agent_info(self, &agent_info);
 
         self.state = VcxStateType::VcxStateRejected;
         return Ok(error::SUCCESS.code_num);

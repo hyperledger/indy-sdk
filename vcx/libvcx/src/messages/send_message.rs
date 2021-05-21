@@ -67,7 +67,7 @@ impl SendMessageBuilder {
 
     pub fn edge_agent_payload(&mut self, my_vk: &str, their_vk: &str, data: &str, payload_type: PayloadKinds, thread: Option<Thread>) -> VcxResult<&mut Self> {
         //todo: is this a json value, String??
-        self.payload = Payloads::encrypt(my_vk, their_vk, data, payload_type, thread)?;
+        self.payload = Payloads::encrypt(my_vk, their_vk, data, payload_type, thread, &self.version)?;
         Ok(self)
     }
 
@@ -227,6 +227,7 @@ pub fn send_generic_message(connection_handle: u32, msg: &str, msg_options: &str
             .to(&agent_info.my_pw_did()?)?
             .to_vk(&agent_info.my_pw_vk()?)?
             .msg_type(&RemoteMessageType::Other(msg_options.msg_type.clone()))?
+            .version(agent_info.version()?.clone())?
             .edge_agent_payload(&agent_info.my_pw_vk()?,
                                 &agent_info.their_pw_vk()?,
                                 &msg,
@@ -239,7 +240,6 @@ pub fn send_generic_message(connection_handle: u32, msg: &str, msg_options: &str
             .set_detail(&msg_options.msg_title)?
             .ref_msg_id(msg_options.ref_msg_id.clone())?
             .status_code(&MessageStatusCode::Accepted)?
-            .version(agent_info.version()?.clone())?
             .send_secure()?;
 
     let msg_uid = response.get_msg_uid()?;
