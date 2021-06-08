@@ -269,7 +269,7 @@ impl From<rusqlite::Error> for IndyError {
             rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error { code: rusqlite::ffi::ErrorCode::ConstraintViolation, .. }, _) =>
                 err.to_indy(IndyErrorKind::WalletItemAlreadyExists, "Wallet item already exists"),
-            rusqlite::Error::SqliteFailure(rusqlite::ffi::Error { code: rusqlite::ffi::ErrorCode::SystemIOFailure, .. }, _) =>
+            rusqlite::Error::SqliteFailure(rusqlite::ffi::Error { code: rusqlite::ffi::ErrorCode::SystemIoFailure, .. }, _) =>
                 err.to_indy(IndyErrorKind::IOError, "IO error during access sqlite database"),
             _ => err.to_indy(IndyErrorKind::InvalidState, "Unexpected sqlite error"),
         }

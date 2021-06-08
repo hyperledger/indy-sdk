@@ -495,7 +495,7 @@ impl WalletStorage for SQLiteStorage {
     fn get_storage_metadata(&self) -> IndyResult<Vec<u8>> {
         self.conn.query_row(
             "SELECT value FROM metadata",
-            rusqlite::NO_PARAMS,
+            [],
             |row| { row.get(0) },
         ).map_err(IndyError::from)
     }
@@ -534,7 +534,7 @@ impl WalletStorage for SQLiteStorage {
 
             let res: Option<usize> = Option::from(self.conn.query_row(
                 &query_string,
-                &query_arguments,
+                &*query_arguments,
                 |row| {
                     let x: i64 = row.get(0)?;
                     Ok(x as usize)
@@ -727,14 +727,14 @@ impl WalletStorageType for SQLiteStorageType {
         // set journal mode to WAL, because it provides better performance.
         let journal_mode: String = conn.query_row(
             "PRAGMA journal_mode = WAL",
-            rusqlite::NO_PARAMS,
+            [],
             |row| { row.get(0) },
         )?;
 
         // if journal mode is set to WAL, set synchronous to FULL for safety reasons.
         // (synchronous = NORMAL with journal_mode = WAL does not guaranties durability).
         if journal_mode.to_lowercase() == "wal" {
-            conn.execute("PRAGMA synchronous = FULL", rusqlite::NO_PARAMS)?;
+            conn.execute("PRAGMA synchronous = FULL", [])?;
         }
 
         Ok(Box::new(SQLiteStorage { conn: Rc::new(conn) }))
