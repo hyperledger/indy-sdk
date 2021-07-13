@@ -1,0 +1,104 @@
+#!groovy
+
+
+POOL_NET_NAME = 'pool-network'
+POOL_IP='10.0.0.2'
+
+
+testing()
+
+def testing () {
+    node('ubuntu') {
+        stage("Checking out source code") {
+            checkout scm
+        }
+
+        def image
+        stage("Building kcov docker image") {
+            image = dockerBuild("indy-sdk-kcov", "ci/code_coverage.dockerfile ci/")
+        }
+
+        def test_pool
+        try {
+            stage("Starting test pool") {
+                test_pool = createPool()
+            }
+
+            stage("Collecting test coverage") {
+                sh "rm -r cov/ || true"
+                image.inside("--network ${POOL_NET_NAME} --security-opt seccomp=unconfined") {
+                    sh 'cargo clean --manifest-path=libindy/Cargo.toml'
+                    sh 'cargo clean --manifest-path=cli/Cargo.toml'
+                    sh 'cargo clean --manifest-path=libnullpay/Cargo.toml'
+                    sh 'cargo clean --manifest-path=vcx/libvcx/Cargo.toml'
+
+                    sh 'RUSTFLAGS="-C link-dead-code" cargo build --manifest-path=libindy/Cargo.toml' // create libindy.so
+
+                    calcCoverageRust("libindy")
+                    calcCoverageRust("cli")
+                    calcCoverageRust("libnullpay")
+                    //TODO add libvcx
+                    //calcCoverageRust("vcx/libvcx")
+
+                    cobertura coberturaReportFile: 'cov/kcov-merged/cobertura.xml'
+                }
+            }
+        } finally {
+            stage("Destroying test pool") {
+                destroyPool(test_pool)
+            }
+        }
+    }
+}
+
+def getUserUid() {
+    return sh(returnStdout: true, script: 'id -u').trim()
+}
+
+
+def calcCoverageRust(dir) {
+    withEnv([
+        "RUST_PROJECT_DIR=${dir}",
+        "TEST_POOL_IP=${POOL_IP}",
+        "RUSTFLAGS='-C link-dead-code'"
+    ]) {
+        sh '''
+            RUSTFLAGS="-L $(pwd)/libindy/target/debug/" cargo test --manifest-path=$RUST_PROJECT_DIR/Cargo.toml --no-run
+            for i in $(find $RUST_PROJECT_DIR/target/debug -maxdepth 1 -executable -type f | grep -v '\\.so\$')
+            do
+                LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/libindy/target/debug/ \
+                RUST_TEST_THREADS=1 \
+                kcov \
+                    --exclude-pattern=$CARGO_HOME,/usr \
+                    --verify \
+                    cov/ \
+                    \$i \
+                || true
+            done
+        '''
+    }
+}
+
+// -------------------------------
+// Docker utilities
+
+def dockerBuild(name, file = 'ci/ubuntu.dockerfile ci', customParams = '') {
+    return docker.build("$name-test", "--build-arg uid=${getUserUid()} ${customParams} -f $file")
+}
+
+// -------------------------------
+// Test pool set up and teardown
+
+def createPool() {
+    sh "docker network create --subnet=10.0.0.0/8 ${POOL_NET_NAME}"
+
+    def pool_image = dockerBuild('indy_pool', 'ci/indy-pool.dockerfile ci', '--build-arg pool_ip=10.0.0.2')
+    return pool_image.run("--ip \"${POOL_IP}\" --network=${POOL_NET_NAME}")
+}
+
+def destroyPool(pool_env) {
+    if (pool_env != null) {
+        pool_env.stop()
+        sh "docker network rm ${POOL_NET_NAME}"
+    }
+}
