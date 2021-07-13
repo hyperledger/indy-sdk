@@ -301,6 +301,8 @@ public abstract class LibVcx {
         /** Sets the credential request in an accepted state. (not in MVP) */
         public int vcx_issuer_accept_credential(int credential_handle);
 
+        /** Revokes credential. */
+        public int vcx_issuer_revoke_credential(int command_handle, int credential_handle, Callback cb);
 
     /**
      * proof object
