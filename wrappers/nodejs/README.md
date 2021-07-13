@@ -1497,6 +1497,8 @@ Retrieves the information about all DIDs stored in the wallet.
 * __->__ `dids`: Json - dids: \[{
 "did": string - DID stored in the wallet,
 "verkey": string - The DIDs transport key \(ver key, key id\).,
+"tempVerkey": string - Temporary DIDs transport key \(ver key, key id\), exist only during the rotation of the keys.
+After rotation is done, it becomes a new verkey.
 "metadata": string - The meta information stored with the DID
 }\]
 
