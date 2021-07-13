@@ -112,7 +112,7 @@ impl InmemWallet {
         ErrorCode::Success
     }
 
-    pub extern "C" fn open(id: *const c_char,
+    pub unsafe extern "C" fn open(id: *const c_char,
                            _: *const c_char,
                            _: *const c_char,
                            handle: *mut i32) -> ErrorCode {
@@ -130,7 +130,7 @@ impl InmemWallet {
             id,
         });
 
-        unsafe { *handle = xhandle };
+        *handle = xhandle;
         ErrorCode::Success
     }
 
@@ -207,7 +207,7 @@ impl InmemWallet {
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_record(xhandle: i32,
+    pub unsafe extern "C" fn get_record(xhandle: i32,
                                  type_: *const c_char,
                                  id: *const c_char,
                                  options_json: *const c_char,
@@ -245,12 +245,12 @@ impl InmemWallet {
         let mut handles = ACTIVE_RECORDS.lock().unwrap();
         handles.insert(record_handle, record.clone());
 
-        unsafe { *handle = record_handle };
+        *handle = record_handle;
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_record_id(xhandle: i32,
+    pub unsafe extern "C" fn get_record_id(xhandle: i32,
                                     record_handle: i32,
                                     id_ptr: *mut *const c_char) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
@@ -267,12 +267,12 @@ impl InmemWallet {
 
         let record = handles.get(&record_handle).unwrap();
 
-        unsafe { *id_ptr = record.id.as_ptr(); }
+        *id_ptr = record.id.as_ptr();
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_record_type(xhandle: i32,
+    pub unsafe extern "C" fn get_record_type(xhandle: i32,
                                       record_handle: i32,
                                       type_ptr: *mut *const c_char) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
@@ -289,12 +289,12 @@ impl InmemWallet {
 
         let record = handles.get(&record_handle).unwrap();
 
-        unsafe { *type_ptr = record.type_.as_ptr(); }
+        *type_ptr = record.type_.as_ptr();
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_record_value(xhandle: i32,
+    pub unsafe extern "C" fn get_record_value(xhandle: i32,
                                        record_handle: i32,
                                        value_ptr: *mut *const u8,
                                        value_len: *mut usize) -> ErrorCode {
@@ -312,13 +312,14 @@ impl InmemWallet {
 
         let record = handles.get(&record_handle).unwrap();
 
-        unsafe { *value_ptr = record.value.as_ptr() as *const u8; }
-        unsafe { *value_len = record.value.len() as usize; }
+        // unsafe
+        *value_ptr = record.value.as_ptr() as *const u8;
+        *value_len = record.value.len() as usize;
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_record_tags(xhandle: i32,
+    pub unsafe extern "C" fn get_record_tags(xhandle: i32,
                                       record_handle: i32,
                                       tags_json_ptr: *mut *const c_char) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
@@ -335,7 +336,8 @@ impl InmemWallet {
 
         let record = handles.get(&record_handle).unwrap();
 
-        unsafe { *tags_json_ptr = record.tags.as_ptr(); }
+        // unsafe
+        *tags_json_ptr = record.tags.as_ptr();
 
         ErrorCode::Success
     }
@@ -521,7 +523,7 @@ impl InmemWallet {
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_storage_metadata(xhandle: i32, metadata_ptr: *mut *const c_char, metadata_handle: *mut i32) -> ErrorCode {
+    pub unsafe extern "C" fn get_storage_metadata(xhandle: i32, metadata_ptr: *mut *const c_char, metadata_handle: *mut i32) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
 
         if !handles.contains_key(&xhandle) {
@@ -546,8 +548,9 @@ impl InmemWallet {
         let mut metadatas = ACTIVE_METADATAS.lock().unwrap();
         metadatas.insert(handle, metadata);
 
-        unsafe { *metadata_ptr = metadata_pointer; }
-        unsafe { *metadata_handle = handle };
+        // unsafe
+        *metadata_ptr = metadata_pointer;
+        *metadata_handle = handle;
 
         ErrorCode::Success
     }
@@ -593,7 +596,7 @@ impl InmemWallet {
         ErrorCode::Success
     }
 
-    pub extern "C" fn search_records(xhandle: i32, type_: *const c_char, _query_json: *const c_char, _options_json: *const c_char, handle: *mut i32) -> ErrorCode {
+    pub unsafe extern "C" fn search_records(xhandle: i32, type_: *const c_char, _query_json: *const c_char, _options_json: *const c_char, handle: *mut i32) -> ErrorCode {
         check_useful_c_str!(type_, ErrorCode::CommonInvalidStructure);
 
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
@@ -624,12 +627,12 @@ impl InmemWallet {
 
         searches.insert(search_handle, search_records);
 
-        unsafe { *handle = search_handle };
+        *handle = search_handle;
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn search_all_records(xhandle: i32, handle: *mut i32) -> ErrorCode {
+    pub unsafe extern "C" fn search_all_records(xhandle: i32, handle: *mut i32) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
 
         if !handles.contains_key(&xhandle) {
@@ -657,12 +660,12 @@ impl InmemWallet {
 
         searches.insert(search_handle, search_records);
 
-        unsafe { *handle = search_handle };
+        *handle = search_handle;
 
         ErrorCode::Success
     }
 
-    pub extern "C" fn get_search_total_count(xhandle: i32, search_handle: i32, count: *mut usize) -> ErrorCode {
+    pub unsafe extern "C" fn get_search_total_count(xhandle: i32, search_handle: i32, count: *mut usize) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
 
         if !handles.contains_key(&xhandle) {
@@ -673,7 +676,8 @@ impl InmemWallet {
 
         match searches.get(&search_handle) {
             Some(records) => {
-                unsafe { *count = records.len() };
+                // unsafe
+                *count = records.len();
             }
             None => return ErrorCode::CommonInvalidState
         }
@@ -681,7 +685,7 @@ impl InmemWallet {
         ErrorCode::Success
     }
 
-    pub extern "C" fn fetch_search_next_record(xhandle: i32, search_handle: i32, record_handle: *mut i32) -> ErrorCode {
+    pub unsafe extern "C" fn fetch_search_next_record(xhandle: i32, search_handle: i32, record_handle: *mut i32) -> ErrorCode {
         let handles = INMEM_OPEN_WALLETS.lock().unwrap();
 
         if !handles.contains_key(&xhandle) {
@@ -699,7 +703,8 @@ impl InmemWallet {
                         let mut handles = ACTIVE_RECORDS.lock().unwrap();
                         handles.insert(handle, record.clone());
 
-                        unsafe { *record_handle = handle };
+                        // unsafe
+                        *record_handle = handle;
                     }
                     None => return ErrorCode::WalletItemNotFound
                 }
