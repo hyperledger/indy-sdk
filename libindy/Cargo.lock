@@ -174,15 +174,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b25d992356d2eb0ed82172f5248873db5560c4721f564b13cb5193bda5e668e"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
-name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
@@ -900,6 +891,7 @@ dependencies = [
 name = "indy-api-types"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "failure",
  "libc",
  "log",
@@ -929,7 +921,7 @@ dependencies = [
 name = "indy-utils"
 version = "0.1.0"
 dependencies = [
- "base64 0.10.1",
+ "base64",
  "dirs",
  "failure",
  "indy-api-types",
@@ -948,7 +940,9 @@ dependencies = [
 name = "indy-wallet"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "byteorder",
+ "failure",
  "indy-api-types",
  "indy-utils",
  "libc",
@@ -1008,6 +1002,7 @@ version = "1.16.0"
 dependencies = [
  "android_logger",
  "backtrace",
+ "base64",
  "byteorder",
  "convert_case",
  "criterion",
@@ -1653,7 +1648,7 @@ version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b18820d944b33caa75a71378964ac46f58517c92b6ae5f762636247c09e78fb"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "blake2b_simd",
  "constant_time_eq",
  "crossbeam-utils",

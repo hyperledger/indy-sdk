@@ -8,7 +8,6 @@ use indy_wallet::{RecordOptions, WalletService};
 
 use std::rc::Rc;
 use std::str;
-use indy_utils::crypto::base64;
 use indy_utils::crypto::chacha20poly1305_ietf;
 use crate::domain::crypto::combo_box::ComboBox;
 use indy_api_types::WalletHandle;
@@ -405,7 +404,7 @@ impl CryptoCommandExecutor {
 
             //create recipient struct and push to encrypted list
             encrypted_recipients_struct.push(Recipient {
-                encrypted_key: base64::encode_urlsafe(enc_cek.as_slice()),
+                encrypted_key: base64::encode_config(enc_cek.as_slice(), base64::URL_SAFE_NO_PAD),
                 header: Header {
                     kid: their_vk,
                     sender: None,
@@ -438,11 +437,11 @@ impl CryptoCommandExecutor {
 
             //create recipient struct and push to encrypted list
             encrypted_recipients_struct.push(Recipient {
-                encrypted_key: base64::encode_urlsafe(enc_cek.as_slice()),
+                encrypted_key: base64::encode_config(enc_cek.as_slice(), base64::URL_SAFE_NO_PAD),
                 header: Header {
                     kid: their_vk,
-                    sender: Some(base64::encode_urlsafe(enc_sender.as_slice())),
-                    iv: Some(base64::encode_urlsafe(iv.as_slice()))
+                    sender: Some(base64::encode_config(enc_sender.as_slice(), base64::URL_SAFE_NO_PAD)),
+                    iv: Some(base64::encode_config(iv.as_slice(), base64::URL_SAFE_NO_PAD))
                 },
             });
         } // end for-loop
@@ -467,7 +466,7 @@ impl CryptoCommandExecutor {
             ))
         })?;
 
-        Ok(base64::encode_urlsafe(protected_encoded.as_bytes()))
+        Ok(base64::encode_config(protected_encoded.as_bytes(), base64::URL_SAFE_NO_PAD))
     }
 
     fn _format_pack_message(
@@ -496,7 +495,7 @@ impl CryptoCommandExecutor {
 
     pub fn unpack_msg(&self, jwe_struct: JWE, wallet_handle: WalletHandle) -> IndyResult<Vec<u8>> {
         //decode protected data
-        let protected_decoded_vec = base64::decode_urlsafe(&jwe_struct.protected)?;
+        let protected_decoded_vec = base64::decode_config(&jwe_struct.protected, base64::URL_SAFE_NO_PAD)?;
         let protected_decoded_str = String::from_utf8(protected_decoded_vec).map_err(|err| {
             err_msg(IndyErrorKind::InvalidStructure, format!(
                 "Failed to utf8 encode data {}",
@@ -562,9 +561,9 @@ impl CryptoCommandExecutor {
     }
 
     fn _unpack_cek_authcrypt(&self, recipient: Recipient, wallet_handle: WalletHandle) -> IndyResult<(Option<String>, chacha20poly1305_ietf::Key)> {
-        let encrypted_key_vec = base64::decode_urlsafe(&recipient.encrypted_key)?;
-        let iv = base64::decode_urlsafe(&recipient.header.iv.unwrap())?;
-        let enc_sender_vk = base64::decode_urlsafe(&recipient.header.sender.unwrap())?;
+        let encrypted_key_vec = base64::decode_config(&recipient.encrypted_key, base64::URL_SAFE_NO_PAD)?;
+        let iv = base64::decode_config(&recipient.header.iv.unwrap(), base64::URL_SAFE_NO_PAD)?;
+        let enc_sender_vk = base64::decode_config(&recipient.header.sender.unwrap(), base64::URL_SAFE_NO_PAD)?;
 
         //get my private key
         let my_key = self.wallet_service.get_indy_object(
@@ -597,7 +596,7 @@ impl CryptoCommandExecutor {
     }
 
     fn _unpack_cek_anoncrypt(&self, recipient: Recipient, wallet_handle: WalletHandle) -> IndyResult<(Option<String>, chacha20poly1305_ietf::Key)> {
-        let encrypted_key_vec = base64::decode_urlsafe(&recipient.encrypted_key)?;
+        let encrypted_key_vec = base64::decode_config(&recipient.encrypted_key, base64::URL_SAFE_NO_PAD)?;
 
         //get my private key
         let my_key : Key = self.wallet_service.get_indy_object(

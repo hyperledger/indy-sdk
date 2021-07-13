@@ -11,7 +11,8 @@ default = ["casting_errors"]
 casting_errors = ["openssl", "rust-base58", "rusqlite", "zmq", "ursa", "rusqlite"]
 
 [dependencies]
-failure = "0.1.6"
+base64 = "0.13.0"
+failure = "0.1.8"
 libc = "0.2.66"
 log = "0.4.8"
 openssl = {version = "0.10", optional = true}

@@ -6,7 +6,6 @@ use std::ffi::{CStr, CString};
 use indy_utils::crypto::hash::{Hash};
 use rust_base58::ToBase58;
 
-use indy_utils::crypto::base64;
 use rlp::UntrustedRlp;
 use serde_json;
 use serde_json::Value as SJsonValue;

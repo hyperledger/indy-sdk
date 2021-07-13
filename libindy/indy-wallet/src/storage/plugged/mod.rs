@@ -10,10 +10,22 @@ use indy_api_types::{ErrorCode, SearchHandle, INVALID_SEARCH_HANDLE};
 use indy_api_types::wallet::*;
 use indy_api_types::errors::prelude::*;
 use crate::language;
-use indy_utils::crypto::base64;
 
 use super::{EncryptedValue, StorageIterator, StorageRecord, Tag, TagName, WalletStorage, WalletStorageType};
 use super::super::{RecordOptions, SearchOptions};
+
+use base64;
+use failure::ResultExt;
+
+fn base64_decode_ptr(aptr : *const c_char ) -> IndyResult<Vec<u8>> {
+    base64::decode(unsafe {
+        CStr::from_ptr(aptr)
+            .to_str()
+            .to_indy(IndyErrorKind::InvalidState, "Metadata contains non-utf8 symbol")?
+    }).context("Invalid base64 sequence")
+        .context(IndyErrorKind::InvalidStructure)
+        .map_err(|err| err.into())
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PluggedWalletJSONValue {
@@ -115,11 +127,7 @@ impl StorageIterator for PluggedStorageIterator {
             }
 
             Some(
-                base64::decode(unsafe {
-                    CStr::from_ptr(type_ptr)
-                        .to_str()
-                        .to_indy(IndyErrorKind::InvalidState, "Record type contains non-utf8 symbol")?
-                })?
+                base64_decode_ptr(type_ptr)?
             )
         } else {
             None
@@ -136,11 +144,7 @@ impl StorageIterator for PluggedStorageIterator {
                 return Err(err.into());
             }
 
-            base64::decode(unsafe {
-                CStr::from_ptr(id_ptr)
-                    .to_str()
-                    .to_indy(IndyErrorKind::InvalidState, "Record id contains non-utf8 symbol")?
-            })?
+            base64_decode_ptr(id_ptr)?
         };
 
         let value = if self.options.retrieve_value {
@@ -532,11 +536,7 @@ impl WalletStorage for PluggedStorage {
 
         let _metadata_free_helper = ResourceGuard::new(self.handle, metadata_handle, self.free_storage_metadata_handler);
 
-        let metadata = base64::decode(unsafe {
-            CStr::from_ptr(metadata_ptr)
-                .to_str()
-                .to_indy(IndyErrorKind::InvalidState, "Metadata contains non-utf8 symbol")?
-        })?;
+        let metadata = base64_decode_ptr(metadata_ptr)?;
 
         Ok(metadata)
     }

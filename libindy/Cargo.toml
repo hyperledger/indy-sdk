@@ -27,9 +27,10 @@ only_high_cases = []
 fatal_warnings = []
 
 [dependencies]
+base64 = "0.13.0"
 env_logger = "0.7"
 etcommon-rlp = "0.2.4"
-failure = "0.1.7"
+failure = "0.1.8"
 hex = "0.4.0"
 libc = "0.2.66"
 log = "0.4.8"

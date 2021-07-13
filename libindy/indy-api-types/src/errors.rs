@@ -1,25 +1,21 @@
 use std::cell;
+use std::cell::RefCell;
+use std::ffi::{CString, NulError};
 use std::fmt;
 use std::io;
-use std::sync::Arc;
-use std::ffi::{CString, NulError};
-use std::cell::RefCell;
 use std::ptr;
-
+use std::sync::Arc;
 
 use failure::{Backtrace, Context, Fail};
-
+use libc::c_char;
 use log;
-
 #[cfg(feature = "casting_errors")]
 use ursa::errors::{UrsaCryptoError, UrsaCryptoErrorKind};
-
-use libc::c_char;
 
 use crate::ErrorCode;
 
 pub mod prelude {
-    pub use super::{err_msg, IndyError, IndyErrorExt, IndyErrorKind, IndyResult, IndyResultExt, set_current_error, get_current_error_c_json};
+    pub use super::{err_msg, get_current_error_c_json, IndyError, IndyErrorExt, IndyErrorKind, IndyResult, IndyResultExt, set_current_error};
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
@@ -194,6 +190,12 @@ impl From<Context<IndyErrorKind>> for IndyError {
 impl From<io::Error> for IndyError {
     fn from(err: io::Error) -> Self {
         err.context(IndyErrorKind::IOError).into()
+    }
+}
+
+impl From<base64::DecodeError> for IndyError {
+    fn from(_err: base64::DecodeError) -> Self {
+        IndyError::from_msg(IndyErrorKind::InvalidStructure, "The base64 input contained a character not part of the base64 alphabet")
     }
 }
 

@@ -7,7 +7,6 @@ use crate::domain::crypto::combo_box::ComboBox;
 use crate::domain::crypto::did::{Did, DidValue, MyDidInfo, TheirDid, TheirDidInfo};
 use crate::domain::crypto::key::{Key, KeyInfo};
 use indy_api_types::errors::prelude::*;
-use indy_utils::crypto::base64;
 use indy_utils::crypto::ed25519_box;
 use indy_utils::crypto::chacha20poly1305_ietf;
 use indy_utils::crypto::chacha20poly1305_ietf::gen_nonce_and_encrypt_detached;
@@ -384,9 +383,9 @@ impl CryptoService {
             plaintext.as_slice(), aad.as_bytes(), &cek);
 
         //base64 url encode data
-        let iv_encoded = base64::encode_urlsafe(&iv[..]);
-        let ciphertext_encoded = base64::encode_urlsafe(ciphertext.as_slice());
-        let tag_encoded = base64::encode_urlsafe(&tag[..]);
+        let iv_encoded = base64::encode_config(&iv[..], base64::URL_SAFE_NO_PAD);
+        let ciphertext_encoded = base64::encode_config(ciphertext.as_slice(), base64::URL_SAFE_NO_PAD);
+        let tag_encoded = base64::encode_config(&tag[..], base64::URL_SAFE_NO_PAD);
 
         (ciphertext_encoded, iv_encoded, tag_encoded)
     }
@@ -401,13 +400,14 @@ impl CryptoService {
         cek: &chacha20poly1305_ietf::Key,
     ) -> Result<String, IndyError> {
         //convert ciphertext to bytes
-        let ciphertext_as_vec = base64::decode_urlsafe(ciphertext).map_err(|err| {
+        let ciphertext_as_vec =
+            base64::decode_config(ciphertext, base64::URL_SAFE_NO_PAD).map_err(|err| {
             err_msg(IndyErrorKind::InvalidStructure, format!("Failed to decode ciphertext {}", err))
         })?;
         let ciphertext_as_bytes = ciphertext_as_vec.as_ref();
 
         //convert IV from &str to &Nonce
-        let nonce_as_vec = base64::decode_urlsafe(iv).map_err(|err|
+        let nonce_as_vec = base64::decode_config(iv, base64::URL_SAFE_NO_PAD).map_err(|err|
             err_msg(IndyErrorKind::InvalidStructure, format!("Failed to decode IV {}", err))
         )?;
         let nonce_as_slice = nonce_as_vec.as_slice();
@@ -416,7 +416,7 @@ impl CryptoService {
         })?;
 
         //convert tag from &str to &Tag
-        let tag_as_vec = base64::decode_urlsafe(tag).map_err(|err|
+        let tag_as_vec = base64::decode_config(tag, base64::URL_SAFE_NO_PAD).map_err(|err|
             err_msg(IndyErrorKind::InvalidStructure, format!("Failed to decode tag {}", err))
         )?;
         let tag_as_slice = tag_as_vec.as_slice();
@@ -761,7 +761,7 @@ mod tests {
         let (_, iv_encoded, tag) = service
             .encrypt_plaintext(plaintext, aad, &cek);
 
-        let bad_ciphertext = base64::encode_urlsafe("bad_ciphertext".as_bytes());
+        let bad_ciphertext = base64::encode_config("bad_ciphertext".as_bytes(), base64::URL_SAFE_NO_PAD);
 
         let expected_error = service
             .decrypt_ciphertext(&bad_ciphertext, &iv_encoded, &tag, aad, &cek);

@@ -9,7 +9,6 @@ use indy_api_types::errors::prelude::*;
 use crate::services::pool::events::*;
 use crate::services::pool::types::*;
 use indy_utils::sequence;
-use indy_utils::crypto::base64;
 
 use super::time::Duration;
 

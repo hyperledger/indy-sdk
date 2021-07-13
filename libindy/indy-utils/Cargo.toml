@@ -6,8 +6,7 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["base64_rust_base64", "ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "base64_rust_base64", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "hash_openssl", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "randombytes_sodium"]
-base64_rust_base64 = []
+default = ["ed25519_sign_sodium", "ed25519_box_sodium", "sealedbox_sodium", "xsalsa20_sodium", "chacha20poly1305_ietf_sodium", "hash_openssl", "pwhash_argon2i13_sodium", "hmacsha256_sodium", "randombytes_sodium"]
 ed25519_sign_sodium = []
 ed25519_box_sodium = []
 sealedbox_sodium = []
@@ -19,9 +18,9 @@ hash_openssl = []
 randombytes_sodium = []
 
 [dependencies]
-base64 = {version = "0.10.1"}
+base64 = "0.13.0"
 dirs = "2.0.2"
-failure = "0.1.6"
+failure = "0.1.8"
 indy-api-types = { path = "../indy-api-types"}
 lazy_static = "1.3"
 libc = "0.2.66"
