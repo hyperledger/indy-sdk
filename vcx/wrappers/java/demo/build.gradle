@@ -1,0 +1,54 @@
+plugins {
+    id 'java'
+}
+
+group 'org.hyperledger'
+version '0.8.0'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://repo.sovrin.org/repository/maven-public"
+    }
+}
+
+dependencies {
+    // wrapper for vcx library
+    //implementation 'com.evernym:vcx:0.8.0'
+    implementation fileTree(dir: '../build/libs', include: ['*.jar']) // use local lib
+
+    // logger
+    implementation 'org.slf4j:slf4j-simple:1.7.25'
+
+    implementation 'net.java.dev.jna:jna:4.5.0'
+    implementation 'com.jayway.jsonpath:json-path:2.4.0'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'commons-cli:commons-cli:1.4'
+}
+
+task faber(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'Faber'
+}
+task faber_pg(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'Faber'
+    args(['--postgres'])
+}
+task alice(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'Alice'
+    standardInput = System.in
+}
+task alice_pg(type:JavaExec) {
+    group 'application'
+    classpath sourceSets.main.runtimeClasspath
+    main = 'Alice'
+    standardInput = System.in
+    args(['--postgres'])
+}
