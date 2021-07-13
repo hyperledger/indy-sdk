@@ -62,9 +62,11 @@ fn anoncreds_demo_works() {
     // Issuer Creates Wallet
     let err =
         unsafe {
+            let config = CString::new(issuer_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(issuer_wallet_credentials.as_str()).unwrap();
             wallet::indy_create_wallet(issuer_create_wallet_command_handle,
-                                       CString::new(issuer_wallet_config.as_str()).unwrap().as_ptr(),
-                                       CString::new(issuer_wallet_credentials.as_str()).unwrap().as_ptr(),
+                                       config.as_ptr(),
+                                       credentials.as_ptr(),
                                        issuer_create_wallet_callback)
         };
 
@@ -75,9 +77,11 @@ fn anoncreds_demo_works() {
     // Issuer Opens Wallet
     let err =
         unsafe {
+            let config = CString::new(issuer_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(issuer_wallet_credentials.as_str()).unwrap();
             wallet::indy_open_wallet(issuer_open_wallet_command_handle,
-                                     CString::new(issuer_wallet_config.as_str()).unwrap().as_ptr(),
-                                     CString::new(issuer_wallet_credentials.as_str()).unwrap().as_ptr(),
+                                     config.as_ptr(),
+                                     credentials.as_ptr(),
                                      issuer_open_wallet_callback)
         };
 
@@ -91,9 +95,11 @@ fn anoncreds_demo_works() {
 
     let err =
         unsafe {
+            let config = CString::new(prover_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(prover_wallet_credentials.as_str()).unwrap();
             wallet::indy_create_wallet(prover_create_wallet_command_handle,
-                                       CString::new(prover_wallet_config.as_str()).unwrap().as_ptr(),
-                                       CString::new(prover_wallet_credentials.as_str()).unwrap().as_ptr(),
+                                       config.as_ptr(),
+                                       credentials.as_ptr(),
                                        prover_create_wallet_callback)
         };
 
@@ -104,9 +110,11 @@ fn anoncreds_demo_works() {
     // Prover Opens Wallet
     let err =
         unsafe {
+            let config = CString::new(prover_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(prover_wallet_credentials.as_str()).unwrap();
             wallet::indy_open_wallet(prover_open_wallet_command_handle,
-                                     CString::new(prover_wallet_config.as_str()).unwrap().as_ptr(),
-                                     CString::new(prover_wallet_credentials.as_str()).unwrap().as_ptr(),
+                                     config.as_ptr(),
+                                     credentials.as_ptr(),
                                      prover_open_wallet_callback)
         };
 
@@ -124,11 +132,15 @@ fn anoncreds_demo_works() {
     // Issuer create Schema
     let err =
         unsafe {
+            let issuer_did = CString::new(issuer_did).unwrap();
+            let name = CString::new(schema_name).unwrap();
+            let version = CString::new(version).unwrap();
+            let attrs = CString::new(attrs).unwrap();
             anoncreds::indy_issuer_create_schema(issuer_create_schema_command_handle,
-                                                 CString::new(issuer_did).unwrap().as_ptr(),
-                                                 CString::new(schema_name).unwrap().as_ptr(),
-                                                 CString::new(version).unwrap().as_ptr(),
-                                                 CString::new(attrs).unwrap().as_ptr(),
+                                                 issuer_did.as_ptr(),
+                                                 name.as_ptr(),
+                                                 version.as_ptr(),
+                                                 attrs.as_ptr(),
                                                  issuer_create_schema_callback)
         };
 
@@ -142,13 +154,17 @@ fn anoncreds_demo_works() {
 
     let err =
         unsafe {
+            let issuer_did = CString::new(issuer_did).unwrap();
+            let schema_json = CString::new(schema_json.as_str()).unwrap();
+            let tag = CString::new(tag).unwrap();
+            let config_json = CString::new(config).unwrap();
             anoncreds::indy_issuer_create_and_store_credential_def(issuer_create_credential_definition_command_handle,
                                                                    issuer_wallet_handle,
-                                                                   CString::new(issuer_did).unwrap().as_ptr(),
-                                                                   CString::new(schema_json.as_str()).unwrap().as_ptr(),
-                                                                   CString::new(tag).unwrap().as_ptr(),
+                                                                   issuer_did.as_ptr(),
+                                                                   schema_json.as_ptr(),
+                                                                   tag.as_ptr(),
                                                                    null(),
-                                                                   CString::new(config).unwrap().as_ptr(),
+                                                                   config_json.as_ptr(),
                                                                    issuer_create_credential_definition_callback)
         };
 
@@ -163,9 +179,11 @@ fn anoncreds_demo_works() {
     }).to_string();
 
     let err = unsafe {
+        let type_ = CString::new("default").unwrap();
+        let config_json = CString::new(tails_writer_config).unwrap();
         blob_storage::indy_open_blob_storage_writer(bs_writer_command_handle,
-                                                    CString::new("default").unwrap().as_ptr(),
-                                                    CString::new(tails_writer_config).unwrap().as_ptr(),
+                                                    type_.as_ptr(),
+                                                    config_json.as_ptr(),
                                                     bs_writer_cb)
     };
     assert_eq!(ErrorCode::Success, ErrorCode::from(err));
@@ -173,13 +191,17 @@ fn anoncreds_demo_works() {
     assert_eq!(ErrorCode::Success, ErrorCode::from(err));
 
     let err = unsafe {
+        let issuer_did = CString::new(issuer_did).unwrap();
+        let tag = CString::new("TAG1").unwrap();
+        let cred_def_id = CString::new(credential_def_id.as_str()).unwrap();
+        let config_json = CString::new(r#"{"max_cred_num":5, "issuance_type":"ISSUANCE_ON_DEMAND"}"#).unwrap();
         anoncreds::indy_issuer_create_and_store_revoc_reg(cs_rev_reg_command_handle,
                                                           issuer_wallet_handle,
-                                                          CString::new(issuer_did).unwrap().as_ptr(),
+                                                          issuer_did.as_ptr(),
                                                           null(),
-                                                          CString::new("TAG1").unwrap().as_ptr(),
-                                                          CString::new(credential_def_id.as_str()).unwrap().as_ptr(),
-                                                          CString::new(r#"{"max_cred_num":5, "issuance_type":"ISSUANCE_ON_DEMAND"}"#).unwrap().as_ptr(),
+                                                          tag.as_ptr(),
+                                                          cred_def_id.as_ptr(),
+                                                          config_json.as_ptr(),
                                                           tails_writer_handle,
                                                           cs_rev_reg_cb)
     };
@@ -192,9 +214,10 @@ fn anoncreds_demo_works() {
     let master_secret_id = "master_secret";
     let err =
         unsafe {
+            let master_secret_id = CString::new(master_secret_id).unwrap();
             anoncreds::indy_prover_create_master_secret(prover_create_master_secret_command_handle,
                                                         prover_wallet_handle,
-                                                        CString::new(master_secret_id).unwrap().as_ptr(),
+                                                        master_secret_id.as_ptr(),
                                                         prover_create_master_secret_callback)
         };
 
@@ -205,9 +228,10 @@ fn anoncreds_demo_works() {
     // Issuer create Credential Offer
     let err =
         unsafe {
+            let cred_def_id = CString::new(credential_def_id.as_str()).unwrap();
             anoncreds::indy_issuer_create_credential_offer(issuer_create_credential_offer_command_handle,
                                                            issuer_wallet_handle,
-                                                           CString::new(credential_def_id.as_str()).unwrap().as_ptr(),
+                                                           cred_def_id.as_ptr(),
                                                            issuer_create_credential_offer_callback)
         };
 
@@ -218,12 +242,16 @@ fn anoncreds_demo_works() {
     // Prover create Credential Request
     let err =
         unsafe {
+            let prover_did = CString::new(prover_did).unwrap();
+            let cred_offer_json = CString::new(credential_offer_json.as_str()).unwrap();
+            let cred_def_json = CString::new(credential_def_json.as_str()).unwrap();
+            let master_secret_id = CString::new(master_secret_id).unwrap();
             anoncreds::indy_prover_create_credential_req(prover_create_credential_req_command_handle,
                                                          prover_wallet_handle,
-                                                         CString::new(prover_did).unwrap().as_ptr(),
-                                                         CString::new(credential_offer_json.as_str()).unwrap().as_ptr(),
-                                                         CString::new(credential_def_json.as_str()).unwrap().as_ptr(),
-                                                         CString::new(master_secret_id).unwrap().as_ptr(),
+                                                         prover_did.as_ptr(),
+                                                         cred_offer_json.as_ptr(),
+                                                         cred_def_json.as_ptr(),
+                                                         master_secret_id.as_ptr(),
                                                          prover_create_credential_req_callback)
         };
 
@@ -248,9 +276,11 @@ fn anoncreds_demo_works() {
         "base_dir": environment::tmp_file_path("tails").to_str().unwrap(),
     }).to_string();
     let err = unsafe {
+        let type_ = CString::new("default").unwrap();
+        let config_json = CString::new(tails_reader_config).unwrap();
         blob_storage::indy_open_blob_storage_reader(bs_reader_command_handle,
-                                                    CString::new("default").unwrap().as_ptr(),
-                                                    CString::new(tails_reader_config).unwrap().as_ptr(),
+                                                    type_.as_ptr(),
+                                                    config_json.as_ptr(),
                                                     bs_reader_cb)
     };
     assert_eq!(ErrorCode::Success, ErrorCode::from(err));
@@ -260,12 +290,16 @@ fn anoncreds_demo_works() {
 
     let err =
         unsafe {
+            let cred_offer_json = CString::new(credential_offer_json).unwrap();
+            let cred_req_json = CString::new(credential_req_json.as_str()).unwrap();
+            let cred_values_json = CString::new(credential_json).unwrap();
+            let rev_req_id = CString::new(rev_reg_id.as_str()).unwrap();
             anoncreds::indy_issuer_create_credential(issuer_create_credential_command_handle,
                                                      issuer_wallet_handle,
-                                                     CString::new(credential_offer_json).unwrap().as_ptr(),
-                                                     CString::new(credential_req_json.as_str()).unwrap().as_ptr(),
-                                                     CString::new(credential_json).unwrap().as_ptr(),
-                                                     CString::new(rev_reg_id.as_str()).unwrap().as_ptr(),
+                                                     cred_offer_json.as_ptr(),
+                                                     cred_req_json.as_ptr(),
+                                                     cred_values_json.as_ptr(),
+                                                     rev_req_id.as_ptr(),
                                                      blob_storage_reader_handle,
                                                      issuer_create_credential_callback)
         };
@@ -281,13 +315,18 @@ fn anoncreds_demo_works() {
     let credential_id = "credential_id";
     let err =
         unsafe {
+            let cred_id = CString::new(credential_id).unwrap();
+            let cred_req_metadata_json = CString::new(credential_req_metadata_json).unwrap();
+            let cred_json = CString::new(credential_json).unwrap();
+            let cred_def_json = CString::new(credential_def_json.as_str()).unwrap();
+            let rev_req_def_json = CString::new(revoc_reg_def_json.as_str()).unwrap();
             anoncreds::indy_prover_store_credential(prover_store_credential_command_handle,
                                                     prover_wallet_handle,
-                                                    CString::new(credential_id).unwrap().as_ptr(),
-                                                    CString::new(credential_req_metadata_json).unwrap().as_ptr(),
-                                                    CString::new(credential_json).unwrap().as_ptr(),
-                                                    CString::new(credential_def_json.as_str()).unwrap().as_ptr(),
-                                                    CString::new(revoc_reg_def_json.as_str()).unwrap().as_ptr(),
+                                                    cred_id.as_ptr(),
+                                                    cred_req_metadata_json.as_ptr(),
+                                                    cred_json.as_ptr(),
+                                                    cred_def_json.as_ptr(),
+                                                    rev_req_def_json.as_ptr(),
                                                     prover_store_credential_callback)
         };
 
@@ -327,11 +366,12 @@ fn anoncreds_demo_works() {
     // Prover prepare Credential to prove
     // Prover gets Credentials for Proof Request
     #[allow(deprecated)] //TODO FIXME use new one
-    let err =
+        let err =
         unsafe {
+            let proof_request_json = CString::new(proof_req_json.as_str()).unwrap();
             anoncreds::indy_prover_get_credentials_for_proof_req(prover_get_credentials_for_proof_req_command_handle,
                                                                  prover_wallet_handle,
-                                                                 CString::new(proof_req_json.as_str()).unwrap().as_ptr(),
+                                                                 proof_request_json.as_ptr(),
                                                                  prover_get_credentials_for_proof_req_callback)
         };
 
@@ -349,12 +389,15 @@ fn anoncreds_demo_works() {
     let issue_ts = 100;
 
     let err = unsafe {
+        let rev_reg_def_json = CString::new(revoc_reg_def_json.as_str()).unwrap();
+        let rev_reg_delta_json = CString::new(rreg_issue_delta_json.as_str()).unwrap();
+        let cred_rev_id = CString::new(cred_rev_id).unwrap();
         anoncreds::indy_create_revocation_state(create_rev_state_command_handle,
                                                 blob_storage_reader_handle,
-                                                CString::new(revoc_reg_def_json.as_str()).unwrap().as_ptr(),
-                                                CString::new(rreg_issue_delta_json.as_str()).unwrap().as_ptr(),
+                                                rev_reg_def_json.as_ptr(),
+                                                rev_reg_delta_json.as_ptr(),
                                                 issue_ts,
-                                                CString::new(cred_rev_id).unwrap().as_ptr(),
+                                                cred_rev_id.as_ptr(),
                                                 create_rev_state_cb)
     };
     assert_eq!(ErrorCode::Success, ErrorCode::from(err));
@@ -407,14 +450,20 @@ fn anoncreds_demo_works() {
     // Prover create Proof for Proof Request
     let err =
         unsafe {
+            let proof_req_json = CString::new(proof_req_json.as_str()).unwrap();
+            let requested_credentials_json = CString::new(requested_credentials_json).unwrap();
+            let master_secret_id = CString::new(master_secret_id).unwrap();
+            let schemase_json = CString::new(schemas_json.as_str()).unwrap();
+            let credential_defs_json = CString::new(credential_defs_json.as_str()).unwrap();
+            let rev_states_json = CString::new(rev_states_json.as_str()).unwrap();
             anoncreds::indy_prover_create_proof(prover_create_proof_command_handle,
                                                 prover_wallet_handle,
-                                                CString::new(proof_req_json.as_str()).unwrap().as_ptr(),
-                                                CString::new(requested_credentials_json).unwrap().as_ptr(),
-                                                CString::new(master_secret_id).unwrap().as_ptr(),
-                                                CString::new(schemas_json.as_str()).unwrap().as_ptr(),
-                                                CString::new(credential_defs_json.as_str()).unwrap().as_ptr(),
-                                                CString::new(rev_states_json.as_str()).unwrap().as_ptr(),
+                                                proof_req_json.as_ptr(),
+                                                requested_credentials_json.as_ptr(),
+                                                master_secret_id.as_ptr(),
+                                                schemase_json.as_ptr(),
+                                                credential_defs_json.as_ptr(),
+                                                rev_states_json.as_ptr(),
                                                 prover_create_proof_callback)
         };
 
@@ -440,13 +489,19 @@ fn anoncreds_demo_works() {
 
     let err =
         unsafe {
+            let proof_request_json = CString::new(proof_req_json).unwrap();
+            let proof_json = CString::new(proof_json).unwrap();
+            let schemas_json = CString::new(schemas_json).unwrap();
+            let credential_defs_json = CString::new(credential_defs_json).unwrap();
+            let rev_reg_defs_json = CString::new(rev_reg_defs_json).unwrap();
+            let rev_regs_json = CString::new(rev_regs_json).unwrap();
             anoncreds::indy_verifier_verify_proof(verifier_verify_proof_command_handle,
-                                                  CString::new(proof_req_json).unwrap().as_ptr(),
-                                                  CString::new(proof_json).unwrap().as_ptr(),
-                                                  CString::new(schemas_json).unwrap().as_ptr(),
-                                                  CString::new(credential_defs_json).unwrap().as_ptr(),
-                                                  CString::new(rev_reg_defs_json).unwrap().as_ptr(),
-                                                  CString::new(rev_regs_json).unwrap().as_ptr(),
+                                                  proof_request_json.as_ptr(),
+                                                  proof_json.as_ptr(),
+                                                  schemas_json.as_ptr(),
+                                                  credential_defs_json.as_ptr(),
+                                                  rev_reg_defs_json.as_ptr(),
+                                                  rev_regs_json.as_ptr(),
                                                   verifier_verify_proof_callback)
         };
 
@@ -543,9 +598,11 @@ fn ledger_demo_works() {
     // 3. Create My Wallet
     let err =
         unsafe {
+            let config = CString::new(my_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_create_wallet(create_my_wallet_command_handle,
-                                       CString::new(my_wallet_config.as_str()).unwrap().as_ptr(),
-                                       CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                       config.as_ptr(),
+                                       credentials.as_ptr(),
                                        create_my_wallet_callback)
         };
 
@@ -556,9 +613,11 @@ fn ledger_demo_works() {
     // 4. Open My Wallet. Gets My wallet handle
     let err =
         unsafe {
+            let config = CString::new(my_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_open_wallet(open_my_wallet_command_handle,
-                                     CString::new(my_wallet_config.as_str()).unwrap().as_ptr(),
-                                     CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                     config.as_ptr(),
+                                     credentials.as_ptr(),
                                      open_my_wallet_callback)
         };
 
@@ -569,9 +628,11 @@ fn ledger_demo_works() {
     // 5. Create Their Wallet
     let err =
         unsafe {
+            let config = CString::new(their_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_create_wallet(create_their_wallet_command_handle,
-                                       CString::new(their_wallet_config.as_str()).unwrap().as_ptr(),
-                                       CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                       config.as_ptr(),
+                                       credentials.as_ptr(),
                                        create_their_wallet_callback)
         };
 
@@ -582,9 +643,11 @@ fn ledger_demo_works() {
     // 6. Open Their Wallet. Gets Their wallet handle
     let err =
         unsafe {
+            let config = CString::new(their_wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_open_wallet(open_their_wallet_command_handle,
-                                     CString::new(their_wallet_config.as_str()).unwrap().as_ptr(),
-                                     CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                     config.as_ptr(),
+                                     credentials.as_ptr(),
                                      open_their_wallet_callback)
         };
 
@@ -596,9 +659,10 @@ fn ledger_demo_works() {
     let my_did_json = "{}";
     let err =
         unsafe {
+            let did_info = CString::new(my_did_json).unwrap();
             did::indy_create_and_store_my_did(create_and_store_my_did_command_handle,
                                               my_wallet_handle,
-                                              CString::new(my_did_json).unwrap().as_ptr(),
+                                              did_info.as_ptr(),
                                               create_and_store_my_did_callback)
         };
 
@@ -610,9 +674,10 @@ fn ledger_demo_works() {
     let their_did_json = r#"{"seed":"000000000000000000000000Trustee1"}"#;
     let err =
         unsafe {
+            let did_info = CString::new(their_did_json).unwrap();
             did::indy_create_and_store_my_did(create_and_store_their_did_command_handle,
                                               their_wallet_handle,
-                                              CString::new(their_did_json).unwrap().as_ptr(),
+                                              did_info.as_ptr(),
                                               create_and_store_their_did_callback)
         };
 
@@ -624,9 +689,10 @@ fn ledger_demo_works() {
     let their_identity_json = json!({"did": their_did, "verkey": their_verkey}).to_string();
     let err =
         unsafe {
+            let identity_json = CString::new(their_identity_json).unwrap();
             did::indy_store_their_did(store_their_did_command_handle,
                                       my_wallet_handle,
-                                      CString::new(their_identity_json).unwrap().as_ptr(),
+                                      identity_json.as_ptr(),
                                       store_their_did_callback)
         };
 
@@ -637,10 +703,13 @@ fn ledger_demo_works() {
     // 10. Prepare NYM transaction
     let err =
         unsafe {
+            let submitter_did = CString::new(their_did.as_str()).unwrap();
+            let target_did = CString::new(my_did.as_str()).unwrap();
+            let verkey = CString::new(my_verkey).unwrap();
             ledger::indy_build_nym_request(build_nym_request_command_handle,
-                                           CString::new(their_did.as_str()).unwrap().as_ptr(),
-                                           CString::new(my_did.as_str()).unwrap().as_ptr(),
-                                           CString::new(my_verkey).unwrap().as_ptr(),
+                                           submitter_did.as_ptr(),
+                                           target_did.as_ptr(),
+                                           verkey.as_ptr(),
                                            null(),
                                            null(),
                                            build_nym_request_callback)
@@ -652,11 +721,13 @@ fn ledger_demo_works() {
 
     // 11. Send NYM request with signing
     let err = unsafe {
+        let submitter_did = CString::new(their_did.as_str()).unwrap();
+        let request_json = CString::new(request).unwrap();
         ledger::indy_sign_and_submit_request(send_command_handle,
                                              pool_handle,
                                              their_wallet_handle,
-                                             CString::new(their_did.as_str()).unwrap().as_ptr(),
-                                             CString::new(request).unwrap().as_ptr(),
+                                             submitter_did.as_ptr(),
+                                             request_json.as_ptr(),
                                              send_callback)
     };
     assert_eq!(ErrorCode::from(err), ErrorCode::Success);
@@ -670,9 +741,11 @@ fn ledger_demo_works() {
     // 12. Prepare and send GET_NYM request
     let err =
         unsafe {
+            let submitter_did = CString::new(my_did.as_str()).unwrap();
+            let target_did = CString::new(my_did.as_str()).unwrap();
             ledger::indy_build_get_nym_request(build_get_nym_request_command_handle,
-                                               CString::new(my_did.as_str()).unwrap().as_ptr(),
-                                               CString::new(my_did.as_str()).unwrap().as_ptr(),
+                                               submitter_did.as_ptr(),
+                                               target_did.as_ptr(),
                                                build_get_nym_request_callback)
         };
 
@@ -682,9 +755,10 @@ fn ledger_demo_works() {
 
     let err =
         unsafe {
+            let request_json = CString::new(request).unwrap();
             ledger::indy_submit_request(get_nym_command_handle,
                                         pool_handle,
-                                        CString::new(request).unwrap().as_ptr(),
+                                        request_json.as_ptr(),
                                         get_nym_callback)
         };
     assert_eq!(ErrorCode::from(err), ErrorCode::Success);
@@ -759,9 +833,11 @@ fn crypto_demo_works() {
     // 1. Create Wallet
     let err =
         unsafe {
+            let config = CString::new(wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_create_wallet(create_wallet_command_handle,
-                                       CString::new(wallet_config.as_str()).unwrap().as_ptr(),
-                                       CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                       config.as_ptr(),
+                                       credentials.as_ptr(),
                                        create_wallet_callback)
         };
 
@@ -772,9 +848,11 @@ fn crypto_demo_works() {
     // 2. Open Wallet. Gets wallet handle
     let err =
         unsafe {
+            let config = CString::new(wallet_config.as_str()).unwrap();
+            let credentials = CString::new(WALLET_CREDENTIALS).unwrap();
             wallet::indy_open_wallet(open_wallet_command_handle,
-                                     CString::new(wallet_config.as_str()).unwrap().as_ptr(),
-                                     CString::new(WALLET_CREDENTIALS).unwrap().as_ptr(),
+                                     config.as_ptr(),
+                                     credentials.as_ptr(),
                                      open_wallet_callback)
         };
 
@@ -786,9 +864,10 @@ fn crypto_demo_works() {
     let did_json = "{}";
     let err =
         unsafe {
+            let did_info = CString::new(did_json).unwrap();
             did::indy_create_and_store_my_did(create_and_store_did_command_handle,
                                               wallet_handle,
-                                              CString::new(did_json).unwrap().as_ptr(),
+                                              did_info.as_ptr(),
                                               create_and_store_did_callback)
         };
 
@@ -811,9 +890,10 @@ fn crypto_demo_works() {
 
     let err =
         unsafe {
+            let signer_vk = CString::new(verkey.as_str()).unwrap();
             crypto::indy_crypto_sign(sign_command_handle,
                                      wallet_handle,
-                                     CString::new(verkey.as_str()).unwrap().as_ptr(),
+                                     signer_vk.as_ptr(),
                                      message_ptr,
                                      message_len,
                                      sign_callback)
@@ -826,8 +906,9 @@ fn crypto_demo_works() {
     // 5. Verify message
     let err =
         unsafe {
+            let signer_vk = CString::new(verkey).unwrap();
             crypto::indy_crypto_verify(verify_command_handle,
-                                       CString::new(verkey).unwrap().as_ptr(),
+                                       signer_vk.as_ptr(),
                                        message_ptr,
                                        message_len,
                                        signature.as_ptr() as *const u8,
