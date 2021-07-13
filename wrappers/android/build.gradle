@@ -1,0 +1,141 @@
+import java.text.SimpleDateFormat
+
+apply plugin: 'maven'
+apply plugin: 'com.android.library'
+
+buildscript {
+
+    repositories {
+        jcenter()
+        google()
+        maven {
+            url "https://maven.google.com"
+        }
+
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.1.0'
+        classpath 'digital.wup:android-maven-publish:3.3.0'
+    }
+}
+
+repositories {
+
+    maven { url "http://repo.maven.apache.org/maven2" }
+    maven {
+        url "https://maven.google.com"
+    }
+    maven {
+        url "https://jitpack.io"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url "https://maven.google.com"
+        }
+    }
+}
+
+
+group = 'org.hyperledger.sdk'
+
+def versionMajor() {
+    return '1.0.0'
+}
+
+//TODO: consider removing buildtime from version number when the wrapper api is on par with vcx-rust api
+def buildTime() {
+    def df = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm")
+    df.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return df.format(new Date())
+}
+
+
+version = "${versionMajor()}"
+
+def fullVersionName() {
+    return "com.hyperledger-libindy_${versionMajor()}-${buildTime()}_x86-armv7"
+}
+
+description = """libindy"""
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+//    test.enabled = true
+}
+
+android {
+    compileSdkVersion 29
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            java {
+                srcDirs = ['src/main/java']
+            }
+        }
+    }
+
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 21
+        versionCode 1
+        versionName "${fullVersionName()}"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+}
+
+archivesBaseName = fullVersionName()
+
+
+
+tasks.withType(Test) {
+    testLogging {
+        exceptionFormat "full"
+        events "skipped", "passed", "failed"
+        showStandardStreams true
+    }
+}
+
+
+
+dependencies {
+
+    implementation('com.github.bright:slf4android:0.1.5'){
+        transitive = true
+    }
+    implementation 'net.java.dev.jna:jna:4.5.0@aar'
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version:'3.5'
+    implementation 'net.sourceforge.streamsupport:android-retrofuture:1.7.1'
+    implementation 'net.sourceforge.streamsupport:streamsupport:1.7.1'
+    implementation 'net.orfjackal.retrolambda:retrolambda:2.5.6'
+    testImplementation group: 'junit', name: 'junit', version:'4.12'
+    testImplementation group: 'commons-io', name: 'commons-io', version:'2.5'
+    testImplementation group: 'org.json', name: 'json', version:'20160810'
+    testImplementation 'net.java.dev.jna:jna:4.5.0'
+    testImplementation 'org.awaitility:awaitility-scala:3.1.2'
+
+}
+
