@@ -5,7 +5,7 @@
 ### Prerequisites
 
 Clone the indy-sdk: `git clone https://github.com/hyperledger/indy-sdk.git`
-Navigate to the getting started folder `cd indy-sdk/docs/getting-started
+Navigate to the getting started folder `cd indy-sdk/docs/getting-started`
 
 `docker` and `docker-compose` should be installed.
 
