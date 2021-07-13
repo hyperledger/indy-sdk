@@ -43,6 +43,9 @@ Automated build: clone the repo and run `mac.build.sh` in the `libindy` folder.
    cargo build
    ```
 7. Set your `DYLD_LIBRARY_PATH` and `LD_LIBRARY_PATH` environment variables to the path of `indy-sdk/libindy/target/debug`. You may want to put these in your `.bash_profile` to persist them.
+Else try 
+`cp target/debug/libindy.dylib /usr/local/lib && npm install indy-sdk`
+*Setting LD_LIBRARY_PATH no longer works due to SIP: `https://github.com/oracle/node-oracledb/issues/231`
 
 ## Note on running local nodes
 
