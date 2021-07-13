@@ -18,7 +18,7 @@ ENV SODIUM_INCLUDE_DIR /home/indy_user/${sodium_dir}/include
 ENV LIBZMQ_LIB_DIR /home/indy_user/${libzmq_dir}/lib
 ENV LIBZMQ_INCLUDE_DIR /home/indy_user/${libzmq_dir}/include
 ENV ANDROID_NDK_ROOT /home/indy_user/android-ndk-r20
-ENV TOOLCHAIN_DIR /home/indy_user/${target_arch}
+ENV TOOLCHAIN_DIR ${ANDROID_NDK_ROOT}/${target_arch}
 ENV PATH ${TOOLCHAIN_DIR}/bin:${PATH}
 ENV PKG_CONFIG_ALLOW_CROSS=1
 ENV CC=${TOOLCHAIN_DIR}/bin/${CROSS_COMPILE}-clang

@@ -188,13 +188,13 @@ setup_dependencies_env_vars(){
 
 
 create_standalone_toolchain_and_rust_target(){
-    #will only create toolchain if not already created
-    python3 ${ANDROID_NDK_ROOT}/build/tools/make_standalone_toolchain.py \
-    --arch ${TARGET_ARCH} \
-    --api ${TARGET_API} \
-    --stl=libc++ \
-    --force \
-    --install-dir ${TOOLCHAIN_DIR}
+#    #will only create toolchain if not already created
+#    python3 ${ANDROID_NDK_ROOT}/build/tools/make_standalone_toolchain.py \
+#    --arch ${TARGET_ARCH} \
+#    --api ${TARGET_API} \
+#    --stl=libc++ \
+#    --force \
+#    --install-dir ${TOOLCHAIN_DIR}
 
     # add rust target
     rustup target add ${TRIPLET}
@@ -223,6 +223,10 @@ download_and_setup_toolchain(){
 
 
 set_env_vars(){
+    if [ -z "${TOOLCHAIN_PREFIX}" ]; then
+        echo STDERR "The environment variable \"TOOLCHAIN_PREFIX\" is not set"
+        exit 1
+    fi
     export PKG_CONFIG_ALLOW_CROSS=1
     export CARGO_INCREMENTAL=1
     export RUST_LOG=indy=trace
@@ -233,14 +237,14 @@ set_env_vars(){
     export SODIUM_INCLUDE_DIR=${SODIUM_DIR}/include
     export LIBZMQ_LIB_DIR=${LIBZMQ_DIR}/lib
     export LIBZMQ_INCLUDE_DIR=${LIBZMQ_DIR}/include
-    export TOOLCHAIN_DIR=${TOOLCHAIN_PREFIX}/${TARGET_ARCH}
-    export PATH=${TOOLCHAIN_DIR}/bin:${PATH}
+    export TOOLCHAIN_DIR=${TOOLCHAIN_PREFIX}/android-ndk-r20/
+    export PATH=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/:${PATH}
     export PKG_CONFIG_ALLOW_CROSS=1
-    export CC=${TOOLCHAIN_DIR}/bin/${ANDROID_TRIPLET}-clang
-    export AR=${TOOLCHAIN_DIR}/bin/${ANDROID_TRIPLET}-ar
-    export CXX=${TOOLCHAIN_DIR}/bin/${ANDROID_TRIPLET}-clang++
-    export CXXLD=${TOOLCHAIN_DIR}/bin/${ANDROID_TRIPLET}-ld
-    export RANLIB=${TOOLCHAIN_DIR}/bin/${ANDROID_TRIPLET}-ranlib
+    export CC=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TRIPLET}${TARGET_API}-clang
+    export AR=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TRIPLET}-ar
+    export CXX=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TRIPLET}${TARGET_API}-clang++
+    export CXXLD=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TRIPLET}-ld
+    export RANLIB=${TOOLCHAIN_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin/${ANDROID_TRIPLET}-ranlib
     export TARGET=android
     export OPENSSL_STATIC=1
 }
