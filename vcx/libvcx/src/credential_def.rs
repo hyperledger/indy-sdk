@@ -8,9 +8,22 @@ use utils::constants::DEFAULT_SERIALIZE_VERSION;
 use utils::libindy::payments::PaymentTxn;
 use utils::libindy::anoncreds;
 use utils::libindy::ledger;
+use utils::libindy::cache::update_rev_reg_ids_cache;
 
 lazy_static! {
     static ref CREDENTIALDEF_MAP: ObjectCache<CredentialDef> = Default::default();
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, PartialEq)]
+struct RevocationRegistry {
+    rev_reg_id: String,
+    rev_reg_def: String,
+    rev_reg_entry: String,
+    tails_file: String,
+    max_creds: u32,
+    tag: u32,
+    rev_reg_def_payment_txn: Option<PaymentTxn>,
+    rev_reg_delta_payment_txn: Option<PaymentTxn>
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq)]
@@ -21,12 +34,7 @@ pub struct CredentialDef {
     source_id: String,
     issuer_did: Option<String>,
     cred_def_payment_txn: Option<PaymentTxn>,
-    rev_reg_def_payment_txn: Option<PaymentTxn>,
-    rev_reg_delta_payment_txn: Option<PaymentTxn>,
-    rev_reg_id: Option<String>,
-    rev_reg_def: Option<String>,
-    rev_reg_entry: Option<String>,
-    tails_file: Option<String>,
+    rev_reg: Option<RevocationRegistry>,
     #[serde(default)]
     state: PublicEntityStateType
 }
@@ -53,11 +61,33 @@ impl CredentialDef {
 
     pub fn get_source_id(&self) -> &String { &self.source_id }
 
-    pub fn get_rev_reg_id(&self) -> Option<&String> { self.rev_reg_id.as_ref() }
+    pub fn get_rev_reg_id(&self) -> Option<&String> { 
+        match &self.rev_reg {
+            Some(rev_reg) => Some(&rev_reg.rev_reg_id),
+            None => None
+        }
+    }
 
-    pub fn get_tails_file(&self) -> Option<&String> { self.tails_file.as_ref() }
+    pub fn get_tails_file(&self) -> Option<String> {
+        match &self.rev_reg {
+            Some(rev_reg) => Some(rev_reg.tails_file.clone()),
+            None => None
+        }
+    }
 
-    pub fn get_rev_reg_def(&self) -> Option<&String> { self.rev_reg_def.as_ref() }
+    pub fn get_max_creds(&self) -> Option<u32> {
+        match &self.rev_reg {
+            Some(rev_reg) => Some(rev_reg.max_creds.clone()),
+            None => None
+        }
+    }
+
+    pub fn get_rev_reg_def(&self) -> Option<&String> {
+        match &self.rev_reg {
+            Some(rev_reg) => Some(&rev_reg.rev_reg_def),
+            None => None
+        }
+    }
 
     pub fn get_cred_def_id(&self) -> &String { &self.id }
 
@@ -70,12 +100,24 @@ impl CredentialDef {
             .ok_or(VcxError::from(VcxErrorKind::NoPaymentInformation))
     }
 
-    fn get_rev_reg_def_payment_txn(&self) -> Option<PaymentTxn> { self.rev_reg_def_payment_txn.clone() }
+    fn get_rev_reg_def_payment_txn(&self) -> Option<PaymentTxn> {
+        match &self.rev_reg {
+            Some(rev_reg) => rev_reg.rev_reg_def_payment_txn.clone(),
+            None => None
+        }
+        // self.rev_reg_def_payment_txn.clone();
+    }
 
-    fn get_rev_reg_delta_payment_txn(&self) -> Option<PaymentTxn> { self.rev_reg_delta_payment_txn.clone() }
+    fn get_rev_reg_delta_payment_txn(&self) -> Option<PaymentTxn> {
+        match &self.rev_reg {
+            Some(rev_reg) => rev_reg.rev_reg_delta_payment_txn.clone(),
+            None => None
+        }
+        // self.rev_reg_delta_payment_txn.clone();
+    }
 
     fn update_state(&mut self) -> VcxResult<u32> {
-        if let Some(ref rev_reg_id) = self.rev_reg_id.as_ref() {
+        if let Some(ref rev_reg_id) = self.get_rev_reg_id() {
             if let (Ok(_), Ok(_), Ok(_)) = (anoncreds::get_cred_def_json(&self.id),
                                             anoncreds::get_rev_reg_def_json(rev_reg_id),
                                             anoncreds::get_rev_reg(rev_reg_id, ::time::get_time().sec as u64)) {
@@ -91,6 +133,38 @@ impl CredentialDef {
     }
 
     fn get_state(&self) -> u32 { self.state as u32 }
+
+    fn rotate_rev_reg(&mut self) -> VcxResult<RevocationRegistry> {
+        let (tails_file, max_creds, issuer_did) = (self.get_tails_file(), self.get_max_creds(), self.issuer_did.as_ref());
+        match (&mut self.rev_reg, &tails_file, &max_creds, &issuer_did) {
+            (Some(rev_reg), Some(tails_file), Some(max_creds), Some(issuer_did)) => {
+                let tag = format!("tag{}", rev_reg.tag + 1);
+                let (rev_reg_id, rev_reg_def, rev_reg_entry) =
+                    anoncreds::generate_rev_reg(&issuer_did, &self.id, &tails_file, *max_creds, tag.as_str())
+                        .map_err(|err| err.map(VcxErrorKind::CreateRevRegDef, "Cannot create revocation registry defintion"))?;
+                let rev_reg_def_payment_txn = anoncreds::publish_rev_reg_def(&issuer_did, &rev_reg_def)
+                    .map_err(|err| err.map(VcxErrorKind::CreateCredDef, "Cannot publish revocation registry defintion"))?;
+
+                let (rev_reg_delta_payment_txn, _) = anoncreds::publish_rev_reg_delta(&issuer_did, &rev_reg_id, &rev_reg_entry)
+                        .map_err(|err| err.map(VcxErrorKind::InvalidRevocationEntry, "Cannot post RevocationEntry"))?;
+                
+                let new_rev_reg = RevocationRegistry {
+                    rev_reg_id,
+                    rev_reg_def,
+                    rev_reg_entry,
+                    tails_file: tails_file.to_string(),
+                    max_creds: *max_creds,
+                    tag: rev_reg.tag + 1,
+                    rev_reg_delta_payment_txn,
+                    rev_reg_def_payment_txn
+                };
+                self.rev_reg = Some(new_rev_reg.clone());
+
+                Ok(new_rev_reg)
+            },
+            _ => Err(VcxError::from_msg(VcxErrorKind::RevRegDefNotFound, "No revocation registry definitions associated with this credential definition"))
+        }
+    }
 }
 
 fn _parse_revocation_details(revocation_details: &str) -> VcxResult<RevocationDetails> {
@@ -122,7 +196,7 @@ fn _create_credentialdef(issuer_did: &str,
                 .ok_or(VcxError::from_msg(VcxErrorKind::InvalidRevocationDetails, "Invalid RevocationDetails: `max_creds` field not found"))?;
 
             let (rev_reg_id, rev_reg_def, rev_reg_entry) =
-                anoncreds::generate_rev_reg(&issuer_did, &cred_def_id, &tails_file, max_creds)
+                anoncreds::generate_rev_reg(&issuer_did, &cred_def_id, &tails_file, max_creds, "tag1")
                     .map_err(|err| err.map(VcxErrorKind::CreateCredDef, "Cannot create CredentialDefinition"))?;
 
             (Some(rev_reg_id), Some(rev_reg_def), Some(rev_reg_entry))
@@ -170,6 +244,22 @@ pub fn prepare_credentialdef_for_endorser(source_id: String,
         _ => (None, None)
     };
 
+    let rev_reg = match (rev_reg_id, rev_reg_def, rev_reg_entry, revocation_details.tails_file, revocation_details.max_creds) {
+        (Some(rev_reg_id), Some(rev_reg_def), Some(rev_reg_entry), Some(tails_file), Some(max_creds)) => {
+            Some(RevocationRegistry {
+                rev_reg_id,
+                rev_reg_def,
+                rev_reg_entry,
+                tails_file,
+                max_creds,
+                tag: 1,
+                rev_reg_def_payment_txn: None,
+                rev_reg_delta_payment_txn: None,
+            })
+        },
+        _ => None
+    };
+
     let cred_def = CredentialDef {
         source_id,
         name,
@@ -177,12 +267,7 @@ pub fn prepare_credentialdef_for_endorser(source_id: String,
         id: cred_def_id,
         issuer_did: Some(issuer_did),
         cred_def_payment_txn: None,
-        rev_reg_def_payment_txn: None,
-        rev_reg_delta_payment_txn: None,
-        rev_reg_id,
-        rev_reg_def,
-        rev_reg_entry,
-        tails_file: revocation_details.tails_file,
+        rev_reg,
         state: PublicEntityStateType::Built,
     };
 
@@ -222,6 +307,22 @@ pub fn create_and_publish_credentialdef(source_id: String,
         _ => (None, None)
     };
 
+    let rev_reg = match (rev_reg_id, rev_reg_def, rev_reg_entry, revocation_details.tails_file, revocation_details.max_creds) {
+        (Some(rev_reg_id), Some(rev_reg_def), Some(rev_reg_entry), Some(tails_file), Some(max_creds)) => {
+            Some(RevocationRegistry {
+                rev_reg_id,
+                rev_reg_def,
+                rev_reg_entry,
+                tails_file,
+                max_creds,
+                tag: 1,
+                rev_reg_def_payment_txn: rev_def_payment,
+                rev_reg_delta_payment_txn: rev_delta_payment,
+            })
+        },
+        _ => None
+    };
+
     let cred_def = CredentialDef {
         source_id,
         name,
@@ -229,12 +330,7 @@ pub fn create_and_publish_credentialdef(source_id: String,
         id: cred_def_id,
         issuer_did: Some(issuer_did),
         cred_def_payment_txn,
-        rev_reg_def_payment_txn: rev_def_payment,
-        rev_reg_delta_payment_txn: rev_delta_payment,
-        rev_reg_id,
-        rev_reg_def,
-        rev_reg_entry,
-        tails_file: revocation_details.tails_file,
+        rev_reg,
         state: PublicEntityStateType::Published,
     };
 
@@ -284,7 +380,7 @@ pub fn get_rev_reg_id(handle: u32) -> VcxResult<Option<String>> {
 
 pub fn get_tails_file(handle: u32) -> VcxResult<Option<String>> {
     CREDENTIALDEF_MAP.get(handle, |c| {
-        Ok(c.get_tails_file().cloned())
+        Ok(c.get_tails_file())
     })
 }
 
@@ -333,6 +429,23 @@ pub fn check_is_published(handle: u32) -> VcxResult<bool> {
         Ok(PublicEntityStateType::Published == s.state)
     })
 }
+
+pub fn rotate_rev_reg_def(handle: u32) -> VcxResult<String> {
+    CREDENTIALDEF_MAP.get_mut(handle, |s| {
+        match &s.issuer_did {
+            Some(_) => {
+                let new_rev_reg = s.rotate_rev_reg()?;
+                match update_rev_reg_ids_cache(&s.id, &new_rev_reg.rev_reg_id) {
+                    Ok(()) => s.to_string(),
+                    Err(err) => Err(err)
+                } 
+            },
+            // TODO: Better error
+            None => Err(VcxError::from(VcxErrorKind::InvalidCredentialHandle))
+        }
+    })
+}
+
 
 #[cfg(test)]
 pub mod tests {

@@ -31,7 +31,7 @@ pub fn libindy_verifier_verify_proof(proof_req_json: &str,
         .map_err(VcxError::from)
 }
 
-pub fn libindy_create_and_store_revoc_reg(issuer_did: &str, cred_def_id: &str, tails_path: &str, max_creds: u32) -> VcxResult<(String, String, String)> {
+pub fn libindy_create_and_store_revoc_reg(issuer_did: &str, cred_def_id: &str, tails_path: &str, max_creds: u32, tag: &str) -> VcxResult<(String, String, String)> {
     trace!("creating revocation: {}, {}, {}", cred_def_id, tails_path, max_creds);
 
     let tails_config = json!({"base_dir": tails_path,"uri_pattern": ""}).to_string();
@@ -41,7 +41,7 @@ pub fn libindy_create_and_store_revoc_reg(issuer_did: &str, cred_def_id: &str, t
 
     let revoc_config = json!({"max_cred_num": max_creds, "issuance_type": REVOCATION_REGISTRY_TYPE}).to_string();
 
-    anoncreds::issuer_create_and_store_revoc_reg(get_wallet_handle(), issuer_did, None, "tag1", cred_def_id, &revoc_config, writer)
+    anoncreds::issuer_create_and_store_revoc_reg(get_wallet_handle(), issuer_did, None, tag, cred_def_id, &revoc_config, writer)
         .wait()
         .map_err(VcxError::from)
 }
@@ -454,7 +454,7 @@ pub fn get_cred_def_json(cred_def_id: &str) -> VcxResult<(String, String)> {
     Ok((cred_def_id.to_string(), cred_def_json))
 }
 
-pub fn generate_rev_reg(issuer_did: &str, cred_def_id: &str, tails_file: &str, max_creds: u32)
+pub fn generate_rev_reg(issuer_did: &str, cred_def_id: &str, tails_file: &str, max_creds: u32, tag: &str)
                         -> VcxResult<(String, String, String)> {
     if settings::indy_mocks_enabled() { return Ok((REV_REG_ID.to_string(), rev_def_json(), "".to_string())); }
 
@@ -462,7 +462,8 @@ pub fn generate_rev_reg(issuer_did: &str, cred_def_id: &str, tails_file: &str, m
         libindy_create_and_store_revoc_reg(issuer_did,
                                            cred_def_id,
                                            tails_file,
-                                           max_creds)?;
+                                           max_creds,
+                                           tag)?;
 
     Ok((rev_reg_id, rev_reg_def_json, rev_reg_entry_json))
 }
@@ -964,7 +965,7 @@ pub mod tests {
         // revoc_reg_def will fail in libindy because cred_Def doesn't have revocation keys
         let (_, _, cred_def_id, _, _, _) = ::utils::libindy::anoncreds::tests::create_and_store_credential_def(::utils::constants::DEFAULT_SCHEMA_ATTRS, false);
         let did = settings::get_config_value(settings::CONFIG_INSTITUTION_DID).unwrap();
-        let rc = generate_rev_reg(&did, &cred_def_id, get_temp_dir_path("path.txt").to_str().unwrap(), 2);
+        let rc = generate_rev_reg(&did, &cred_def_id, get_temp_dir_path("path.txt").to_str().unwrap(), 2, "tag1");
 
         assert_eq!(rc.unwrap_err().kind(), VcxErrorKind::LibindyInvalidStructure);
     }
@@ -980,7 +981,7 @@ pub mod tests {
 
         let (cred_def_id, cred_def_json) = generate_cred_def(&did, &schema_json, "tag_1", None, Some(true)).unwrap();
         publish_cred_def(&did, &cred_def_json).unwrap();
-        let (rev_reg_def_id, rev_reg_def_json, rev_reg_entry_json) = generate_rev_reg(&did, &cred_def_id, "tails.txt", 2).unwrap();
+        let (rev_reg_def_id, rev_reg_def_json, rev_reg_entry_json) = generate_rev_reg(&did, &cred_def_id, "tails.txt", 2, "tag1").unwrap();
         publish_rev_reg_def(&did, &rev_reg_def_json).unwrap();
         publish_rev_reg_delta(&did, &rev_reg_def_id, &rev_reg_entry_json).unwrap();
     }

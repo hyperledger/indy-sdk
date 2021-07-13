@@ -115,6 +115,7 @@ pub static ACTION_NOT_SUPPORTED: Error = Error { code_num: 1103, message: "Actio
 pub static INVALID_REDIRECT_DETAILS: Error = Error{code_num: 1104, message: "Invalid redirect details structure"};
 /* EC 1105 is reserved for proprietary forks of libVCX */
 pub static NO_AGENT_INFO: Error = Error{code_num: 1106, message: "Agent pairwise information not found"};
+pub static REV_REG_DEF_NOT_FOUND: Error = Error{code_num: 1107, message: "No revocation definition found"};
 
 lazy_static! {
     static ref ERROR_C_MESSAGES: HashMap<u32, CString> = {

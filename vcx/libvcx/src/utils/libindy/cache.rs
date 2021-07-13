@@ -1,9 +1,11 @@
 use serde_json;
 
 use utils::libindy::wallet::{add_record, get_record, update_record_value};
+use error::{VcxErrorKind, VcxError, VcxResult}; 
 
 static CACHE_TYPE: &str = "cache";
 static REV_REG_CACHE_PREFIX: &str = "rev_reg:";
+static REV_REG_IDS_CACHE_PREFIX: &str = "rev_reg_ids:";
 
 ///
 /// Cache object for rev reg cache
@@ -20,6 +22,12 @@ pub struct RevRegCache {
 pub struct RevState {
     pub timestamp: u64,
     pub value: String,
+}
+
+// TODO: Maybe we need to persist more info
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct RevRegIdsCache {
+    pub rev_reg_ids: Vec<String>
 }
 
 ///
@@ -76,6 +84,63 @@ pub fn set_rev_reg_cache(rev_reg_id: &str, cache: &RevRegCache) {
     }
 }
 
+fn set_rev_reg_ids_cache(cred_def_id: &str, cache: &str) -> VcxResult<()> {
+    debug!("Setting rev_reg_ids for cred_def_id {}, cache {}", cred_def_id, cache);
+    match serde_json::to_string(cache) {
+        Ok(json) => {
+            let wallet_id = format!("{}{}", REV_REG_IDS_CACHE_PREFIX, cred_def_id);
+            match update_record_value(CACHE_TYPE, &wallet_id, &json)
+                .or(add_record(CACHE_TYPE, &wallet_id, &json, None)) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(err)
+                }
+        },
+        Err(_) => {
+            Err(VcxError::from(VcxErrorKind::SerializationError))
+        }
+    }
+}
+
+fn get_rev_reg_ids_cache(cred_def_id: &str) -> Option<RevRegIdsCache> {
+    debug!("Getting rev_reg_delta_cache for cred_def_id {}", cred_def_id);
+    let wallet_id = format!("{}{}", REV_REG_IDS_CACHE_PREFIX, cred_def_id);
+    match get_record(CACHE_TYPE, &wallet_id, &json!({"retrieveType": false, "retrieveValue": true, "retrieveTags": false}).to_string()) {
+        Ok(json) => {
+            match serde_json::from_str(&json)
+                .and_then(|x: serde_json::Value| 
+                    serde_json::from_str(x.get("value").unwrap_or(&serde_json::Value::Null).as_str().unwrap_or(""))) {
+                Ok(cache) => cache,
+                Err(err) => {
+                    warn!("Unable to convert rev_reg_ids cache for cred_def_id: {}, json: {}, error: {}", cred_def_id, json, err);
+                    None
+                }
+            }
+        },
+        Err(err) => {
+            warn!("Unable to get rev_reg_ids cache for cred_def_id: {}, error: {}", cred_def_id, err);
+            None
+        }
+    }
+}
+
+pub fn update_rev_reg_ids_cache(cred_def_id: &str, rev_reg_id: &str) -> VcxResult<()> {
+    debug!("Setting rev_reg_ids cache for cred_def_id {}, rev_reg_id {}", cred_def_id, rev_reg_id);
+	match get_rev_reg_ids_cache(cred_def_id) {
+        Some(mut old_vec) => {
+            old_vec.rev_reg_ids.push(String::from(rev_reg_id));
+            match serde_json::to_string(&old_vec) {
+                Ok(ser_new_vec) => set_rev_reg_ids_cache(cred_def_id, ser_new_vec.as_str()),
+                Err(_) => Err(VcxError::from(VcxErrorKind::SerializationError))
+            }
+        },
+        None => {
+            match serde_json::to_string(&vec![rev_reg_id]) {
+                Ok(ser_new_vec) => set_rev_reg_ids_cache(cred_def_id, ser_new_vec.as_str()),
+                Err(_) => Err(VcxError::from(VcxErrorKind::SerializationError))
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 pub mod tests {

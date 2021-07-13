@@ -529,6 +529,43 @@ pub extern fn vcx_credentialdef_get_state(command_handle: CommandHandle,
     error::SUCCESS.code_num
 }
 
+#[no_mangle]
+pub extern fn vcx_credentialdef_rotate_rev_reg_def(command_handle: CommandHandle,
+                                          credentialdef_handle: u32,
+                                          cb: Option<extern fn(xcommand_handle: CommandHandle, err: u32, credentialdef_state: *const c_char)>) -> u32 {
+    info!("vcx_credentialdef_rotate_rev_reg_def >>>");
+
+    check_useful_c_callback!(cb, VcxErrorKind::InvalidOption);
+
+    let source_id = credential_def::get_source_id(credentialdef_handle).unwrap_or_default();
+    trace!("vcx_credentialdef_rotate_rev_reg_def(command_handle: {}, credentialdef_handle: {}) source_id: {}",
+           command_handle, credentialdef_handle, source_id);
+
+    if !credential_def::is_valid_handle(credentialdef_handle) {
+        return VcxError::from(VcxErrorKind::InvalidCredDefHandle).into();
+    }
+
+    spawn(move || {
+        match credential_def::rotate_rev_reg_def(credentialdef_handle) {
+            Ok(x) => {
+                trace!("vcx_credentialdef_rotate_rev_reg_def(command_handle: {}, credentialdef_handle: {}, rc: {}, state: {}), source_id: {:?}",
+                       command_handle, credentialdef_handle, error::SUCCESS.message, x, source_id);
+                let msg = CStringUtils::string_to_cstring(x);
+                cb(command_handle, error::SUCCESS.code_num, msg.as_ptr());
+            }
+            Err(x) => {
+                warn!("vcx_credentialdef_rotate_rev_reg_def(command_handle: {}, credentialdef_handle: {}, rc: {}, state: {}), source_id: {:?}",
+                      command_handle, credentialdef_handle, x, "null", source_id);
+                cb(command_handle, x.into(), ptr::null_mut());
+            }
+        };
+
+        Ok(())
+    });
+
+    error::SUCCESS.code_num
+}
+
 #[cfg(test)]
 mod tests {
     extern crate serde_json;
