@@ -1,7 +1,6 @@
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
-use time;
 use std::convert::TryInto;
 
 use object_cache::ObjectCache;
@@ -181,13 +180,12 @@ pub fn build_rev_states_json(credentials_identifiers: &mut Vec<CredInfo>) -> Vcx
                 let (from, to) = if let Some(ref interval) = cred_info.revocation_interval
                 { (interval.from, interval.to) } else { (None, None) };
 
-                //                let from = from.unwrap_or(0);
-                //                let to = to.unwrap_or(time::get_time().sec as u64);
-                let cache = get_rev_reg_cache(&rev_reg_id);
+                let cache = get_rev_reg_cache(&rev_reg_id, &cred_rev_id);
 
-                let (rev_state_json, timestamp) = if let Some(cached_rev_state) = cache.rev_state {
+                let (rev_state_json, timestamp) = 
+                    if let (Some(cached_rev_state), Some(to)) = (cache.rev_state, to) {
                     if cached_rev_state.timestamp >= from.unwrap_or(0)
-                        && cached_rev_state.timestamp <= to.unwrap_or(time::get_time().sec as u64) {
+                        && cached_rev_state.timestamp <= to {
                         (cached_rev_state.value, cached_rev_state.timestamp)
                     } else {
                         let from = match from {
@@ -202,7 +200,7 @@ pub fn build_rev_states_json(credentials_identifiers: &mut Vec<CredInfo>) -> Vcx
                         let (rev_reg_id, rev_reg_delta_json, timestamp) = get_rev_reg_delta_json(
                             &rev_reg_id,
                             from,
-                            to,
+                            Some(to),
                         )?;
 
                         let rev_state_json = anoncreds::libindy_prover_update_revocation_state(
@@ -220,7 +218,7 @@ pub fn build_rev_states_json(credentials_identifiers: &mut Vec<CredInfo>) -> Vcx
                                     value: rev_state_json.clone(),
                                 })
                             };
-                            set_rev_reg_cache(&rev_reg_id, &new_cache);
+                            set_rev_reg_cache(&rev_reg_id, &cred_rev_id, &new_cache);
                         }
 
                         (rev_state_json, timestamp)
@@ -247,7 +245,7 @@ pub fn build_rev_states_json(credentials_identifiers: &mut Vec<CredInfo>) -> Vcx
                             value: rev_state_json.clone(),
                         })
                     };
-                    set_rev_reg_cache(&rev_reg_id, &new_cache);
+                    set_rev_reg_cache(&rev_reg_id, &cred_rev_id, &new_cache);
 
                     (rev_state_json, timestamp)
                 };
@@ -1782,15 +1780,16 @@ mod tests {
             schema_id,
             cred_def_id,
             rev_reg_id: rev_reg_id.clone(),
-            cred_rev_id,
+            cred_rev_id: cred_rev_id.clone(),
             tails_file: Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string()),
             revocation_interval: None,
             timestamp: None,
         };
         let rev_reg_id = rev_reg_id.unwrap();
+        let rev_id = cred_rev_id.unwrap();
 
         // assert cache is empty
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_eq!(cache.rev_state, None);
 
         let states = build_rev_states_json(vec![cred2].as_mut()).unwrap();
@@ -1800,7 +1799,7 @@ mod tests {
         let states: Value = serde_json::from_str(&states).unwrap();
         let state: HashMap<String, Value> = serde_json::from_value(states[&rev_reg_id].clone()).unwrap();
 
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         let cache_rev_state = cache.rev_state.unwrap();
         let cache_rev_state_value: Value = serde_json::from_str(&cache_rev_state.value).unwrap();
         assert_eq!(cache_rev_state.timestamp, state.keys().next().unwrap().parse::<u64>().unwrap());
@@ -1824,12 +1823,13 @@ mod tests {
             schema_id,
             cred_def_id,
             rev_reg_id: rev_reg_id.clone(),
-            cred_rev_id,
+            cred_rev_id: cred_rev_id.clone(),
             tails_file: Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string()),
             revocation_interval: None,
             timestamp: None,
         };
         let rev_reg_id = rev_reg_id.unwrap();
+        let rev_id = cred_rev_id.unwrap();
 
         let cached_data = RevRegCache {
             rev_state: Some(RevState {
@@ -1837,18 +1837,18 @@ mod tests {
                 value: cached_rev_state.clone(),
             })
         };
-        set_rev_reg_cache(&rev_reg_id, &cached_data);
+        set_rev_reg_cache(&rev_reg_id, &rev_id, &cached_data);
 
         // assert data is successfully cached.
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_eq!(cache, cached_data);
 
         let states = build_rev_states_json(vec![cred2].as_mut()).unwrap();
         assert!(states.contains(&rev_reg_id));
 
-        // assert cached data is unchanged.
-        let cache = get_rev_reg_cache(&rev_reg_id);
-        assert_eq!(cache, cached_data);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
+        // no revocation interval set -> assumed infinite --> the cache is updated with new value
+        // assert_eq!(cache, cached_data);
 
         // check if this value is in cache now.
         let states: Value = serde_json::from_str(&states).unwrap();
@@ -1878,7 +1878,7 @@ mod tests {
             schema_id,
             cred_def_id,
             rev_reg_id: rev_reg_id.clone(),
-            cred_rev_id,
+            cred_rev_id: cred_rev_id.clone(),
             tails_file: Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string()),
             revocation_interval: Some(NonRevokedInterval { from: Some(cached_timestamp + 1), to: None }),
             timestamp: None,
@@ -1891,17 +1891,18 @@ mod tests {
                 value: cached_rev_state.clone(),
             })
         };
-        set_rev_reg_cache(&rev_reg_id, &cached_data);
+        let rev_id = cred_rev_id.unwrap();
+        set_rev_reg_cache(&rev_reg_id, &rev_id, &cached_data);
 
         // assert data is successfully cached.
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_eq!(cache, cached_data);
 
         let states = build_rev_states_json(vec![cred2].as_mut()).unwrap();
         assert!(states.contains(&rev_reg_id));
 
         // assert cached data is updated.
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_ne!(cache, cached_data);
 
         // check if this value is in cache now.
@@ -1932,7 +1933,7 @@ mod tests {
             schema_id,
             cred_def_id,
             rev_reg_id: rev_reg_id.clone(),
-            cred_rev_id,
+            cred_rev_id: cred_rev_id.clone(),
             tails_file: Some(get_temp_dir_path(TEST_TAILS_FILE).to_str().unwrap().to_string()),
             revocation_interval: Some(NonRevokedInterval { from: None, to: Some(cached_timestamp - 1) }),
             timestamp: None,
@@ -1945,17 +1946,18 @@ mod tests {
                 value: cached_rev_state.clone(),
             })
         };
-        set_rev_reg_cache(&rev_reg_id, &cached_data);
+        let rev_id = cred_rev_id.unwrap();
+        set_rev_reg_cache(&rev_reg_id, &rev_id, &cached_data);
 
         // assert data is successfully cached.
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_eq!(cache, cached_data);
 
         let states = build_rev_states_json(vec![cred2].as_mut()).unwrap();
         assert!(states.contains(&rev_reg_id));
 
         // assert cached data is unchanged.
-        let cache = get_rev_reg_cache(&rev_reg_id);
+        let cache = get_rev_reg_cache(&rev_reg_id, &rev_id);
         assert_eq!(cache, cached_data);
 
         // check if this value is not in cache.

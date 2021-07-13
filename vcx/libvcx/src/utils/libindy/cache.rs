@@ -29,8 +29,8 @@ pub struct RevState {
 /// # Arguments
 /// `rev_reg_id`: revocation registry id
 ///
-pub fn get_rev_reg_cache(rev_reg_id: &str) -> RevRegCache {
-    let wallet_id = format!("{}{}", REV_REG_CACHE_PREFIX, rev_reg_id);
+pub fn get_rev_reg_cache(rev_reg_id: &str, cred_rev_id: &str) -> RevRegCache {
+    let wallet_id = format!("{}{}:{}", REV_REG_CACHE_PREFIX, rev_reg_id, cred_rev_id);
     match get_record(CACHE_TYPE, &wallet_id, &json!({"retrieveType": false, "retrieveValue": true, "retrieveTags": false}).to_string()) {
         Ok(json) => {
             match serde_json::from_str(&json)
@@ -60,10 +60,10 @@ pub fn get_rev_reg_cache(rev_reg_id: &str) -> RevRegCache {
 /// `rev_reg_id`: revocation registry id.
 /// `cache`: Cache object.
 ///
-pub fn set_rev_reg_cache(rev_reg_id: &str, cache: &RevRegCache) {
+pub fn set_rev_reg_cache(rev_reg_id: &str, cred_rev_id: &str, cache: &RevRegCache) {
     match serde_json::to_string(cache) {
         Ok(json) => {
-            let wallet_id = format!("{}{}", REV_REG_CACHE_PREFIX, rev_reg_id);
+            let wallet_id = format!("{}{}:{}", REV_REG_CACHE_PREFIX, rev_reg_id, cred_rev_id);
             let result = update_record_value(CACHE_TYPE, &wallet_id, &json)
                 .or(add_record(CACHE_TYPE, &wallet_id, &json, None));
             if result.is_err() {
@@ -83,14 +83,18 @@ pub mod tests {
     use utils::devsetup::SetupLibraryWallet;
 
     fn _rev_reg_id() -> &'static str {
-        "test-id"
+        "test-rev-reg-id"
+    }
+
+    fn _cred_rev_id() -> &'static str {
+        "test-cred-rev-id"
     }
 
     #[test]
     fn test_get_credential_cache_returns_default_when_not_exists_in_wallet() {
         let _setup = SetupLibraryWallet::init();
 
-        let result = get_rev_reg_cache(_rev_reg_id());
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, RevRegCache::default());
     }
 
@@ -100,7 +104,7 @@ pub mod tests {
 
         add_record(CACHE_TYPE, _rev_reg_id(), "some invalid json", None).unwrap();
 
-        let result = get_rev_reg_cache(_rev_reg_id());
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, RevRegCache::default());
     }
 
@@ -115,9 +119,9 @@ pub mod tests {
             })
         };
 
-        set_rev_reg_cache(_rev_reg_id(), &data);
+        set_rev_reg_cache(_rev_reg_id(), _cred_rev_id(), &data);
 
-        let result = get_rev_reg_cache(_rev_reg_id());
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
 
         assert_eq!(result, data);
     }
@@ -133,12 +137,12 @@ pub mod tests {
             })
         };
 
-        set_rev_reg_cache(_rev_reg_id(), &data);
+        set_rev_reg_cache(_rev_reg_id(), _cred_rev_id(), &data);
 
-        let result = get_rev_reg_cache(_rev_reg_id());
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, data);
 
-        let result = get_rev_reg_cache(_rev_reg_id());
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, data);
     }
 
@@ -160,13 +164,13 @@ pub mod tests {
             })
         };
 
-        set_rev_reg_cache(_rev_reg_id(), &data1);
-        let result = get_rev_reg_cache(_rev_reg_id());
+        set_rev_reg_cache(_rev_reg_id(), _cred_rev_id(), &data1);
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, data1);
 
         // overwrite
-        set_rev_reg_cache(_rev_reg_id(), &data2);
-        let result = get_rev_reg_cache(_rev_reg_id());
+        set_rev_reg_cache(_rev_reg_id(), _cred_rev_id(), &data2);
+        let result = get_rev_reg_cache(_rev_reg_id(), _cred_rev_id());
         assert_eq!(result, data2);
     }
 
