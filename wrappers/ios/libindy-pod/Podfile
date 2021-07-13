@@ -1,6 +1,6 @@
 source 'https://github.com/CocoaPods/Specs.git'
 source 'https://github.com/hyperledger/indy-sdk.git'
-platform :ios, '10.2'
+platform :ios, '11.0'
 
 workspace 'Indy.xcworkspace'
 
