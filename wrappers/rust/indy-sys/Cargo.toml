@@ -10,7 +10,7 @@ license = "MIT/Apache-2.0"
 [dependencies]
 serde = "1.0.99"
 serde_derive = "1.0.99"
-libc = "=0.2.66"
+libc = "0.2.97"
 
 [build-dependencies]
 pkg-config = "0.3.9"
