@@ -18,7 +18,7 @@ typedef unsigned int vcx_proof_handle_t;
 typedef unsigned int vcx_command_handle_t;
 typedef unsigned int vcx_payment_handle_t;
 typedef unsigned int vcx_wallet_search_handle_t;
-typedef unsigned bool vcx_bool_t;
+typedef bool vcx_bool_t;
 typedef unsigned int count_t;
 typedef unsigned long vcx_price_t;
 typedef unsigned int vcx_u32_t;
@@ -704,21 +704,21 @@ vcx_error_t vcx_credentialdef_get_payment_txn(vcx_command_handle_t command_handl
 //
 // #Returns
 // Success
-vcx_error_t vcx_credentialdef_release(vcx_credential_handle_t credentialdef_handle);
+vcx_error_t vcx_credentialdef_release(vcx_credential_handle_t vcx_credentialdef_handle_t);
 
 // Takes the credentialdef object and returns a json string of all its attributes
 //
 // #Params
 // command_handle: command handle to map callback to user context.
 //
-// credentialdef_handle: Credentialdef handle that was provided during creation. Used to access credentialdef object
+// vcx_credentialdef_handle_t: Credentialdef handle that was provided during creation. Used to access credentialdef object
 //
 // cb: Callback that provides json string of the credentialdef's attributes and provides error status
 //
 // #Returns
 // Error code as a u32
 vcx_error_t vcx_credentialdef_serialize(vcx_command_handle_t command_handle,
-                                     vcx_credential_handle_t credentialdef_handle,
+                                     vcx_credential_handle_t vcx_credentialdef_handle_t,
                                      void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
 
 /// Checks if credential definition is published on the Ledger and updates the state
@@ -726,14 +726,14 @@ vcx_error_t vcx_credentialdef_serialize(vcx_command_handle_t command_handle,
 /// #Params
 /// command_handle: command handle to map callback to user context.
 ///
-/// credentialdef_handle: Credentialdef handle that was provided during creation. Used to access credentialdef object
+/// vcx_credentialdef_handle_t: Credentialdef handle that was provided during creation. Used to access credentialdef object
 ///
 /// cb: Callback that provides most current state of the credential definition and error status of request
 ///
 /// #Returns
 /// Error code as a u32
 vcx_error_t vcx_credentialdef_update_state(vcx_command_handle_t command_handle,
-                                           credentialdef_handle connection_handle,
+                                           vcx_credentialdef_handle_t connection_handle,
                                            void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_state_t));
 
 /// Get the current state of the credential definition object
@@ -741,14 +741,14 @@ vcx_error_t vcx_credentialdef_update_state(vcx_command_handle_t command_handle,
 /// #Params
 /// command_handle: command handle to map callback to user context.
 ///
-/// credentialdef_handle: Credentialdef handle that was provided during creation. Used to access credentialdef object
+/// vcx_credentialdef_handle_t: Credentialdef handle that was provided during creation. Used to access credentialdef object
 ///
 /// cb: Callback that provides most current state of the credential definition and error status of request
 ///
 /// #Returns
 /// Error code as a u32
 vcx_error_t vcx_credentialdef_get_state(vcx_command_handle_t command_handle,
-                                        credentialdef_handle connection_handle,
+                                        vcx_credentialdef_handle_t connection_handle,
                                         void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_state_t));
 
 // Create a proof for fulfilling a corresponding proof request
@@ -1732,38 +1732,38 @@ vcx_error_t vcx_schema_get_payment_txn(vcx_command_handle_t command_handle,
 // Retrieves schema's id
 //
 // #Params
-// schema_handle: Schema handle that was provided during creation. Used to access proof object
+// vcx_schema_handle_t: Schema handle that was provided during creation. Used to access proof object
 //
 // cb: Callback that provides schema id and provides error status
 //
 // #Returns
 // Error code as a u32
 vcx_error_t vcx_schema_get_schema_id(vcx_command_handle_t command_handle,
-                                  vcx_schema_handle_t schema_handle,
+                                  vcx_schema_handle_t vcx_schema_handle_t,
                                   void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
 
 // Releases the schema object by de-allocating memory
 //
 // #Params
-// schema_handle: Schema handle that was provided during creation. Used to access schema object
+// vcx_schema_handle_t: Schema handle that was provided during creation. Used to access schema object
 //
 // #Returns
 // Success
-vcx_error_t vcx_schema_release(vcx_schema_handle_t schema_handle);
+vcx_error_t vcx_schema_release(vcx_schema_handle_t vcx_schema_handle_t);
 
 // Takes the schema object and returns a json string of all its attributes
 //
 // #Params
 // command_handle: command handle to map callback to user context.
 //
-// schema_handle: Schema handle that was provided during creation. Used to access schema object
+// vcx_schema_handle_t: Schema handle that was provided during creation. Used to access schema object
 //
 // cb: Callback that provides json string of the schema's attributes and provides error status
 //
 // #Returns
 // Error code as a u32
 vcx_error_t vcx_schema_serialize(vcx_command_handle_t command_handle,
-                              vcx_schema_handle_t schema_handle,
+                              vcx_schema_handle_t vcx_schema_handle_t,
                               void (*cb)(vcx_command_handle_t, vcx_error_t, const char*));
 
 /// Checks if schema is published on the Ledger and updates the state
@@ -1771,14 +1771,14 @@ vcx_error_t vcx_schema_serialize(vcx_command_handle_t command_handle,
 /// #Params
 /// command_handle: command handle to map callback to user context.
 ///
-/// schema_handle: Schema handle that was provided during creation. Used to access schema object
+/// vcx_schema_handle_t: Schema handle that was provided during creation. Used to access schema object
 ///
 /// cb: Callback that provides most current state of the schema and error status of request
 ///
 /// #Returns
 /// Error code as a u32
 vcx_error_t vcx_schema_update_state(vcx_command_handle_t command_handle,
-                                    schema_handle connection_handle,
+                                    vcx_schema_handle_t connection_handle,
                                     void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_state_t));
 
 /// Get the current state of the schema object
@@ -1786,14 +1786,14 @@ vcx_error_t vcx_schema_update_state(vcx_command_handle_t command_handle,
 /// #Params
 /// command_handle: command handle to map callback to user context.
 ///
-/// schema_handle: Schema handle that was provided during creation. Used to access schema object
+/// vcx_schema_handle_t: Schema handle that was provided during creation. Used to access schema object
 ///
 /// cb: Callback that provides most current state of the schema and error status of request
 ///
 /// #Returns
 /// Error code as a u32
 vcx_error_t vcx_schema_get_state(vcx_command_handle_t command_handle,
-                                 credentialdef_handle connection_handle,
+                                 vcx_credentialdef_handle_t connection_handle,
                                  void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_state_t));
 
 // Reset libvcx to a pre-configured state, releasing/deleting any handles and freeing memory
@@ -1805,7 +1805,7 @@ vcx_error_t vcx_schema_get_state(vcx_command_handle_t command_handle,
 //
 // #Returns
 // Success
-vcx_error_t vcx_shutdown(vcx_bool_t delete);
+vcx_error_t vcx_shutdown(vcx_bool_t deleteWallet);
 
 const char *vcx_version();
 
@@ -1910,7 +1910,7 @@ vcx_error_t vcx_wallet_sign_with_address(vcx_command_handle_t command_handle,
                                                  const char *payment_address,
                                                  const unsigned short *message_raw,
                                                  vcx_u32_t message_len,
-                                                 void (*cb)(vcx_command_handle_t, vcx_error_t, const unsigned short *, vcx_u32_t))
+                                                 void (*cb)(vcx_command_handle_t, vcx_error_t, const unsigned short *, vcx_u32_t));
 
 // Verify a signature with a payment address.
 //
@@ -1931,7 +1931,7 @@ vcx_error_t vcx_wallet_verify_with_address(vcx_command_handle_t command_handle,
                                                    vcx_u32_t message_len,
                                                    const unsigned short *signature_raw,
                                                    vcx_u32_t signature_len,
-                                                   void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_bool_t))
+                                                   void (*cb)(vcx_command_handle_t, vcx_error_t, vcx_bool_t));
 
 // Deletes an existing record.
 // Assumes there is an open wallet and that a type and id pair already exists.
@@ -2300,7 +2300,7 @@ vcx_error_t vcx_set_active_txn_author_agreement_meta(const char *text, const cha
 /// #Returns
 /// Error code as a u32
 vcx_error_t vcx_endorse_transaction(vcx_u32_t command_handle,
-                                    const char* transaction
+                                    const char* transaction,
                                     void (*cb)(vcx_command_handle_t, vcx_error_t));
 
 #ifdef __cplusplus

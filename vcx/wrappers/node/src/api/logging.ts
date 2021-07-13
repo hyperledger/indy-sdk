@@ -1,6 +1,6 @@
-import * as ffi from 'ffi'
-import * as ref from 'ref'
-import * as Struct from 'ref-struct'
+import * as ffi from 'ffi-napi'
+import * as ref from 'ref-napi'
+import * as Struct from 'ref-struct-di'
 
 import { VCXInternalError } from '../errors'
 import { rustAPI } from '../rustlib'

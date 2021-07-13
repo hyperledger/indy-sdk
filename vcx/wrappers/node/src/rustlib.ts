@@ -1,5 +1,5 @@
-import * as ref from 'ref'
-import * as StructType from 'ref-struct'
+import * as ref from 'ref-napi'
+import * as StructType from 'ref-struct-di'
 
 import { VCXRuntime } from './vcx'
 

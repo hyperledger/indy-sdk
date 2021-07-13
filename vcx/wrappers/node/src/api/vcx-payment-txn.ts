@@ -1,4 +1,4 @@
-import * as ffi from 'ffi'
+import * as ffi from 'ffi-napi'
 import { VCXInternalError } from '../errors'
 import { createFFICallbackPromise } from '../utils/ffi-helpers'
 import { IPaymentOutput } from './common'
