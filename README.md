@@ -1,3 +1,21 @@
+# Indy SDK Status
+The Indy community is transitioning to a new approach to Indy client applications, and so new releases of the Indy SDK are currently only created as they are needed. We are actively seeking contributors to take ownership of creating new releases. If you are interested in helping with a new release of the Indy-SDK, please reach out using the contact information below.
+
+Hyperledger Indy's ledger implementation, [Indy Node](https://github.com/hyperledger/indy-node) and related codebases, continue to be maintained and improved.
+
+The new approach to Indy client applications that is being developed divides LibIndy into multiple shared libraries which are part of the Indy and Aries projects:
+
+* [indy-vdr](https://github.com/hyperledger/indy-vdr): a client-side library for communicating with an Indy ledger (VDR is "Verifiable Registry Data", per the proposed W3C DID standard)
+* [indy-shared-rs](https://github.com/hyperledger/indy-shared-rs): a client-side library containing relevant Rust utilities including support for the Indy AnonCreds Verifiable Credential exchange format
+* [aries-askar](https://github.com/hyperledger/aries-askar): a Hyperledger Aries level secure storage service that replaces the "indy-wallet" component of the indy-sdk
+
+Progress is recorded in the notes for the [Indy Contributors Meeting](https://wiki.hyperledger.org/display/indy/Indy+Contributors+Meeting).
+
+If you would like to continue the development of Indy SDK by implementing a feature, bug fix, or publishing a release, please reach out and the appropriate guidance and controls can be granted. You can find us in [#indy-contributors on Hyperledger Rocket Chat](http://chat.hyperledger.org/channel/indy-contributors) or [the Indy mailing list](http://lists.hyperledger.org/g/indy/).
+
+Feel free to contact us if you have questions. 
+
+
 # Indy SDK
 ![logo](https://raw.githubusercontent.com/hyperledger/indy-node/master/collateral/logos/indy-logo.png)
 This is the official SDK for [Hyperledger Indy](https://www.hyperledger.org/projects),
