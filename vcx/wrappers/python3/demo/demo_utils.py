@@ -25,7 +25,7 @@ async def create_schema_and_cred_def(schema_uuid, schema_name, schema_attrs, cre
     schema_id = await schema.get_schema_id()
 
     print("#4 Create a new credential definition on the ledger")
-    cred_def = await CredentialDef.create(creddef_uuid, creddef_name, schema_id, 0)
+    cred_def = await CredentialDef.create(creddef_uuid, creddef_name, schema_id, 0, {"support_revocation": False})
     cred_def_handle = cred_def.handle
     cred_def_json = await cred_def.serialize()
     print(" >>> cred_def_handle", cred_def_handle)

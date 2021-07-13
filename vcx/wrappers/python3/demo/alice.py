@@ -1,6 +1,6 @@
 import asyncio
 import json
-from time import sleep
+from time import sleep, time
 
 from vcx.api.connection import Connection
 from vcx.api.credential import Credential
@@ -10,14 +10,13 @@ from vcx.api.vcx_init import vcx_init_with_config
 from vcx.state import State
 from vc_auth_oidc.alice_vc_auth import handle_challenge
 
-
 # logging.basicConfig(level=logging.DEBUG) uncomment to get logs
-
+u_time=int(time())
 provisionConfig = {
     'agency_url': 'http://localhost:8080',
     'agency_did': 'VsKV7grR1BUE29mG2Fm2kX',
     'agency_verkey': 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR',
-    'wallet_name': 'alice_wallet',
+    'wallet_name': f'alice_wallet_{u_time}',
     'wallet_key': '123',
     'payment_method': 'null',
     'enterprise_seed': '000000000000000000000000Trustee1',
@@ -35,7 +34,7 @@ async def main():
             "1 - check for credential offer \n "
             "2 - check for proof request \n "
             "3 - pass vc_auth_oidc-challenge \n "
-            "else finish \n") \
+            "x - finish \n") \
             .lower().strip()
         if answer == '0':
             connection_to_faber = await connect()
@@ -55,8 +54,11 @@ async def main():
             print("#23 Create a Disclosed proof object from proof request")
             proof = await DisclosedProof.create('proof', request)
             await create_proof(None, proof)
-        else:
+        elif answer == 'x' or answer == 'X':
             break
+        else:
+            print('invalid option !')
+
 
     print("Finished")
 
@@ -110,11 +112,12 @@ async def accept_offer(connection_to_faber, credential):
 async def create_proof(connection_to_faber, proof):
     print("#24 Query for credentials in the wallet that satisfy the proof request")
     credentials = await proof.get_creds()
-
     # Use the first available credentials to satisfy the proof request
+    # When use with other aries project should specify tails file on correct destination server
     for attr in credentials['attrs']:
         credentials['attrs'][attr] = {
-            'credential': credentials['attrs'][attr][0]
+            'credential': credentials['attrs'][attr][0],
+            "tails_file": "/tmp/tails"
         }
 
     print("#25 Generate the proof")
@@ -124,8 +127,9 @@ async def create_proof(connection_to_faber, proof):
     await proof.send_proof(connection_to_faber)
 
     proof_state = await proof.get_state()
-    while proof_state != State.Accepted:
+    while proof_state != State.Accepted and proof_state != State.Undefined:
         sleep(2)
+        print(f'proof_state is {proof_state}')
         await proof.update_state()
         proof_state = await proof.get_state()
 

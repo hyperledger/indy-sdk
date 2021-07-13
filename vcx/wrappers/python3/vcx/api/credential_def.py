@@ -60,7 +60,7 @@ class CredentialDef(VcxStateful):
 
 
     @staticmethod
-    async def create(source_id: str, name: str, schema_id: str, payment_handle: int):
+    async def create(source_id: str, name: str, schema_id: str, payment_handle: int, revocation_details: dict):
         """
         Creates a new CredentialDef object that is written to the ledger
 
@@ -68,16 +68,18 @@ class CredentialDef(VcxStateful):
         :param name: Name of credential definition
         :param schema_id: The schema ID given during the creation of the schema
         :param payment_handle: NYI - payment of ledger fee is taken from wallet automatically
+        :param revocation_details: setting up revocation registry
         Example:
         source_id = 'foobar123'
         schema_name = 'Schema Name'
         endorser = 'V4SGRU86Z58d6TV7PBUe6f'
+        revocation_details = {"support_revocation": True, "tails_file": "/tmp/tails_py", "max_creds": 5} or {"support_revocation": False}
         credential_def1 = await CredentialDef.prepare_for_endorser(source_id, name, schema_id, endorser)
         :return: credential_def object,
         credential_def transaction that should be passed to Endorser for witting to ledger
         """
-        constructor_params = (source_id, name, schema_id)
 
+        constructor_params = (source_id, name, schema_id)
         c_source_id = c_char_p(source_id.encode('utf-8'))
         c_schema_id = c_char_p(schema_id.encode('utf-8'))
         c_name = c_char_p(name.encode('utf-8'))
@@ -86,7 +88,7 @@ class CredentialDef(VcxStateful):
         c_payment = c_uint32(payment_handle)
         # Todo: add params for tag and config
         c_tag = c_char_p('tag1'.encode('utf-8'))
-        c_config = c_char_p('{"support_revocation":false}'.encode('utf-8'))
+        c_config = c_char_p(json.dumps(revocation_details).encode('utf-8'))
         c_params = (c_source_id, c_name, c_schema_id, c_issuer_did, c_tag, c_config, c_payment)
 
         return await CredentialDef._create("vcx_credentialdef_create",
@@ -95,7 +97,7 @@ class CredentialDef(VcxStateful):
 
 
     @staticmethod
-    async def prepare_for_endorser(source_id: str, name: str, schema_id: str, endorser: str):
+    async def prepare_for_endorser(source_id: str, name: str, schema_id: str, endorser: str, revocation_details: dict):
         """
         Create a new CredentialDef object that will be published on the ledger by Endorser later.
         
@@ -105,10 +107,12 @@ class CredentialDef(VcxStateful):
         :param name: Name of credential definition
         :param schema_id: The schema ID given during the creation of the schema
         :param endorser: DID of the Endorser that will submit the transaction.
+        :param revocation_details: setting up revocation registry
         Example:
         source_id = 'foobar123'
         schema_name = 'Schema Name'
         payment_handle = 0
+        revocation_details = {"support_revocation": True, "tails_file": "/tmp/tails_py", "max_creds": 5} or {"support_revocation": False}
         credential_def1 = await CredentialDef.create(source_id, name, schema_id, payment_handle)
         :return: credential_def object, written to ledger
         """
@@ -119,14 +123,14 @@ class CredentialDef(VcxStateful):
                 credentialdef.logger.debug("vcx_prepare_for_endorser: Creating callback")
                 CredentialDef.prepare_for_endorser.cb = create_cb(CFUNCTYPE(None, c_uint32, c_uint32, c_uint32,
                                                                             c_char_p, c_char_p, c_char_p))
-
+            
             c_source_id = c_char_p(source_id.encode('utf-8'))
             c_name = c_char_p(name.encode('utf-8'))
             c_schema_id = c_char_p(schema_id.encode('utf-8'))
             c_endorser = c_char_p(endorser.encode('utf-8'))
             c_issuer_did = None
             c_tag = c_char_p('tag1'.encode('utf-8'))
-            c_config = c_char_p('{"support_revocation":false}'.encode('utf-8'))
+            c_config = c_char_p(json.dumps(revocation_details).encode('utf-8'))
 
             handle, transaction, _, _ = await do_call('vcx_credentialdef_prepare_for_endorser',
                                                       c_source_id,

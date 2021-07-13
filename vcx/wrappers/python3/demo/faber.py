@@ -17,6 +17,7 @@ from vcx.api.vcx_init import vcx_init_with_config
 from vcx.state import State, ProofState
 
 TAA_ACCEPT = bool(os.getenv("TAA_ACCEPT", "0") == "1")
+REVOKE = bool(os.getenv("REVOKE", "0") == "1")
 
 # logging.basicConfig(level=logging.DEBUG) uncomment to get logs
 
@@ -26,15 +27,16 @@ TAA_ACCEPT = bool(os.getenv("TAA_ACCEPT", "0") == "1")
 # 'wallet_name': name for newly created encrypted wallet
 # 'wallet_key': encryption key for encoding wallet
 # 'payment_method': method that will be used for payments
+u_time=int(time.time())
 provisionConfig = {
     'agency_url': 'http://localhost:8080',
     'agency_did': 'VsKV7grR1BUE29mG2Fm2kX',
     'agency_verkey': 'Hezce2UWMZ3wUhVkh2LfKSs8nDzWwzs2Win7EzNN3YaR',
-    'wallet_name': 'faber_wallet',
+    'wallet_name': f'faber_wallet_{u_time}',
     'wallet_key': '123',
     'payment_method': 'null',
     'enterprise_seed': '000000000000000000000000Trustee1',
-    'protocol_type': '3.0',
+    'protocol_type': '4.0',
 }
 
 
@@ -50,7 +52,7 @@ async def main():
     config['institution_logo_url'] = 'http://robohash.org/234'
     config['genesis_path'] = 'docker.txn'
     config['payment_method'] = 'null'
-    config['protocol_type'] = '3.0'
+    config['protocol_type'] = '4.0'
 
     print("#2 Initialize libvcx with new configuration")
     await vcx_init_with_config(json.dumps(config))
@@ -69,10 +71,16 @@ async def main():
     version = format("%d.%d.%d" % (random.randint(1, 101), random.randint(1, 101), random.randint(1, 101)))
     schema = await Schema.create('schema_uuid', 'degree schema', version, ['email', 'first_name', 'last_name'], 0)
     schema_id = await schema.get_schema_id()
+    print("schema_id ", schema_id)
 
     print("#4 Create a new credential definition on the ledger")
-    cred_def = await CredentialDef.create('credef_uuid', 'degree', schema_id, 0)
+    if REVOKE:
+        cred_def = await CredentialDef.create('credef_uuid', 'degree', schema_id, 0, {"support_revocation": True, "tails_file": "/tmp/tails", "max_creds": 5})
+    else:
+        cred_def = await CredentialDef.create('credef_uuid', 'degree', schema_id, 0, {"support_revocation": False})
     cred_def_handle = cred_def.handle
+    cred_def_id = await cred_def.get_cred_def_id()
+    print("credential_definition ", cred_def_id)
 
     print("#5 Create a connection to alice and print out the invite details")
     connection_to_alice = await Connection.create('alice')
@@ -99,7 +107,7 @@ async def main():
             "2 - ask for proof request \n "
             "3 - send ping \n "
             "4 - update connection state \n "
-            "else finish \n") \
+            "x - finish \n") \
             .lower().strip()
         if answer == '1':
             await issue_credential(connection_to_alice, cred_def_handle)
@@ -115,8 +123,10 @@ async def main():
                 print("State: " + str(connection_state))
         elif answer == '4':
             await connection_to_alice.update_state()
-        else:
+        elif answer == 'x' or answer == 'X':
             break
+        else:
+            print('invalid option !')
 
     print("Finished")
 
@@ -153,6 +163,10 @@ async def issue_credential(connection_to_alice, cred_def_handle):
         await credential.update_state()
         credential_state = await credential.get_state()
 
+    if REVOKE:
+        print('#18.5 Revoke the credential')
+        await credential.revoke_credential()
+
 
 async def ask_for_proof(connection_to_alice, institution_did):
     proof_attrs = [
@@ -162,7 +176,7 @@ async def ask_for_proof(connection_to_alice, institution_did):
     ]
 
     print("#19 Create a Proof object")
-    proof = await Proof.create('proof_uuid', 'proof_from_alice', proof_attrs, {})
+    proof = await Proof.create('proof_uuid', 'proof_from_alice', proof_attrs, {'to': int(round(time.time() * 1000))})
 
     print("#20 Request proof of degree from alice")
     await proof.request_proof(connection_to_alice)
@@ -180,6 +194,8 @@ async def ask_for_proof(connection_to_alice, institution_did):
     print("#28 Check if proof is valid")
     if proof.proof_state == ProofState.Verified:
         print("proof is verified!!")
+    elif proof.proof_state == ProofState.Invalid:
+        print("proof is invalid!!")
     else:
         print("could not verify proof :(")
 
