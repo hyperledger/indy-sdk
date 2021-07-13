@@ -28,6 +28,7 @@ public abstract class LibVcx {
         public String vcx_version();
         public int vcx_shutdown(boolean delete);
         public int vcx_reset();
+        public int vcx_update_webhook_url(int command_handle, String notification_webhook_url, Callback cb);
 
     /**
      * Helper API for testing purposes.

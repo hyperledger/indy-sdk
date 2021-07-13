@@ -100,4 +100,29 @@ public class VcxApi extends VcxJava.API {
 
     }
 
+    private static Callback vcxUpdateWebhookUrlCB = new Callback() {
+        @SuppressWarnings({"unused", "unchecked"})
+        public void callback(int commandHandle, int err) {
+            logger.debug("callback() called with: commandHandle = [" + commandHandle + "], err = [" + err + "]");
+            CompletableFuture<Integer> future = (CompletableFuture<Integer>) removeFuture(commandHandle);
+            if (!checkCallback(future, err)) return;
+            future.complete(err);
+        }
+    };
+
+    public static CompletableFuture<Integer> vcxUpdateWebhookUrl(String notificationWebhookUrl) throws VcxException {
+        ParamGuard.notNullOrWhiteSpace(notificationWebhookUrl, "notificationWebhookUrl");
+        logger.debug("vcxUpdateWebhookUrl() called with: notificationWebhookUrl = [" + notificationWebhookUrl + "]");
+        CompletableFuture<Integer> future = new CompletableFuture<Integer>();
+        int commandHandle = addFuture(future);
+
+        int result = LibVcx.api.vcx_update_webhook_url(
+                commandHandle,
+                notificationWebhookUrl,
+                vcxUpdateWebhookUrlCB);
+        checkResult(result);
+
+        return future;
+    }
+
 }
