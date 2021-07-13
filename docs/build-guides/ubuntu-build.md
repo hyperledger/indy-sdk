@@ -70,14 +70,15 @@ For manually building this can be achieved by passing `--features sodium_static`
    cd cli/
    RUSTFLAGS=" -L ../libindy/target/debug" cargo build
    ```
-   If you have followed the instructions to build libindy above, the default build type will be `debug`
+   
+If you have followed the instructions to build libindy above, the default build type will be `debug`
 
-   Make sure to add the libindy to the path. Replace `/path/to` with the actual path to the libindy directory. Using bash:
-   ```
-   echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libindy/target/{BUILD TYPE}" >> ~/.bashrc
-   sudo ldconfig
-   source ~/.bashrc
-   ```
-   To run indy-cli, navigate to `cli/target/debug` and run `./indy-cli`
+Make sure to add the libindy to the path. Replace `/path/to` with the actual path to the libindy directory. Using bash:
+```
+echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libindy/target/{BUILD TYPE}" >> ~/.bashrc
+sudo ldconfig
+source ~/.bashrc
+```
+To run indy-cli, navigate to `cli/target/debug` and run `./indy-cli`
 
 See [libindy/ci/ubuntu.dockerfile](https://github.com/hyperledger/indy-sdk/tree/master/libindy/ci/ubuntu.dockerfile) for example of Ubuntu based environment creation in Docker.
