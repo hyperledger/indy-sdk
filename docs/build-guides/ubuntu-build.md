@@ -1,4 +1,6 @@
-# Setup Indy SDK build environment for Ubuntu based distro (Ubuntu 16.04)
+# Build `libindy` for Ubuntu
+
+## Setup Indy SDK build environment for Ubuntu based distro (Ubuntu 16.04)
 
 1. Install Rust and rustup (https://www.rust-lang.org/install.html).
 1. Install required native libraries and utilities:
@@ -81,3 +83,19 @@ For manually building this can be achieved by passing `--features sodium_static`
    To run indy-cli, navigate to `cli/target/debug` and run `./indy-cli`
 
 See [libindy/ci/ubuntu.dockerfile](https://github.com/hyperledger/indy-sdk/tree/master/libindy/ci/ubuntu.dockerfile) for example of Ubuntu based environment creation in Docker.
+
+## Build using Docker 
+
+To build `libindy` for Ubuntu using Docker :
+1) Go to `indy-sdk/libindy`
+2) Run `build-libindy-ubuntu-with-docker.sh`
+
+This script will build the Docker image `build-libindy-ubuntu` which
+contains the built lib in `/home/libindy/target/debug/`.
+
+You can recover the lib `libindy.so` in your current directory `.` with this commands :
+```bash
+docker container create --name extract build-libindy-ubuntu
+docker container cp extract:/home/libindy/target/debug/libindy.so .
+docker container rm -f extract
+```
