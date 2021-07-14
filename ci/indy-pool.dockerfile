@@ -13,10 +13,9 @@ RUN apt-get update -y && apt-get install -y \
 	apt-transport-https \
 	ca-certificates \
 	supervisor
-
-RUN pip3 install -U \
-	pip==9.0.3 \
-	setuptools
+RUN python3 --version
+RUN pip3 install --upgrade pip==9.0.3
+RUN pip3 install -U setuptools
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys CE7709D068DB5E88 || \
 	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys CE7709D068DB5E88
